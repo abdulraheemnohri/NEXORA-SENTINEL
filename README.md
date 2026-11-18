@@ -51,6 +51,17 @@ For Android Debian, use bash scripts/install_android_debian.sh.
 bash scripts/verify.sh
 ~~~
 
+## Built-in GitHub updater
+
+The updater checks the official `abdulraheemnohri/NEXORA-SENTINEL` repository's `main` branch. It does not update automatically in the background.
+
+~~~bash
+nexora update check
+nexora update install --confirm
+~~~
+
+Installation is an explicit operator action and requires the official Git origin, the `main` branch, a clean working tree and a fast-forward-only update. It fetches the checked GitHub commit, updates the checkout and reinstalls the local package. If package installation fails, it attempts to roll the source checkout back to its previous commit. Keep a separate backup before updating. The updater requires Git, network access and pip; it is intended for a Git checkout, not a standalone wheel/zip installation. It does not bypass GitHub branch protections or verify a release signature. Review changes and CI before installing; a GitHub commit is not automatically a trusted release.
+
 ## Settings inspection and validation
 
 Inspect the validated settings file (defaults are used only when the file is absent):
