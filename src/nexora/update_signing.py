@@ -155,3 +155,56 @@ def verify_manifest(manifest_path: Path, trusted_key_path: Path) -> dict[str, An
         "signer_fingerprint": actual_fingerprint,
         "trust": "externally_pinned_ed25519_key",
     }
+
+
+
+def generate_update_signing_keypair(private_path: Path, public_path: Path) -> str:
+    """Create a dedicated Ed25519 update keypair without overwriting either path."""
+    private_destination = Path(private_path)
+    public_destination = Path(public_path)
+    if private_destination.resolve() == public_destination.resolve():
+        raise UpdateSignatureError("update_key_paths_must_be_different")
+    private_destination.parent.mkdir(parents=True, exist_ok=True)
+    public_destination.parent.mkdir(parents=True, exist_ok=True)
+    if private_destination.exists() or public_destination.exists():
+        raise UpdateSignatureError("update_key_output_exists")
+
+    key = Ed25519PrivateKey.generate()
+    private_bytes = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    public_bytes = key.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    created_private = False
+    try:
+        private_fd = os.open(
+            private_destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600,
+        )
+        created_private = True
+        with os.fdopen(private_fd, "wb") as stream:
+            stream.write(private_bytes)
+            stream.flush()
+            os.fsync(stream.fileno())
+        public_fd = os.open(
+            public_destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644,
+        )
+        with os.fdopen(public_fd, "wb") as stream:
+            stream.write(public_bytes)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except FileExistsError as exc:
+        if created_private:
+            private_destination.unlink(missing_ok=True)
+        raise UpdateSignatureError("update_key_output_exists") from exc
+    except OSError as exc:
+        if created_private:
+            private_destination.unlink(missing_ok=True)
+        raise UpdateSignatureError("update_key_write_failed") from exc
+    if os.name == "posix":
+        os.chmod(private_destination, 0o600)
+        os.chmod(public_destination, 0o644)
+    return _fingerprint(key.public_key())
