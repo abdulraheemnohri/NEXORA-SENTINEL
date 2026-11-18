@@ -253,6 +253,11 @@ def main(argv=None):
             load_private_key,
             load_public_key,
         )
+        from nexora.emergency_recovery import (
+            EmergencyRecoveryError,
+            EmergencyRecoveryStore,
+            create_recovery_authorization,
+        )
         try:
             if args.approval_cmd == "keygen":
                 fingerprint = generate_keypair(args.private_key, args.public_key)
@@ -271,9 +276,45 @@ def main(argv=None):
                     stream.write("\\n")
                 result = {"created": True, "output": str(args.output),
                           "capability_id": args.capability_id, "transition": args.transition}
+            elif args.approval_cmd == "recovery-issue":
+                authorization = create_recovery_authorization(
+                    load_private_key(args.private_key),
+                    authority_id=args.authority_id,
+                    old_fingerprint=args.old_fingerprint,
+                    new_public_key=load_public_key(args.new_public_key),
+                    new_label=args.new_label, reason=args.reason,
+                    ttl_seconds=args.ttl_seconds,
+                )
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                with args.output.open("x", encoding="utf-8") as stream:
+                    json.dump(authorization, stream, ensure_ascii=False, sort_keys=True, indent=2)
+                    stream.write("\\n")
+                result = {"created": True, "output": str(args.output),
+                          "authority_id": args.authority_id, "expires_at": authorization["payload"]["expires_at"]}
             else:
-                store = ApprovalReceiptStore(args.data_dir / "registry.sqlite3")
-                if args.approval_cmd == "enroll":
+                database = args.data_dir / "registry.sqlite3"
+                store = ApprovalReceiptStore(database)
+                recovery = EmergencyRecoveryStore(database)
+                if args.approval_cmd == "recovery-enroll":
+                    fingerprint = recovery.enroll_authority(
+                        load_public_key(args.public_key), authority_id=args.authority_id,
+                        label=args.label, validity_days=args.validity_days,
+                    )
+                    result = {"enrolled": True, "authority_fingerprint": fingerprint}
+                elif args.approval_cmd == "recover":
+                    authorizations = [json.loads(path.read_text(encoding="utf-8")) for path in args.authorization]
+                    fingerprint = recovery.recover_approval_key(
+                        old_fingerprint=args.old_fingerprint,
+                        new_public_key=load_public_key(args.new_public_key),
+                        new_label=args.new_label, reason=args.reason,
+                        authorizations=authorizations, validity_days=args.validity_days,
+                    )
+                    result = {"recovered": True, "new_fingerprint": fingerprint}
+                elif args.approval_cmd == "recovery-authorities":
+                    result = {"authorities": recovery.list_authorities()}
+                elif args.approval_cmd == "recovery-history":
+                    result = {"events": recovery.history()}
+                elif args.approval_cmd == "enroll":
                     fingerprint = store.enroll_key(
                         load_public_key(args.public_key), label=args.label,
                         validity_days=args.validity_days,
@@ -300,7 +341,7 @@ def main(argv=None):
                     result = {"keys": store.list_keys()}
                 else:
                     result = {"events": store.key_history(args.fingerprint)}
-        except (ApprovalError, OSError, ValueError) as exc:
+        except (ApprovalError, EmergencyRecoveryError, OSError, ValueError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
