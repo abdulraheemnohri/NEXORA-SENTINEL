@@ -54,7 +54,7 @@ def test_simulation_is_persisted_witnessed_and_audited(tmp_path):
 
 
 def test_history_excludes_unwitnessed_rows(tmp_path):
-    witness_private, witness_public = _keys(tmp_path, "witness")
+    _witness_private, witness_public = _keys(tmp_path, "witness")
     history = tmp_path / "history.jsonl"
     receipts = tmp_path / "receipts.jsonl"
     event = {"schema_version": 1, "simulation_id": "untrusted", "timestamp": "2026-01-01T00:00:00+00:00"}
