@@ -27,6 +27,33 @@ def main(argv=None):
     capabilities = sub.add_parser("capabilities", help="Inspect source-backed self-capability coverage")
     capabilities.add_argument("--family")
     capabilities.add_argument("--include-records", action="store_true")
+    approval = sub.add_parser("approval", help="Manage independently pinned lifecycle approval keys")
+    approval_sub = approval.add_subparsers(dest="approval_cmd", required=True)
+    approval_keygen = approval_sub.add_parser("keygen")
+    approval_keygen.add_argument("--private-key", type=Path, required=True)
+    approval_keygen.add_argument("--public-key", type=Path, required=True)
+    approval_enroll = approval_sub.add_parser("enroll")
+    approval_enroll.add_argument("--public-key", type=Path, required=True)
+    approval_enroll.add_argument("--label", required=True)
+    approval_rotate = approval_sub.add_parser("rotate")
+    approval_rotate.add_argument("--old-fingerprint", required=True)
+    approval_rotate.add_argument("--new-public-key", type=Path, required=True)
+    approval_rotate.add_argument("--new-label", required=True)
+    approval_rotate.add_argument("--reason", required=True)
+    approval_revoke = approval_sub.add_parser("revoke")
+    approval_revoke.add_argument("--fingerprint", required=True)
+    approval_revoke.add_argument("--reason", required=True)
+    approval_sub.add_parser("keys")
+    approval_history = approval_sub.add_parser("history")
+    approval_history.add_argument("--fingerprint")
+    approval_issue = approval_sub.add_parser("issue")
+    approval_issue.add_argument("--private-key", type=Path, required=True)
+    approval_issue.add_argument("--capability-id", type=int, required=True)
+    approval_issue.add_argument("--transition", choices=("APPROVED", "ENABLED"), required=True)
+    approval_issue.add_argument("--evidence", nargs="+", required=True)
+    approval_issue.add_argument("--approver-id", required=True)
+    approval_issue.add_argument("--ttl-seconds", type=int, default=900)
+    approval_issue.add_argument("--output", type=Path, required=True)
     evidence = sub.add_parser("evidence", help="Record and verify capability evidence references")
     evidence_sub = evidence.add_subparsers(dest="evidence_cmd", required=True)
     evidence_add = evidence_sub.add_parser("add")
@@ -173,6 +200,52 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "approval":
+        from nexora.approval import (
+            ApprovalError, ApprovalReceiptStore, create_receipt,
+            generate_keypair, load_private_key, load_public_key,
+        )
+        try:
+            if args.approval_cmd == "keygen":
+                fingerprint = generate_keypair(args.private_key, args.public_key)
+                result = {"created": True, "fingerprint": fingerprint,
+                          "private_key": str(args.private_key), "public_key": str(args.public_key)}
+            elif args.approval_cmd == "issue":
+                receipt = create_receipt(
+                    load_private_key(args.private_key),
+                    capability_id=args.capability_id, transition=args.transition,
+                    evidence=args.evidence, approver_id=args.approver_id,
+                    ttl_seconds=args.ttl_seconds,
+                )
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                with args.output.open("x", encoding="utf-8") as stream:
+                    json.dump(receipt, stream, ensure_ascii=False, sort_keys=True, indent=2)
+                    stream.write("\\n")
+                result = {"created": True, "output": str(args.output),
+                          "capability_id": args.capability_id, "transition": args.transition}
+            else:
+                store = ApprovalReceiptStore(args.data_dir / "registry.sqlite3")
+                if args.approval_cmd == "enroll":
+                    fingerprint = store.enroll_key(load_public_key(args.public_key), label=args.label)
+                    result = {"enrolled": True, "fingerprint": fingerprint}
+                elif args.approval_cmd == "rotate":
+                    fingerprint = store.rotate_key(
+                        args.old_fingerprint, load_public_key(args.new_public_key),
+                        new_label=args.new_label, reason=args.reason,
+                    )
+                    result = {"rotated": True, "new_fingerprint": fingerprint}
+                elif args.approval_cmd == "revoke":
+                    store.revoke_key(args.fingerprint, reason=args.reason)
+                    result = {"revoked": True, "fingerprint": args.fingerprint}
+                elif args.approval_cmd == "keys":
+                    result = {"keys": store.list_keys()}
+                else:
+                    result = {"events": store.key_history(args.fingerprint)}
+        except (ApprovalError, OSError, ValueError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     if args.cmd == "evidence":
         from nexora.evidence import EvidenceError, EvidenceLedger
         ledger = (
