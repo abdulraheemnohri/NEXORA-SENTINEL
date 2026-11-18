@@ -14,3 +14,6 @@ data/backups/
 data/runtime/
 *.pem
 *.jks
+
+# Local model weights are not source-controlled.
+models/
