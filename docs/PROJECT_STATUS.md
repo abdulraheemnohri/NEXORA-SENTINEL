@@ -43,3 +43,8 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 7. Verify the official LiteRT-LM CLI and a small `.litertlm` model on Pixel/Android Debian; only then test Qwen3-4B-Thinking-2507 with memory monitoring, recording CPU/GPU stability, load time and token throughput without making unmeasured performance claims.
 
 No merge or release is performed without owner approval.
+
+
+## Update trust gate
+
+The updater install path now requires a signed Ed25519 manifest verified against a separately provisioned public key, exact commit-SHA equality with GitHub main, successful exact-SHA CI, a clean worktree and fast-forward ancestry. No publisher key is embedded or assumed. A release signing workflow and independently distributed publisher key remain operator/release-process tasks.
