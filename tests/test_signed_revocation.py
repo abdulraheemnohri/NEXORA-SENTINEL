@@ -154,3 +154,55 @@ def test_concurrent_revocation_only_commits_once(tmp_path):
     assert outcomes.count("revoked") == 1
     assert outcomes.count("already_revoked") == 1
     assert len(registry.revocation_history(17)) == 1
+
+
+def test_signed_history_verifier_detects_receipt_tampering(tmp_path):
+    registry, keys = _setup(tmp_path)
+    evidence = ["revocation_basis", "reason:incident"]
+    registry.revoke(
+        17, "incident", evidence,
+        approval_receipts=_receipts(keys, "REVOKE", evidence),
+        approver_ids=["operator-0", "operator-1"],
+    )
+    with sqlite3.connect(registry.database) as db:
+        row = db.execute(
+            "SELECT event_id,receipt_payloads_json FROM revocation_events WHERE capability_id=17"
+        ).fetchone()
+        envelopes = json.loads(row[1])
+        envelopes[0]["signature"] = "ZmFrZQ=="
+        db.execute(
+            "UPDATE revocation_events SET receipt_payloads_json=? WHERE event_id=?",
+            (json.dumps(envelopes), row[0]),
+        )
+    report = registry.verify_signed_history(17)
+    assert report["valid"] is False
+    assert report["events"][0]["valid"] is False
+
+
+def test_signed_history_verifier_detects_missing_nonce_consumption(tmp_path):
+    registry, keys = _setup(tmp_path)
+    evidence = ["revocation_basis", "reason:incident"]
+    registry.revoke(
+        17, "incident", evidence,
+        approval_receipts=_receipts(keys, "REVOKE", evidence),
+        approver_ids=["operator-0", "operator-1"],
+    )
+    event = registry.revocation_history(17)[0]
+    envelopes = json.loads(event["receipt_payloads_json"])
+    nonce = envelopes[0]["payload"]["nonce"]
+    fingerprint = envelopes[0]["payload"]["key_fingerprint"]
+    with sqlite3.connect(registry.database) as db:
+        db.execute(
+            "DELETE FROM consumed_approval_receipts WHERE nonce=? AND fingerprint=?",
+            (nonce, fingerprint),
+        )
+    report = registry.verify_signed_history(17)
+    assert report["valid"] is False
+    assert "signed_receipt_nonce_consumption_missing" in report["events"][0]["errors"]
+
+
+def test_signed_history_verification_fails_closed_when_empty(tmp_path):
+    registry, _ = _setup(tmp_path)
+    report = registry.verify_signed_history(17)
+    assert report["valid"] is False
+    assert report["event_count"] == 0
