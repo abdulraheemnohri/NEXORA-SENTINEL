@@ -7,7 +7,6 @@ the ability to approve ordinary capability transitions.
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import secrets
 import sqlite3
@@ -271,9 +270,6 @@ class EmergencyRecoveryStore:
                     raise
                 raise EmergencyRecoveryError("recovery_authorization_malformed") from exc
 
-        replacement_pem = new_public_key.public_bytes(
-            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
-        ).decode("ascii")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             old = db.execute(
