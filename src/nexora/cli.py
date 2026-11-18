@@ -433,7 +433,9 @@ def main(argv=None):
         return 0
     if args.cmd == "recovery-readiness":
         from nexora.recovery_readiness import (
-            RecoveryReadinessError, RecoverySettings, build_recovery_readiness,
+            RecoveryReadinessError,
+            RecoverySettings,
+            build_recovery_readiness,
         )
         try:
             settings = RecoverySettings.load(args.config) if args.config.is_file() else RecoverySettings().validate()
