@@ -131,6 +131,11 @@ def main(argv=None):
     governance_check = sub.add_parser("governance-check", help="Validate governance artifacts without changing policy")
     governance_check.add_argument("--matrix", type=Path)
     governance_check.add_argument("--precedence", type=Path)
+    governance_impact = sub.add_parser(
+        "governance-impact", help="Analyze explicitly declared dependents of a capability"
+    )
+    governance_impact.add_argument("capability_id", type=int)
+    governance_impact.add_argument("--matrix", type=Path)
     governance_relation = sub.add_parser("governance-relation", help="Inspect one directed capability relationship")
     governance_relation.add_argument("source", type=int)
     governance_relation.add_argument("target", type=int)
@@ -409,6 +414,21 @@ def main(argv=None):
         except (OSError, ValueError, TypeError) as exc:
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
+        return 0
+    if args.cmd == "governance-impact":
+        from nexora.governance.validation import (
+            GovernanceValidationError,
+            DEFAULT_MATRIX,
+            analyze_revocation_impact,
+        )
+        try:
+            result = analyze_revocation_impact(
+                args.capability_id, args.matrix or DEFAULT_MATRIX,
+            )
+        except (GovernanceValidationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if args.cmd in ("governance-check", "governance-relation"):
         from nexora.governance.validation import (
