@@ -142,7 +142,11 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     return
                 try:
                     content = _render_family_evaluation(root, values[0] if values else None)
-                    self._send(200, "application/json; charset=utf-8", content.encode("utf-8"))
+                    payload = json.dumps(
+                        {"read_only": True, "view": content},
+                        ensure_ascii=False, separators=(",", ":"),
+                    ).encode("utf-8")
+                    self._send(200, "application/json; charset=utf-8", payload)
                 except (OSError, ValueError, TypeError, sqlite3.Error) as exc:
                     self._send(500, "application/json; charset=utf-8",
                                json.dumps({"error": type(exc).__name__}).encode("utf-8"))
