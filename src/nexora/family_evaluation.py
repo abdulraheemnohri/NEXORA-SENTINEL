@@ -94,6 +94,12 @@ def build_family_evaluation(
                     evidence_types=set(summary["evidence_types"]),
                     evidence_record_count=summary["record_count"],
                 )
+                if (
+                    evidence["assessment"] == "EVIDENCE_GAPS"
+                    and evidence["first_blocked_gate"] in {"APPROVED", "ENABLED"}
+                    and all(not stage["missing_evidence"] for stage in evidence["stages"])
+                ):
+                    evidence["assessment"] = "EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION"
             elif ledger_state == "INVALID":
                 evidence = {
                     "assessment": "BLOCKED_LEDGER_INTEGRITY",
@@ -116,8 +122,16 @@ def build_family_evaluation(
             assessment = "NOT_EVALUATED_NO_LEDGER"
         elif ledger_state == "INVALID":
             assessment = "BLOCKED_LEDGER_INTEGRITY"
-        elif assessments.get("EVIDENCE_COMPLETE", 0) == len(members):
-            assessment = "EVIDENCE_COMPLETE"
+        elif (
+            assessments.get("EVIDENCE_COMPLETE", 0)
+            + assessments.get("EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION", 0)
+            == len(members)
+        ):
+            assessment = (
+                "EVIDENCE_COMPLETE"
+                if assessments.get("EVIDENCE_COMPLETE", 0) == len(members)
+                else "EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION"
+            )
         else:
             assessment = "EVIDENCE_GAPS"
         family_reports.append({
