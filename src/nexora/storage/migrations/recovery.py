@@ -62,7 +62,7 @@ def migrate_with_backup(
         previous = int(connection.execute("PRAGMA user_version").fetchone()[0])
         try:
             current = apply_migrations(connection, migrations)
-        except Exception as exc:  # noqa: BLE001 - every migration failure must trigger recovery.
+        except Exception as exc:
             try:
                 restore_backup(
                     backup_path, recovery_copy_path,
