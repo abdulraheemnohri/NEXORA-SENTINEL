@@ -26,3 +26,27 @@ python -m pytest tests/test_backup.py tests/test_backup_inventory.py
 ```
 
 The inventory tests cover empty/missing directories, orphan artifacts, absent trust anchors, valid signatures, tampering, malformed manifests, and symlink refusal.
+
+## Recovery-point planning and retention proposals
+
+Rank verified backups using their signed manifest creation timestamp. If a valid legacy record lacks that field, filesystem modification time is shown as a fallback and is not represented as cryptographic creation evidence.
+
+```bash
+nexora recovery-plan --directory data/backups \
+  --trusted-key /secure/off-device/backup-signing-key.pub.pem \
+  --retention-days 30 --keep-latest 3
+```
+
+Retention output is a proposal only. It marks points as `KEEP` or `REVIEW_FOR_RETENTION`; no file is deleted, moved, or rewritten. Review candidates manually and preserve artifacts when provenance is uncertain.
+
+## Isolated restore simulation
+
+```bash
+nexora recovery-simulate data/backups/registry.sqlite3 \
+  --trusted-key /secure/off-device/backup-signing-key.pub.pem \
+  --confirm-simulation
+```
+
+The command verifies the signed backup, restores it into a fresh operating-system temporary directory, checks the restored SQLite database, then removes the temporary output. It does not write to the configured live database or leave a persistent restored copy. The report confirms that the simulation output was removed.
+
+A successful simulation demonstrates that this backup can be verified and restored in the current environment. It is not proof of physical disaster-recovery readiness, hardware durability, or availability of the separately stored trust key.
