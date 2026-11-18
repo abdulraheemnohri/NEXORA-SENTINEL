@@ -43,7 +43,8 @@ def test_web_dashboard_rejects_nonlocal_host_header(tmp_path):
 
 
 def test_web_dashboard_has_no_mutation_methods(tmp_path):
-    server = create_read_only_server(tmp_path, 0)
+    data_dir = tmp_path / "missing-data"
+    server = create_read_only_server(data_dir, 0)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -53,7 +54,7 @@ def test_web_dashboard_has_no_mutation_methods(tmp_path):
         assert response.status == 405
         assert b"method_not_allowed" in response.read()
         connection.close()
-        assert not tmp_path.exists()
+        assert not data_dir.exists()
     finally:
         server.shutdown()
         server.server_close()
