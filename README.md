@@ -280,3 +280,13 @@ nexora recovery-readiness --config config/recovery.json
 ```
 
 The readiness report now includes the latest independently witnessed simulation state. The read-only dashboard exposes `/api/recovery-history` and incorporates verified simulation evidence into `/api/recovery-readiness`. Unwitnessed or tampered history is excluded or reported invalid. Simulation never replaces a live database, removes backups, or authorizes production restore.
+
+
+Compare two verified recovery points without restoring either:
+
+```bash
+nexora recovery-compare data/backups/previous.sqlite3 data/backups/current.sqlite3 \
+  --trusted-key /secure/off-device/backup-signing-key.pub.pem
+```
+
+The comparison reports schema and SQLite migration-version differences only; it does not inspect or compare application row data.
