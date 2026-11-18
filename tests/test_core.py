@@ -252,6 +252,7 @@ def test_revocation_is_terminal_and_append_only(tmp_path):
 
 def test_rollback_is_audited_but_never_executed_by_registry(tmp_path):
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     from nexora.approval import create_receipt
     from nexora.registry import CapabilityRegistry, RegistryError
 
