@@ -227,7 +227,8 @@ def verify_backup(
             raise BackupError("backup_manifest_metadata_mismatch")
     return {
         "valid": True, "sha256": manifest["sha256"],
-        "signer_fingerprint": manifest["signer_fingerprint"], **actual,
+        "signer_fingerprint": manifest["signer_fingerprint"],
+        "created_at": manifest.get("created_at"), **actual,
     }
 
 
