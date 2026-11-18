@@ -84,7 +84,7 @@ nexora update verify-manifest release.manifest.json \
   --trusted-key /secure/path/pinned-update-public-key.pem
 ~~~
 
-The signer private key must have restrictive file permissions (0600 on POSIX). Manifest creation refuses to overwrite an existing file. Verification rejects schema changes, repository/ref mismatches, fingerprint mismatches and invalid signatures. This is a foundation for signed releases: the current GitHub updater does **not yet require a verified manifest before installation**, and no project release-signing key is enrolled or published. Do not treat unsigned GitHub commits as signed releases.
+The signer private key must have restrictive file permissions (0600 on POSIX). Manifest creation refuses to overwrite an existing file. Verification rejects schema changes, repository/ref mismatches, fingerprint mismatches and invalid signatures. The GitHub updater now requires a verified manifest and an independently pinned public key before installation. No project publisher key is embedded or distributed by the repository; operators must enroll the public key through a separate trusted channel. Do not treat an unsigned commit as a signed release.
 
 ## Built-in LiteRT-LM local runtime
 
