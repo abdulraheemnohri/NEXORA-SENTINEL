@@ -69,3 +69,50 @@ scope/evidence mismatches, expired or revoked keys, and replayed receipts.
 Receipt consumption and state change are atomic. This is a two-key/two-label
 control, not proof of two distinct humans; independent identity verification
 and key custody remain operational requirements.
+
+## Signed capability revocation
+
+Revocation is a separate, immediate control-state overlay. It does not rewrite the lifecycle state, but every subsequent lifecycle transition and rollback-record request fails closed while `control_state=REVOKED`. All capabilities currently use the same two-approver threshold (two through five distinct approver IDs and independently enrolled signing-key fingerprints); no untrusted capability criticality classification is inferred. Revocation receipts bind the capability ID, `REVOKE` action, exact evidence set (including `revocation_basis` and `reason:<exact reason>`), approver identity, expiry, nonce and signing-key fingerprint. Receipt nonce consumption, control-state change and append-only event insertion share one `BEGIN IMMEDIATE` transaction.
+
+Each operator independently issues a receipt using their own private key. Use the exact same evidence tokens and reason for both:
+
+```bash
+nexora approval issue --private-key operator-1.pem --capability-id 42 \
+  --transition REVOKE --evidence revocation_basis incident_report reason:unsafe_behavior \
+  --approver-id operator-1 --output operator-1-revoke.json
+
+nexora approval issue --private-key operator-2.pem --capability-id 42 \
+  --transition REVOKE --evidence revocation_basis incident_report reason:unsafe_behavior \
+  --approver-id operator-2 --output operator-2-revoke.json
+
+nexora registry-revoke 42 --reason unsafe_behavior \
+  --evidence revocation_basis incident_report reason:unsafe_behavior \
+  --approver-id operator-1 operator-2 \
+  --approval-receipt operator-1-revoke.json operator-2-revoke.json
+```
+
+A revoked capability cannot be restored by ordinary `APPROVED` or `ENABLED` receipts. Revocation is terminal in this release; no revocation-undo command exists. Revoke events retain the approver IDs, signer fingerprints and signed receipt payloads in append-only history.
+
+## Signed rollback authorization
+
+A rollback authorization is a signed governance record only; it does not execute a deployment, change files, alter lifecycle state, or undo revocation. It is accepted only for an active capability and requires two through five independent approval keys. The signed evidence must include `rollback_plan`, `validation_report`, `human_approval`, and exact `from_release:<value>`, `target_release:<value>`, and `reason:<value>` tokens.
+
+```bash
+nexora approval issue --private-key operator-1.pem --capability-id 42 \
+  --transition ROLLBACK --evidence rollback_plan validation_report human_approval \
+  from_release:v2 target_release:v1 reason:regression \
+  --approver-id operator-1 --output operator-1-rollback.json
+
+nexora approval issue --private-key operator-2.pem --capability-id 42 \
+  --transition ROLLBACK --evidence rollback_plan validation_report human_approval \
+  from_release:v2 target_release:v1 reason:regression \
+  --approver-id operator-2 --output operator-2-rollback.json
+
+nexora rollback-record 42 --from-release v2 --target-release v1 --reason regression \
+  --evidence rollback_plan validation_report human_approval \
+  from_release:v2 target_release:v1 reason:regression \
+  --approver-id operator-1 operator-2 \
+  --approval-receipt operator-1-rollback.json operator-2-rollback.json
+```
+
+The rollback record consumes both nonces atomically and is append-only. Replays, expired or revoked keys, duplicate approver IDs, duplicate signing keys, scope mismatches and invalid signatures are rejected. This is an authorization record, not a deployment rollback engine.
