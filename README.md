@@ -192,7 +192,7 @@ nexora witness-backup data/backups/registry.sqlite3
 nexora verify-witness data/witness/receipts.jsonl
 ~~~
 
-The witness key must be different from the backup signing key. Distribute the witness public key separately and verify receipts against that external trust pin. This implementation signs and chains receipts, but it remains a local witness unless the witness process and key are hosted independently. It does not provide hardware-backed or remote attestation. Multi-process append locking is not implemented.
+The witness key must be different from the backup signing key. Distribute the witness public key separately and verify receipts against that external trust pin. This implementation signs and chains receipts, but it remains a local witness unless the witness process and key are hosted independently. It does not provide hardware-backed or remote attestation. Witness appends and verification use cross-process file locking on POSIX and Windows.
 
 ## Safety posture
 
