@@ -1,3 +1,4 @@
+import json
 import sqlite3
 
 import pytest
@@ -86,7 +87,6 @@ def test_memory_tombstone_cli_reports_no_physical_erasure(tmp_path, capsys):
         "--data-dir", str(data_dir), "memory-tombstone", str(memory_id),
         "--reason", "operator request", "--confirm",
     ]) == 0
-    import json
     result = json.loads(capsys.readouterr().out)
     assert result["tombstoned"] is True
     assert result["physical_erasure"] is False
@@ -95,7 +95,6 @@ def test_memory_tombstone_cli_reports_no_physical_erasure(tmp_path, capsys):
 
 def test_memory_delete_compatibility_alias_reports_no_physical_erasure(tmp_path, capsys):
     from nexora.cli import main
-    import json
 
     data_dir = tmp_path / "data"
     store = MemoryStore(data_dir / "memory.sqlite3")
