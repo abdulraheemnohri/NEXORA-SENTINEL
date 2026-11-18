@@ -113,3 +113,58 @@ def test_install_blocks_known_failed_ci(monkeypatch, tmp_path):
     })
     with pytest.raises(updater.UpdateError, match="latest_commit_ci_failed"):
         updater.install_update(root, confirm=True)
+
+
+
+def test_install_requires_signed_manifest_and_external_key(monkeypatch, tmp_path):
+    root = repository(tmp_path)
+    local = updater._git(root, "rev-parse", "HEAD")
+    stub_remote(monkeypatch, "a" * 40)
+    with pytest.raises(updater.UpdateError, match="signed_manifest_and_external_trust_key_required"):
+        updater.install_update(root, confirm=True)
+    assert updater._git(root, "rev-parse", "HEAD") == local
+
+
+def test_install_rejects_manifest_for_different_commit(monkeypatch, tmp_path):
+    root = repository(tmp_path)
+    local = updater._git(root, "rev-parse", "HEAD")
+    stub_remote(monkeypatch, "a" * 40)
+    monkeypatch.setattr(updater, "verify_manifest", lambda *_: {
+        "valid": True, "commit_sha": "b" * 40, "signer_fingerprint": "f" * 64,
+    })
+    with pytest.raises(updater.UpdateError, match="manifest_commit_does_not_match"):
+        updater.install_update(
+            root, confirm=True, manifest=tmp_path / "manifest.json",
+            trusted_key=tmp_path / "trusted.pub",
+        )
+    assert updater._git(root, "rev-parse", "HEAD") == local
+
+
+def test_install_requires_successful_ci_and_valid_manifest(monkeypatch, tmp_path):
+    root = repository(tmp_path)
+    local = updater._git(root, "rev-parse", "HEAD")
+    stub_remote(monkeypatch, "a" * 40, ci_state="unknown")
+    monkeypatch.setattr(updater, "verify_manifest", lambda *_: {
+        "valid": True, "commit_sha": "a" * 40, "signer_fingerprint": "f" * 64,
+    })
+    with pytest.raises(updater.UpdateError, match="ci_not_verified_success"):
+        updater.install_update(
+            root, confirm=True, manifest=tmp_path / "manifest.json",
+            trusted_key=tmp_path / "trusted.pub",
+        )
+    assert updater._git(root, "rev-parse", "HEAD") == local
+
+
+def test_install_rejects_invalid_signature_without_checkout_mutation(monkeypatch, tmp_path):
+    root = repository(tmp_path)
+    local = updater._git(root, "rev-parse", "HEAD")
+    stub_remote(monkeypatch, "a" * 40)
+    def invalid(*_):
+        raise updater.UpdateSignatureError("update_manifest_signature_invalid")
+    monkeypatch.setattr(updater, "verify_manifest", invalid)
+    with pytest.raises(updater.UpdateError, match="signed_manifest_verification_failed"):
+        updater.install_update(
+            root, confirm=True, manifest=tmp_path / "manifest.json",
+            trusted_key=tmp_path / "trusted.pub",
+        )
+    assert updater._git(root, "rev-parse", "HEAD") == local
