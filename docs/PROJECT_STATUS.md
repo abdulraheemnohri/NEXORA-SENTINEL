@@ -4,9 +4,9 @@ Last updated: 2026-11-18
 
 ## Current milestone
 
-Safety kernel, modular package structure, local platform foundations and SQLite backup/restore. The project is not complete.
+Safety kernel, modular package structure, local platform foundations, signed SQLite backups and cryptographic witness receipts. The project is not complete.
 
-## Implemented and CI-covered
+## Implemented and CI-verified
 
 - Fail-closed policy kernel, persistent emergency stop and hash-chained audit log.
 - Evidence-gated sequential lifecycle validator and safety-first precedence resolver.
@@ -14,22 +14,31 @@ Safety kernel, modular package structure, local platform foundations and SQLite 
 - Ed25519 approval receipts; APPROVED and ENABLED require scoped signed receipts. Receipt nonce consumption and lifecycle mutation share one SQLite transaction.
 - Persistent budget ledger, review-only scheduler and tool proposal queue.
 - Safe staging workspace with path containment; submitted code is not executed.
-- SQLite online backup, SHA-256 manifest verification and non-overwriting restore.
+- SQLite online backup using WAL-safe snapshot API.
+- Ed25519-signed canonical backup manifests; verification requires a trusted public key supplied independently of the backup.
+- Backup key generation refuses overwrite and protects private-key file permissions.
+- Restore verifies signature, SHA-256, SQLite integrity and schema metadata before non-overwriting publication.
+- Independent witness receipts use a distinct Ed25519 signing key and sequence-linked hash chain.
+- Witness verification checks signatures, signer fingerprint, sequence and previous-receipt linkage.
+- CLI rejects reusing the backup signing key as the witness key.
 - Conservative YAML settings profiles and validated YAML loader.
 - Modular packages for core, oversight, governance, capabilities, runtime, intelligence, memory, evolution, terminal, interfaces and storage.
 - SQLite migration runner, local memory records, provenance helpers and proposal-only evolution gates.
-- Formal TLA+ lifecycle model checked by TLC in GitHub Actions.
-- CLI, install/verify scripts, documentation and GitHub CI workflows.
+- Formal TLA+ lifecycle model and GitHub Actions verification workflows.
 
-## Latest verification — commit 6cd15de9d3ecbecf64dd7b8fc93555798e8b9e3d
+## Latest verification — commit ef4d1b9060a79815c02f83bbfedb9a45754f8e7e
 
+All five workflows passed on GitHub-hosted Linux / Python 3.12.16:
+
+- Tests: 61 passed.
 - Ruff: passed.
-- Pytest: 54 passed.
 - Python compileall: passed.
 - Dependency consistency (pip check): passed.
-- TLA+ TLC lifecycle invariant check: passed.
-- Python wheel build: passed.
-- GitHub Actions checks ran on GitHub-hosted Linux/Python 3.12.16. These results do not constitute Android Debian or Pixel 6 device testing.
+- Build wheel: passed.
+- TLA+ formal lifecycle verification: passed.
+- Security workflow: passed.
+
+This is hosted CI evidence, not Android Debian or Pixel 6 device testing.
 
 ## Explicitly incomplete
 
@@ -40,17 +49,18 @@ Safety kernel, modular package structure, local platform foundations and SQLite 
 - Memory retrieval and knowledge graph integration remain limited foundations.
 - Staging is not an OS-level sandbox; no tool execution is enabled.
 - Operator labels are not cryptographic identity proof.
-- Backup SHA-256 manifests are unsigned and do not provide authenticated provenance.
+- Witness receipts remain local unless the witness process/key is independently hosted. No hardware or remote attestation is claimed.
+- Multi-process witness append locking is not implemented.
+- Local audit and witness files can be rewritten by an attacker with sufficient filesystem privileges; retain external evidence copies and independently controlled trust keys.
 - Android Debian/Pixel device testing has not been performed remotely.
 
 ## Next priorities
 
-1. Sign backup manifests and add independent witness verification.
-2. Add migration compatibility and restore drills across schema versions.
-3. Build a read-only TUI and local dashboard before any execution controls.
-4. Complete source-backed capability and meta-rule definitions from the project owner.
-5. Populate interaction-matrix relationships only from reviewed source specifications.
-6. Design OS-enforced sandbox isolation before considering code execution.
-7. Conduct Android Debian installation and device verification locally.
+1. Migration compatibility and restore drills across schema versions.
+2. A read-only TUI and local dashboard before any execution controls.
+3. Complete source-backed capability and meta-rule definitions from the project owner.
+4. Populate interaction-matrix relationships only from reviewed source specifications.
+5. Design OS-enforced sandbox isolation before considering code execution.
+6. Conduct Android Debian installation and device verification locally.
 
 PR #1 remains open and unmerged. Do not merge or release without explicit owner approval.

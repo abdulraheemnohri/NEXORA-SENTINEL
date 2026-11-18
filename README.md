@@ -15,7 +15,8 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Persistent resource budget ledger and review-only scheduler.
 - Tool proposal queue; proposed tools are not invoked.
 - Staging workspace with path-containment checks; staged code is not executed.
-- Consistent SQLite online backup, manifest/hash verification and non-destructive restore.
+- Consistent SQLite online backups with Ed25519-signed manifests, external trust-key verification and non-overwriting restore.
+- Separate Ed25519 witness receipt chains with independent public-key verification.
 - Conservative YAML configuration profiles and validated settings loader.
 - Modular package surfaces for core, oversight, governance, capabilities, runtime, intelligence, memory, evolution, terminal and storage.
 
@@ -42,22 +43,40 @@ For Android Debian, use bash scripts/install_android_debian.sh.
 bash scripts/verify.sh
 ~~~
 
-## CLI
+## Signed backup and restore
+
+Initialize the registry and create a dedicated backup signing key pair:
 
 ~~~bash
-nexora status
-nexora catalog-check
-nexora check ACTION --risk low
-nexora audit
-nexora kill
-nexora resume
 nexora registry-init
+nexora backup-keygen
+~~~
+
+Keep data/backup-signing-key.pem private and protected. Distribute data/backup-signing-key.pub.pem to restore/verification machines through a separate trusted channel. Do not trust a public key merely because it arrived beside a backup.
+
+Create and verify a backup:
+
+~~~bash
 nexora backup
 nexora verify-backup data/backups/registry.sqlite3
 nexora restore data/backups/registry.sqlite3 data/registry-restored.sqlite3
 ~~~
 
-The backup command expects the registry database at data/registry.sqlite3; initialize it with nexora registry-init. Backups use SQLite's online backup API (including committed WAL data). A SHA-256 sidecar detects corruption but is **not an authenticated signature**. Restore refuses to overwrite an existing destination.
+Use --signing-key PATH with backup, and --trusted-key PATH with verify-backup or restore, when using non-default key paths. Restore refuses to overwrite an existing destination. The backup uses SQLite's online backup API, including committed WAL data.
+
+## Independent witness receipts
+
+Create a second, distinct key pair for the witness process:
+
+~~~bash
+nexora backup-keygen \
+  --private-key data/witness-signing-key.pem \
+  --public-key data/witness-signing-key.pub.pem
+nexora witness-backup data/backups/registry.sqlite3
+nexora verify-witness data/witness/receipts.jsonl
+~~~
+
+The witness key must be different from the backup signing key. Distribute the witness public key separately and verify receipts against that external trust pin. This implementation signs and chains receipts, but it remains a local witness unless the witness process and key are hosted independently. It does not provide hardware-backed or remote attestation. Multi-process append locking is not implemented.
 
 ## Safety posture
 
