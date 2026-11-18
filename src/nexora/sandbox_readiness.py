@@ -1,6 +1,4 @@
 """Read-only OS sandbox readiness checks. This module never launches a sandbox or code."""
-from __future__ import annotations
-
 import platform
 import shutil
 import sys
