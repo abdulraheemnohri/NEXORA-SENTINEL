@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import sysconfig
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
 from nexora.capability_evaluation import evaluate_capability
-from nexora.evidence import EvidenceLedger
+from nexora.evidence import EvidenceError, EvidenceLedger
 
 PACKAGE_SPEC = Path(sysconfig.get_path("data")) / "share" / "nexora" / "spec"
 SOURCE_SPEC = Path(__file__).resolve().parents[2] / "spec"
@@ -76,9 +77,13 @@ def build_family_evaluation(
     ledger_verification: dict[str, Any] | None = None
     ledger: EvidenceLedger | None = None
     if ledger_path.is_file():
-        ledger = EvidenceLedger(ledger_path)
-        ledger_verification = ledger.verify()
-        ledger_state = "VALID" if ledger_verification["valid"] else "INVALID"
+        try:
+            ledger = EvidenceLedger(ledger_path, readonly=True)
+            ledger_verification = ledger.verify()
+            ledger_state = "VALID" if ledger_verification["valid"] else "INVALID"
+        except (EvidenceError, OSError, sqlite3.Error):
+            ledger_state = "INVALID"
+            ledger_verification = {"valid": False, "error": "ledger_unreadable"}
         if ledger_state != "VALID":
             ledger = None
 
