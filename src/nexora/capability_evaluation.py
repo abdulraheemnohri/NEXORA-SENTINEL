@@ -85,7 +85,7 @@ def evaluate_from_ledger(
     human_approved: bool = False,
 ) -> dict[str, Any]:
     """Evaluate against a verified local ledger; invalid chains fail closed."""
-    ledger = EvidenceLedger(database)
+    ledger = EvidenceLedger(database, readonly=True)
     verification = ledger.verify()
     if not verification["valid"]:
         return evaluate_capability(
