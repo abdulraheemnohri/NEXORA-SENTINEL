@@ -22,7 +22,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="nexora")
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web"):
+    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check"):
         sub.add_parser(name)
     capabilities = sub.add_parser("capabilities", help="Inspect source-backed self-capability coverage")
     capabilities.add_argument("--family")
@@ -270,6 +270,11 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "sandbox-check":
+        from nexora.sandbox_readiness import inspect_sandbox_readiness
+        result = inspect_sandbox_readiness()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "READY" else 3
     if args.cmd == "approval":
         from nexora.approval import (
             ApprovalError,
