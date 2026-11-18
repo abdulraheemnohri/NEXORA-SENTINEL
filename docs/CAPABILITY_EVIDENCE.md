@@ -65,8 +65,9 @@ nexora evidence evaluate 85
 # Dashboard API: GET /api/evidence-evaluation?capability_id=85
 ```
 
-The report compares the capability's recorded evidence tokens with the exact
-requirements in `nexora.lifecycle.EVIDENCE_FOR`. It reports the first gate
+The report compares the capability's complete set of recorded evidence tokens with the exact
+requirements in `nexora.lifecycle.EVIDENCE_FOR`. The evaluator uses a full-ledger summary after
+integrity verification; it is not limited by the 500-record display limit used by `evidence list`. It reports the first gate
 that remains blocked, missing tokens, ledger integrity, and the evidence types
 present. A corrupt ledger blocks every gate.
 
