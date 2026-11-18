@@ -31,3 +31,11 @@ def test_overview_reports_safe_defaults(tmp_path):
     result = render_overview(tmp_path)
     assert "Emergency stop: clear" in result
     assert "Autonomy: L0" in result
+
+
+def test_dashboard_does_not_create_audit_or_data_directory(tmp_path):
+    from nexora.terminal.dashboard import render_audit
+
+    absent = tmp_path / "not-created"
+    assert "Entries: 0" in render_audit(absent)
+    assert not absent.exists()

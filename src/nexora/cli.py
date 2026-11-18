@@ -50,6 +50,9 @@ def main(argv=None):
     witness_verify.add_argument("--trusted-key", type=Path)
 
     args = parser.parse_args(argv)
+    if args.cmd == "tui":
+        import sys
+        return run_read_only_tui(args.data_dir, output=sys.stdout)
     args.data_dir.mkdir(parents=True, exist_ok=True)
     log = AuditLog(args.data_dir / "audit.jsonl")
     stop = KillSwitch(args.data_dir / "KILL")

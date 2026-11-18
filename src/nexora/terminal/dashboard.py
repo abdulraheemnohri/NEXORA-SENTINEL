@@ -1,14 +1,14 @@
 """Read-only terminal dashboard for local NEXORA Sentinel state."""
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
 from typing import Callable, TextIO
 
 from nexora.catalog import status as catalog_status
-from nexora.oversight import AuditLog, KillSwitch
-from nexora.self_families import SELF_FAMILIES
+from nexora.oversight import KillSwitch
 
 MENU = """
 NEXORA SENTINEL — READ-ONLY CONTROL DESK
@@ -20,14 +20,40 @@ NEXORA SENTINEL — READ-ONLY CONTROL DESK
 """
 
 
-def _read_rows(database: Path, query: str, parameters: tuple = ()) -> list[dict]:
+def _read_audit(path: Path) -> tuple[list[dict], bool]:
+    """Read and verify the hash chain without creating or changing the log."""
+    if not path.is_file():
+        return [], True
+    previous = "0" * 64
+    entries: list[dict] = []
+    try:
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                if not line.strip():
+                    continue
+                item = json.loads(line)
+                if not isinstance(item, dict):
+                    return entries, False
+                body = {key: value for key, value in item.items() if key != "hash"}
+                canonical = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+                expected = hashlib.sha256((previous + canonical).encode()).hexdigest()
+                if item.get("previous_hash") != previous or item.get("hash") != expected:
+                    return entries, False
+                entries.append(item)
+                previous = expected
+    except (OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError):
+        return entries, False
+    return entries, True
+
+
+def _read_rows(database: Path, query: str) -> list[dict]:
     if not database.is_file():
         return []
     uri = database.resolve().as_uri() + "?mode=ro"
     connection = sqlite3.connect(uri, uri=True, timeout=3)
     connection.row_factory = sqlite3.Row
     try:
-        return [dict(row) for row in connection.execute(query, parameters).fetchall()]
+        return [dict(row) for row in connection.execute(query).fetchall()]
     finally:
         connection.close()
 
@@ -35,7 +61,7 @@ def _read_rows(database: Path, query: str, parameters: tuple = ()) -> list[dict]
 def render_overview(data_dir: Path) -> str:
     data_dir = Path(data_dir)
     kill = KillSwitch(data_dir / "KILL")
-    audit = AuditLog(data_dir / "audit.jsonl")
+    _, audit_ok = _read_audit(data_dir / "audit.jsonl")
     try:
         catalogue = catalog_status()
         catalog_line = (
@@ -44,7 +70,6 @@ def render_overview(data_dir: Path) -> str:
         )
     except (OSError, ValueError, KeyError) as exc:
         catalog_line = f"Catalogue: unavailable ({type(exc).__name__})"
-    audit_ok = audit.verify()
     return "\n".join((
         "SYSTEM OVERVIEW",
         f"Emergency stop: {'ENGAGED' if kill.is_engaged() else 'clear'}",
@@ -55,10 +80,8 @@ def render_overview(data_dir: Path) -> str:
 
 
 def render_audit(data_dir: Path) -> str:
-    audit = AuditLog(Path(data_dir) / "audit.jsonl")
-    entries = audit.entries()
-    lines = [f"AUDIT LOG — chain {'VALID' if audit.verify() else 'INVALID'}",
-             f"Entries: {len(entries)}"]
+    entries, valid = _read_audit(Path(data_dir) / "audit.jsonl")
+    lines = [f"AUDIT LOG — chain {'VALID' if valid else 'INVALID'}", f"Entries: {len(entries)}"]
     for item in entries[-20:]:
         lines.append(
             f"#{item.get('sequence', '?')} {item.get('event', 'unknown')} "
@@ -70,10 +93,9 @@ def render_audit(data_dir: Path) -> str:
 
 
 def render_proposals(data_dir: Path) -> str:
-    database = Path(data_dir) / "registry.sqlite3"
     try:
         rows = _read_rows(
-            database,
+            Path(data_dir) / "registry.sqlite3",
             """SELECT p.proposal_id,p.family,p.summary,p.execution,
                       (SELECT decision FROM self_family_review_events e
                        WHERE e.proposal_id=p.proposal_id ORDER BY event_id DESC LIMIT 1) AS status
