@@ -86,6 +86,39 @@ nexora update verify-manifest release.manifest.json \
 
 The signer private key must have restrictive file permissions (0600 on POSIX). Manifest creation refuses to overwrite an existing file. Verification rejects schema changes, repository/ref mismatches, fingerprint mismatches and invalid signatures. This is a foundation for signed releases: the current GitHub updater does **not yet require a verified manifest before installation**, and no project release-signing key is enrolled or published. Do not treat unsigned GitHub commits as signed releases.
 
+## Built-in LiteRT-LM local runtime
+
+NEXORA includes a managed adapter for Google's official `litert-lm` CLI. The adapter runs local `.litertlm` files only. It does not accept Hugging Face repository identifiers, download model weights, execute Python presets, or expose model function-calling tools. CPU is the default backend; GPU must be selected explicitly. Runtime execution is disabled by default and each inference call requires an explicit confirmation flag.
+
+Install the official CLI into the active NEXORA Python environment:
+
+```bash
+nexora litertlm install --confirm
+nexora litertlm doctor
+nexora litertlm models
+```
+
+The same installation can be selected through the optional package extra: `python -m pip install -e '.[litertlm]'`.
+
+Place local model files under `models/` (the directory is ignored by Git). Review `config/litertlm.yaml` and set `runtime_enabled: true` only when you intentionally want to permit local inference. Network downloads and Python presets must remain disabled.
+
+```bash
+# One-shot local inference (explicit per-run approval)
+nexora litertlm run --model model-name.litertlm \
+  --prompt "Explain the NEXORA safety lifecycle" --confirm-inference
+
+# Interactive local chat
+nexora litertlm chat --model model-name.litertlm --confirm-inference
+
+# Explicit CPU/GPU choice
+nexora litertlm run --model model-name.litertlm \
+  --backend cpu --prompt "Hello" --confirm-inference
+```
+
+Use `nexora web` and open `http://127.0.0.1:8765` to view the read-only Runtime & Models page, or query `/api/runtime`. The page never launches a model or changes runtime settings. The adapter uses an argument vector (never a shell), enforces a timeout, and reports CLI errors without enabling tool execution.
+
+**Platform note:** Google's CLI documentation lists Linux, macOS, Windows, Android and Raspberry Pi, but actual Python wheel availability and accelerator support depend on the host architecture and environment. Android Debian/Pixel compatibility must be verified on-device; successful package installation is not assumed.
+
 ## Settings inspection and validation
 
 Inspect the validated settings file (defaults are used only when the file is absent):
