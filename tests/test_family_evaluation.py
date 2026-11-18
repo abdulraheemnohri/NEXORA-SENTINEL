@@ -39,7 +39,7 @@ def test_family_report_groups_catalogue_and_exposes_missing_source_records(tmp_p
     assert family_a["family_name"] is None
     family_o = next(item for item in result["families"] if item["family"] == "O")
     assert family_o["source_backed_capabilities"] == 2
-    assert result["families"][0]["evidence_assessment"] == "NOT_EVALUATED_NO_LEDGER"
+    assert family_o["evidence_assessment"] == "NOT_EVALUATED_NO_LEDGER"
     assert result["execution_enabled"] is False
     assert result["lifecycle_changed"] is False
 
