@@ -146,11 +146,28 @@ def test_persistent_registry_records_state_and_append_only_history(tmp_path):
     registry.transition(216, "IMPLEMENTED", {"implementation_reference"})
     registry.transition(216, "TESTED", {"test_report", "test_passed"})
     registry.transition(216, "SHADOWED", {"shadow_report", "no_side_effects"})
-    registry.transition(216, "APPROVED", {"human_approval"}, approver_id="operator:local")
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from nexora.approval import create_receipt
+
+    private = Ed25519PrivateKey.generate()
+    registry.approvals.enroll_key(private.public_key(), label="test operator")
+    approved_evidence = {"human_approval"}
+    approved_receipt = create_receipt(
+        private, capability_id=216, transition="APPROVED",
+        evidence=approved_evidence, approver_id="operator:local", now=1000,
+    )
     registry.transition(
-        216, "ENABLED",
-        {"human_approval", "rollback_plan", "monitoring_plan"},
-        approver_id="operator:local",
+        216, "APPROVED", approved_evidence, approver_id="operator:local",
+        approval_receipt=approved_receipt,
+    )
+    enabled_evidence = {"human_approval", "rollback_plan", "monitoring_plan"}
+    enabled_receipt = create_receipt(
+        private, capability_id=216, transition="ENABLED",
+        evidence=enabled_evidence, approver_id="operator:local", now=1000,
+    )
+    registry.transition(
+        216, "ENABLED", enabled_evidence, approver_id="operator:local",
+        approval_receipt=enabled_receipt,
     )
     assert registry.get(216)["state"] == "ENABLED"
     history = registry.history(216)
@@ -175,6 +192,8 @@ def test_registry_rejects_missing_approver_and_preserves_state(tmp_path):
         registry.transition(217, state, evidence)
     with pytest.raises(RegistryError, match="explicit_operator_identity_required"):
         registry.transition(217, "APPROVED", {"human_approval"})
+    with pytest.raises(RegistryError, match="signed_approval_receipt_required"):
+        registry.transition(217, "APPROVED", {"human_approval"}, approver_id="operator:local")
     assert registry.get(217)["state"] == "SHADOWED"
     assert len(registry.history(217)) == 5
 
@@ -331,3 +350,51 @@ def test_signing_key_file_is_private_and_not_overwritten(tmp_path):
         assert path.stat().st_mode & 0o077 == 0
     with pytest.raises(ApprovalError, match="private_key_already_exists"):
         generate_signing_key(path)
+
+
+
+def test_registry_consumes_signed_receipt_atomically_with_transition(tmp_path):
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    from nexora.approval import create_receipt
+    from nexora.registry import CapabilityRegistry, RegistryError
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    registry.register(222, "Approval transaction", "AI", source_record=True)
+    private = Ed25519PrivateKey.generate()
+    registry.approvals.enroll_key(private.public_key(), label="test operator")
+    evidence = {"human_approval"}
+    receipt = create_receipt(
+        private, capability_id=222, transition="APPROVED", evidence=evidence,
+        approver_id="operator:test", now=1000,
+    )
+    with pytest.raises(RegistryError, match="lifecycle_transition"):
+        registry.transition(
+            222, "APPROVED", evidence, approver_id="operator:test",
+            approval_receipt=receipt,
+        )
+    assert registry.get(222)["state"] == "SPECIFIED"
+    payload = registry.approvals.verify_and_consume(
+        receipt, capability_id=222, transition="APPROVED", evidence=evidence,
+        approver_id="operator:test", now=1001,
+    )
+    assert payload["capability_id"] == 222
+
+
+def test_registry_requires_receipt_even_with_operator_label(tmp_path):
+    from nexora.registry import CapabilityRegistry, RegistryError
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    registry.register(223, "No unsigned promotion", "AI", source_record=True)
+    for state, evidence in [
+        ("REGISTERED", {"source_record", "schema_validation"}),
+        ("IMPLEMENTED", {"implementation_reference"}),
+        ("TESTED", {"test_report", "test_passed"}),
+        ("SHADOWED", {"shadow_report", "no_side_effects"}),
+    ]:
+        registry.transition(223, state, evidence)
+    with pytest.raises(RegistryError, match="signed_approval_receipt_required"):
+        registry.transition(
+            223, "APPROVED", {"human_approval"}, approver_id="operator:local"
+        )
+    assert registry.get(223)["state"] == "SHADOWED"

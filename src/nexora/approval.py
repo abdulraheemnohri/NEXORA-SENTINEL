@@ -13,6 +13,7 @@ import sqlite3
 import time
 from pathlib import Path
 from typing import Any
+from contextlib import nullcontext
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
@@ -197,6 +198,7 @@ class ApprovalReceiptStore:
         evidence: list[str] | tuple[str, ...] | set[str],
         approver_id: str,
         now: int | None = None,
+        connection: sqlite3.Connection | None = None,
     ) -> dict[str, Any]:
         try:
             payload = receipt["payload"]
@@ -228,7 +230,8 @@ class ApprovalReceiptStore:
             if expires - issued > MAX_TTL_SECONDS:
                 raise ApprovalError("receipt_ttl_exceeds_policy")
             fingerprint = payload["key_fingerprint"]
-            with self._connect() as db:
+            manager = self._connect() if connection is None else nullcontext(connection)
+            with manager as db:
                 row = db.execute(
                     "SELECT public_key FROM trusted_signing_keys WHERE fingerprint=? AND active=1",
                     (fingerprint,),

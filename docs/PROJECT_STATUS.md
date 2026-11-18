@@ -43,3 +43,10 @@ The newest Ed25519 commit failed Ruff because one local import block was not sor
 4. Recover missing original specification ranges from the user; do not invent them.
 5. Continue reviewed sandbox, scheduler, budgets, TUI/web UI and model integration design.
 6. Perform Android Debian/Pixel testing; not yet performed by this remote GitHub work.
+
+
+## Signed approval enforcement update
+- APPROVED and ENABLED transitions now require a valid Ed25519 receipt.
+- Receipt verification and nonce consumption use the same SQLite connection and transaction as the lifecycle state update.
+- A failed lifecycle transition rolls back receipt consumption; regression tests cover this atomicity.
+- Existing unsigned registry transition calls for APPROVED/ENABLED are intentionally rejected.

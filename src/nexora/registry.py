@@ -9,6 +9,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from nexora.approval import ApprovalError, ApprovalReceiptStore
 from nexora.lifecycle import validate_transition
 
 
@@ -21,6 +22,7 @@ class CapabilityRegistry:
         self.database = Path(database)
         self.database.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
+        self.approvals = ApprovalReceiptStore(self.database)
 
     def _connect(self):
         db = sqlite3.connect(self.database, timeout=10)
@@ -142,7 +144,10 @@ class CapabilityRegistry:
                 raise RegistryError("duplicate_or_invalid_capability") from exc
         return self.get(capability_id)
 
-    def transition(self, capability_id: int, requested_state: str, evidence, *, approver_id: str | None = None):
+    def transition(
+        self, capability_id: int, requested_state: str, evidence, *,
+        approver_id: str | None = None, approval_receipt: dict | None = None,
+    ):
         supplied = self._evidence(evidence)
         operator = self._operator(approver_id) if requested_state in {"APPROVED", "ENABLED"} else None
         with self._connect() as db:
@@ -161,6 +166,17 @@ class CapabilityRegistry:
             )
             if not decision.allowed:
                 raise RegistryError(decision.reason)
+            if requested_state in {"APPROVED", "ENABLED"}:
+                if approval_receipt is None:
+                    raise RegistryError("signed_approval_receipt_required")
+                try:
+                    self.approvals.verify_and_consume(
+                        approval_receipt, capability_id=capability_id,
+                        transition=requested_state, evidence=supplied,
+                        approver_id=operator, connection=db,
+                    )
+                except ApprovalError as exc:
+                    raise RegistryError(str(exc)) from exc
             if requested_state == current:
                 return self.get(capability_id)
             db.execute(
