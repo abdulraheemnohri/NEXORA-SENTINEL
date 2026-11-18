@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,7 @@ from nexora.lifecycle import EVIDENCE_FOR
 GENESIS = "0" * 64
 EVIDENCE_TYPES = frozenset().union(*EVIDENCE_FOR.values())
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
+_CURRENT_SCHEMA_VERSION = 2
 
 
 class EvidenceError(RuntimeError):
@@ -25,6 +27,29 @@ class EvidenceError(RuntimeError):
 
 def _canonical(value: dict[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _record_body(row: sqlite3.Row) -> dict[str, Any]:
+    """Return the version-specific signed/hash-bound record representation."""
+    body = {
+        "capability_id": row["capability_id"],
+        "evidence_type": row["evidence_type"],
+        "reference": row["reference"],
+        "artifact_sha256": row["artifact_sha256"],
+        "operator": row["operator"],
+        "note": row["note"],
+        "previous_hash": row["previous_hash"],
+    }
+    version = row["schema_version"]
+    if version == 2:
+        body.update({
+            "schema_version": version,
+            "sequence": row["sequence"],
+            "created_at": row["created_at"],
+        })
+    elif version != 1:
+        raise EvidenceError("unsupported_evidence_schema_version")
+    return body
 
 
 class EvidenceLedger:
@@ -47,6 +72,16 @@ class EvidenceLedger:
                     previous_hash TEXT NOT NULL,
                     record_hash TEXT NOT NULL UNIQUE
                 );
+            """)
+            columns = {row["name"] for row in db.execute(
+                "PRAGMA table_info(capability_evidence)"
+            )}
+            if "schema_version" not in columns:
+                db.execute(
+                    "ALTER TABLE capability_evidence ADD COLUMN "
+                    "schema_version INTEGER NOT NULL DEFAULT 1"
+                )
+            db.executescript("""
                 CREATE TRIGGER IF NOT EXISTS capability_evidence_no_update
                 BEFORE UPDATE ON capability_evidence BEGIN
                     SELECT RAISE(ABORT, 'evidence ledger is append-only');
@@ -83,6 +118,14 @@ class EvidenceLedger:
                 "SELECT record_hash FROM capability_evidence ORDER BY sequence DESC LIMIT 1"
             ).fetchone()
             previous = tail["record_hash"] if tail else GENESIS
+            sequence_row = db.execute(
+                "SELECT COALESCE(MAX(sequence), 0) + 1 AS next_sequence "
+                "FROM capability_evidence"
+            ).fetchone()
+            sequence = sequence_row["next_sequence"]
+            created_at = datetime.now(timezone.utc).isoformat(timespec="microseconds").replace(
+                "+00:00", "Z"
+            )
             body = {
                 "capability_id": capability_id,
                 "evidence_type": evidence_type,
@@ -91,16 +134,19 @@ class EvidenceLedger:
                 "operator": operator.strip(),
                 "note": note,
                 "previous_hash": previous,
+                "schema_version": _CURRENT_SCHEMA_VERSION,
+                "sequence": sequence,
+                "created_at": created_at,
             }
             digest = hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
-            cursor = db.execute(
+            db.execute(
                 """INSERT INTO capability_evidence
-                   (capability_id,evidence_type,reference,artifact_sha256,operator,note,
-                    previous_hash,record_hash) VALUES(?,?,?,?,?,?,?,?)""",
-                (capability_id, evidence_type, reference.strip(), artifact_sha256,
-                 operator.strip(), note, previous, digest),
+                   (sequence,capability_id,evidence_type,reference,artifact_sha256,operator,note,
+                    created_at,previous_hash,record_hash,schema_version)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (sequence, capability_id, evidence_type, reference.strip(), artifact_sha256,
+                 operator.strip(), note, created_at, previous, digest, _CURRENT_SCHEMA_VERSION),
             )
-            sequence = cursor.lastrowid
         return {"sequence": sequence, **body, "record_hash": digest}
 
     def list(self, capability_id: int | None = None, limit: int = 100) -> list[dict[str, Any]]:
@@ -128,15 +174,11 @@ class EvidenceLedger:
         with self._connect() as db:
             rows = db.execute("SELECT * FROM capability_evidence ORDER BY sequence").fetchall()
         for row in rows:
-            body = {
-                "capability_id": row["capability_id"],
-                "evidence_type": row["evidence_type"],
-                "reference": row["reference"],
-                "artifact_sha256": row["artifact_sha256"],
-                "operator": row["operator"],
-                "note": row["note"],
-                "previous_hash": row["previous_hash"],
-            }
+            try:
+                body = _record_body(row)
+            except EvidenceError:
+                return {"valid": False, "verified_records": count,
+                        "failed_sequence": row["sequence"]}
             expected = hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
             if row["previous_hash"] != previous or row["record_hash"] != expected:
                 return {"valid": False, "verified_records": count,
