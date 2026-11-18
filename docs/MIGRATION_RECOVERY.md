@@ -1,52 +1,32 @@
-# Backup Inventory and Recovery Readiness
+# Recovery Readiness
 
-## Read-only inventory
+## Configuration
 
-The inventory command inspects only direct children of the explicitly supplied backup directory. It does not recurse, create directories, modify manifests, repair databases, delete files, or restore data.
+The optional `config/recovery.json` file controls diagnostic thresholds. Missing configuration uses safe built-in defaults. Existing malformed or unknown fields fail closed.
 
-```bash
-nexora backup-inventory --directory data/backups
-nexora backup-inventory --directory data/backups --trusted-key /secure/off-device/backup-signing-key.pub.pem
-```
+- `backup_directory`: explicit backup inventory scope
+- `trusted_public_key`: independently enrolled Ed25519 public key path; blank means trust is not established
+- `retention_days` and `keep_latest`: proposal-only retention thresholds
+- `max_backup_age_hours`: freshness threshold for readiness
+- `min_verified_points`: minimum verified recovery-point count
+- `require_simulation_confirmation`: remains true
+- `automatic_restore` and `automatic_deletion`: must remain false; true is rejected
 
-Without an independently trusted public key, paired backup files are reported as `TRUST_ANCHOR_REQUIRED`; the manifest's own signer fingerprint is not a trust anchor. With a trusted key, each paired SQLite backup is checked using the normal signature, SHA-256, metadata, and SQLite integrity verifier.
-
-Statuses include `VALID`, `TRUST_ANCHOR_REQUIRED`, `ORPHAN_DATABASE`, `ORPHAN_MANIFEST`, `INVALID`, and `UNSAFE_SYMLINK`. The report includes file size, filesystem modification age, signer fingerprint, schema version and table count where safely available. Modification time is an inventory hint, not proof of backup creation time.
-
-## Recovery safety boundary
-
-Inventory is diagnostic only. It does not select a recovery point, delete old backups, change retention, or replace the live database. An invalid or orphaned artifact should be preserved for investigation; create a fresh backup rather than manufacturing a missing manifest.
-
-The next recovery stage can add recovery-point ranking, retention proposals, and isolated restore simulation. Any simulation must target a new temporary path. Replacing a live database remains a separate, explicitly approved operator procedure.
-
-## Tests
+Example:
 
 ```bash
-python -m pytest tests/test_backup.py tests/test_backup_inventory.py
-```
-
-The inventory tests cover empty/missing directories, orphan artifacts, absent trust anchors, valid signatures, tampering, malformed manifests, and symlink refusal.
-
-## Recovery-point planning and retention proposals
-
-Rank verified backups using their signed manifest creation timestamp. If a valid legacy record lacks that field, filesystem modification time is shown as a fallback and is not represented as cryptographic creation evidence.
-
-```bash
-nexora recovery-plan --directory data/backups \
+nexora recovery-readiness --config config/recovery.json
+nexora recovery-readiness --directory data/backups \
   --trusted-key /secure/off-device/backup-signing-key.pub.pem \
-  --retention-days 30 --keep-latest 3
+  --max-backup-age-hours 168 --min-verified-points 2
 ```
 
-Retention output is a proposal only. It marks points as `KEEP` or `REVIEW_FOR_RETENTION`; no file is deleted, moved, or rewritten. Review candidates manually and preserve artifacts when provenance is uncertain.
+## Readiness scoring
 
-## Isolated restore simulation
+The score starts at 100 when at least one recovery point verifies. It loses 30 points when the newest verified point is older than the configured freshness threshold, 30 when the verified point count is below the configured minimum, and up to 20 for unusable artifacts (5 per artifact). No verified point yields 0. The status is `READY`, `DEGRADED`, `NOT_READY`, or `BLOCKED_TRUST_ANCHOR`.
 
-```bash
-nexora recovery-simulate data/backups/registry.sqlite3 \
-  --trusted-key /secure/off-device/backup-signing-key.pub.pem \
-  --confirm-simulation
-```
+This is a deterministic operational indicator, not a guarantee of disaster recovery. A successful isolated simulation is not inferred from backup validity; until a separately recorded simulation-history feature exists, the report explicitly says `NOT_RECORDED`.
 
-The command verifies the signed backup, restores it into a fresh operating-system temporary directory, checks the restored SQLite database, then removes the temporary output. It does not write to the configured live database or leave a persistent restored copy. The report confirms that the simulation output was removed.
+## Safety
 
-A successful simulation demonstrates that this backup can be verified and restored in the current environment. It is not proof of physical disaster-recovery readiness, hardware durability, or availability of the separately stored trust key.
+Readiness checks are read-only. Retention decisions remain proposals. Restore simulation requires explicit confirmation and uses a temporary directory. Automatic restore and automatic deletion are prohibited by configuration validation. Live database replacement remains a separately approved operator action.
