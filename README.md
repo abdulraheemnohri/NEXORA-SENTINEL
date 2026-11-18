@@ -62,6 +62,26 @@ nexora update install --confirm
 
 Installation is an explicit operator action and requires the official Git origin, the `main` branch, a clean working tree and a fast-forward-only update. It fetches the checked GitHub commit, updates the checkout and reinstalls the local package. If package installation fails, it attempts to roll the source checkout back to its previous commit. Keep a separate backup before updating. The updater requires Git, network access and pip; it is intended for a Git checkout, not a standalone wheel/zip installation. It does not bypass GitHub branch protections or verify a release signature. The check output includes a bounded file-change preview and CI state (`success`, `failure`, `pending`, or `unknown`). Installation is blocked when the latest commit has a known failed Actions run. A missing/unavailable CI report is shown as unverified, not as success. Review the preview and CI links before installing; a GitHub commit is not automatically a trusted release.
 
+### Signed update manifest tooling
+
+NEXORA includes Ed25519 manifest signing and verification primitives. A release manifest binds the official repository, the `main` ref, an exact 40-character commit SHA, version, timestamp and signer fingerprint. Verification requires a trusted public-key file supplied independently by the operator; a key shipped beside a manifest is not a trust anchor.
+
+~~~bash
+# Create a dedicated release-signing key pair outside the repository.
+# Protect the private key and distribute the public key through a separate trusted channel.
+
+nexora update sign-manifest \
+  --commit-sha YOUR_40_CHARACTER_COMMIT_SHA \
+  --version 0.3.0 \
+  --signing-key /secure/path/update-signing-key.pem \
+  --output release.manifest.json
+
+nexora update verify-manifest release.manifest.json \
+  --trusted-key /secure/path/pinned-update-public-key.pem
+~~~
+
+The signer private key must have restrictive file permissions (0600 on POSIX). Manifest creation refuses to overwrite an existing file. Verification rejects schema changes, repository/ref mismatches, fingerprint mismatches and invalid signatures. This is a foundation for signed releases: the current GitHub updater does **not yet require a verified manifest before installation**, and no project release-signing key is enrolled or published. Do not treat unsigned GitHub commits as signed releases.
+
 ## Settings inspection and validation
 
 Inspect the validated settings file (defaults are used only when the file is absent):
