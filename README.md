@@ -67,9 +67,13 @@ Installation is an explicit operator action and requires the official Git origin
 NEXORA includes Ed25519 manifest signing and verification primitives. A release manifest binds the official repository, the `main` ref, an exact 40-character commit SHA, version, timestamp and signer fingerprint. Verification requires a trusted public-key file supplied independently by the operator; a key shipped beside a manifest is not a trust anchor.
 
 ~~~bash
-# Create a dedicated release-signing key pair outside the repository.
-# Protect the private key and distribute the public key through a separate trusted channel.
+# Generate a dedicated update-signing key pair outside the repository.
+# The private file is created with mode 0600 on POSIX; neither output is overwritten.
+nexora update keygen \\
+  --private-key /secure/path/update-signing-key.pem \\
+  --public-key /secure/path/update-signing-key.pub.pem
 
+# Protect the private key and distribute the public key through a separate trusted channel.
 nexora update sign-manifest \
   --commit-sha YOUR_40_CHARACTER_COMMIT_SHA \
   --version 0.3.0 \
