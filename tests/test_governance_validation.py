@@ -6,6 +6,7 @@ from nexora.governance.validation import (
     GovernanceValidationError,
     build_governance_report,
     inspect_relation,
+    analyze_revocation_impact,
 )
 
 
@@ -87,3 +88,43 @@ def test_relation_inspection_rejects_invalid_ids(tmp_path):
     matrix, _ = _artifacts(tmp_path)
     with pytest.raises(GovernanceValidationError, match="capability_id_out_of_range"):
         inspect_relation(0, 2, matrix)
+
+
+
+def test_revocation_impact_follows_only_explicit_transitive_dependencies(tmp_path):
+    entries = [
+        {"source": 20, "target": 10, "relation": "depends_on"},
+        {"source": 30, "target": 20, "relation": "depends_on"},
+        {"source": 40, "target": 10, "relation": "conflicts"},
+    ]
+    matrix, _ = _artifacts(tmp_path, entries)
+    report = analyze_revocation_impact(10, matrix)
+    assert report["declared_dependents"] == [20, 30]
+    assert report["decision"] == "HUMAN_REVIEW_REQUIRED"
+    assert report["relationship_coverage_complete"] is False
+    assert report["automatic_dependent_revocation"] is False
+
+
+def test_revocation_impact_reports_dependency_cycle_without_looping(tmp_path):
+    entries = [
+        {"source": 20, "target": 10, "relation": "depends_on"},
+        {"source": 10, "target": 20, "relation": "depends_on"},
+    ]
+    matrix, _ = _artifacts(tmp_path, entries)
+    report = analyze_revocation_impact(10, matrix)
+    assert report["declared_dependents"] == [20]
+    assert report["cycles_detected"]
+
+
+def test_revocation_impact_empty_matrix_does_not_invent_dependents(tmp_path):
+    matrix, _ = _artifacts(tmp_path)
+    report = analyze_revocation_impact(85, matrix)
+    assert report["declared_dependents"] == []
+    assert report["relationship_coverage_complete"] is False
+    assert report["unknown_relationships"] == "BLOCK_AND_ESCALATE"
+
+
+def test_revocation_impact_rejects_invalid_capability_id(tmp_path):
+    matrix, _ = _artifacts(tmp_path)
+    with pytest.raises(GovernanceValidationError, match="capability_id_out_of_range"):
+        analyze_revocation_impact(265, matrix)
