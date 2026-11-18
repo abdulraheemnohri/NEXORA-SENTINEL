@@ -102,3 +102,27 @@ def test_web_dashboard_exposes_read_only_runtime_page(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def test_web_dashboard_exposes_source_backed_self_capabilities(tmp_path):
+    server = create_read_only_server(tmp_path / "no-data", 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/self-capabilities")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        assert response.status == 200
+        assert payload["read_only"] is True
+        report = json.loads(payload["view"])
+        assert report["catalogue"]["source_backed_capabilities"] == 180
+        assert report["catalogue"]["missing_capability_count"] == 84
+        assert report["meta_rules"]["missing_rule_count"] == 15
+        assert report["execution_enabled"] is False
+        assert not (tmp_path / "no-data").exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
