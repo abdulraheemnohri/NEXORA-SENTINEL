@@ -167,7 +167,7 @@ def test_recovery_authorization_expiry_is_enforced(tmp_path):
 
 
 def test_recovery_event_history_is_append_only(tmp_path):
-    database, _, recovery, _, _, _authorities, _ = _setup(tmp_path)
+    database, _, _recovery, _, _, _authorities, _ = _setup(tmp_path)
     with pytest.raises(sqlite3.IntegrityError, match="append-only"), sqlite3.connect(database) as db:
         db.execute("UPDATE emergency_recovery_events SET detail='tampered' WHERE event_id=1")
     with pytest.raises(sqlite3.IntegrityError, match="append-only"), sqlite3.connect(database) as db:
