@@ -8,7 +8,7 @@ description = "NEXORA Sentinel Self-Terminal Intelligence Platform"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Unlicense"
-dependencies = []
+dependencies = ["cryptography>=42,<47"]
 [project.scripts]
 nexora = "nexora.cli:main"
 [tool.setuptools.packages.find]
