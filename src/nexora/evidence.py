@@ -52,6 +52,29 @@ def _record_body(row: sqlite3.Row) -> dict[str, Any]:
     return body
 
 
+def _verify_rows(rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """Verify a stable ordered snapshot of the complete evidence chain."""
+    previous = GENESIS
+    count = 0
+    for row in rows:
+        try:
+            body = _record_body(row)
+        except EvidenceError:
+            return {
+                "valid": False, "verified_records": count,
+                "failed_sequence": row["sequence"],
+            }
+        expected = hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
+        if row["previous_hash"] != previous or row["record_hash"] != expected:
+            return {
+                "valid": False, "verified_records": count,
+                "failed_sequence": row["sequence"],
+            }
+        previous = expected
+        count += 1
+    return {"valid": True, "verified_records": count, "head_hash": previous}
+
+
 class EvidenceLedger:
     """Store externally verifiable evidence references in an append-only chain."""
 
@@ -142,9 +165,16 @@ class EvidenceLedger:
             raise EvidenceError("note_invalid_or_too_long")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            tail = db.execute(
-                "SELECT record_hash FROM capability_evidence ORDER BY sequence DESC LIMIT 1"
-            ).fetchone()
+            existing_rows = db.execute(
+                "SELECT * FROM capability_evidence ORDER BY sequence"
+            ).fetchall()
+            integrity = _verify_rows(existing_rows)
+            if not integrity["valid"]:
+                raise EvidenceError(
+                    "evidence_ledger_integrity_failure_before_append:"
+                    + str(integrity["failed_sequence"])
+                )
+            tail = existing_rows[-1] if existing_rows else None
             previous = tail["record_hash"] if tail else GENESIS
             sequence_row = db.execute(
                 "SELECT COALESCE(MAX(sequence), 0) + 1 AS next_sequence "
@@ -222,20 +252,6 @@ class EvidenceLedger:
         }
 
     def verify(self) -> dict[str, Any]:
-        previous = GENESIS
-        count = 0
         with self._connect() as db:
             rows = db.execute("SELECT * FROM capability_evidence ORDER BY sequence").fetchall()
-        for row in rows:
-            try:
-                body = _record_body(row)
-            except EvidenceError:
-                return {"valid": False, "verified_records": count,
-                        "failed_sequence": row["sequence"]}
-            expected = hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
-            if row["previous_hash"] != previous or row["record_hash"] != expected:
-                return {"valid": False, "verified_records": count,
-                        "failed_sequence": row["sequence"]}
-            previous = expected
-            count += 1
-        return {"valid": True, "verified_records": count, "head_hash": previous}
+        return _verify_rows(rows)
