@@ -211,3 +211,30 @@ Full interactive API/control plane, local model inference runtime, production me
 Read CONTRIBUTING.md, SECURITY.md, docs/ARCHITECTURE.md, docs/THREAT_MODEL.md, docs/PROJECT_STATUS.md and docs/SELF_FAMILIES.md.
 
 License: Unlicense.
+
+
+## Signed software updates
+
+Update installation is fail-closed and now requires an Ed25519-signed manifest plus a public key pinned through an independent trusted channel. Generate a dedicated signing keypair once, protect the private key offline, and independently provision the public key on each client:
+
+```bash
+nexora update keygen \
+  --private-key ~/.config/nexora/update-private.pem \
+  --public-key ~/.config/nexora/update-public.pem
+
+# On the release/signing system, after reviewing and testing the exact commit:
+nexora update sign-manifest \
+  --commit-sha <40-character-main-commit-sha> \
+  --version <release-version> \
+  --signing-key /secure/path/update-private.pem \
+  --output release.manifest.json
+
+# On the client, verify the manifest and install only that exact main commit:
+nexora update verify-manifest release.manifest.json \
+  --trusted-key ~/.config/nexora/trusted-update-public.pem
+nexora update install --confirm \
+  --manifest release.manifest.json \
+  --trusted-key ~/.config/nexora/trusted-update-public.pem
+```
+
+The updater requires the manifest commit to equal the current GitHub `main` SHA, a clean worktree, fast-forward ancestry, and successful CI for that exact commit. Missing, pending, failed, mismatched, or untrusted evidence blocks installation. The repository does not ship a publisher key: operators must verify and pin the public key independently. A locally generated key is not automatically a trusted publisher key.
