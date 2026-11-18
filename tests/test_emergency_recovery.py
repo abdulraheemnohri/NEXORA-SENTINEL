@@ -111,19 +111,22 @@ def test_recovery_rejects_tampering_and_scope_mismatch(tmp_path):
 
 
 def test_recovery_nonce_is_single_use(tmp_path):
-    _, _, recovery, _, old_fp, authorities, replacement = _setup(tmp_path)
+    database, _, recovery, _, old_fp, authorities, replacement = _setup(tmp_path)
     authorizations = _issue(authorities, old_fp, replacement)
     recovery.recover_approval_key(
         old_fingerprint=old_fp, new_public_key=replacement.public_key(),
         new_label="operator-recovered", reason="operator key compromised",
         authorizations=authorizations, now=200,
     )
-    # A second operation against the now-revoked key is blocked; nonce replay is not reusable.
-    another = Ed25519PrivateKey.generate()
-    with pytest.raises(EmergencyRecoveryError, match="active_approval_key_not_found"):
+    # Recreate the same target state in the test fixture to isolate nonce replay protection.
+    with sqlite3.connect(database) as db:
+        db.execute("DELETE FROM trusted_signing_keys WHERE fingerprint=?",
+                   (public_key_fingerprint(replacement.public_key()),))
+        db.execute("UPDATE trusted_signing_keys SET active=1 WHERE fingerprint=?", (old_fp,))
+    with pytest.raises(EmergencyRecoveryError, match="replay_denied"):
         recovery.recover_approval_key(
-            old_fingerprint=old_fp, new_public_key=another.public_key(),
-            new_label="operator-recovered-again", reason="operator key compromised",
+            old_fingerprint=old_fp, new_public_key=replacement.public_key(),
+            new_label="operator-recovered", reason="operator key compromised",
             authorizations=authorizations, now=201,
         )
 
