@@ -161,7 +161,9 @@ def run_local_model(
     binary = find_executable(executable)
     if binary is None:
         raise LiteRTLMError("litertlm_cli_not_installed")
-    command = [binary, "run", str(resolved), f"--backend={backend}"]
+    command = [binary, "run", str(resolved)]
+    if backend == "gpu":
+        command.append("--backend=gpu")
     if prompt is not None:
         if not prompt.strip():
             raise LiteRTLMError("prompt_must_not_be_empty")
