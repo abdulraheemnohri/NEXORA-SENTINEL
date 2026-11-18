@@ -8,6 +8,8 @@ This is a safety-governed, local-first foundation, not a completed autonomous ag
 ## Foundation delivered
 - Python package and nexora CLI
 - Fail-closed policy kernel; unknown actions denied
+- Evidence-gated capability lifecycle validator; approval and enablement require human authorization
+- Fixed safety-first precedence resolver; unknown or equal-priority conflicts are blocked for review
 - Persistent emergency kill switch
 - SHA-256 hash-chained JSONL audit log
 - Separate local witness receipts
@@ -17,7 +19,7 @@ This is a safety-governed, local-first foundation, not a completed autonomous ag
 - Tests, GitHub Actions CI, Android Debian install script
 
 ## Not enabled
-The 264 capabilities, 45-rule catalogue, populated interaction matrix, scheduler, budgets, sandbox, model runtime, memory, tool bus, self-evolution pipeline, TUI and web dashboard are not yet implemented.
+The complete 264-capability catalogue and 45-rule catalogue remain incomplete because source ranges 1–84 and 1–15 are missing. The interaction matrix is unpopulated. The lifecycle validator and precedence resolver are eligibility/governance primitives only; they do not execute capabilities. Scheduler, budgets, sandbox, model runtime, memory, tool bus, self-evolution pipeline, TUI and web dashboard are not yet implemented.
 
 ## Install (Debian / Android Debian)
 Run: bash scripts/install_android_debian.sh  
