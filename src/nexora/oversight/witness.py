@@ -37,7 +37,7 @@ def _exclusive_file_lock(path: Path) -> Iterator[None]:
 
             lock_stream.seek(0, os.SEEK_END)
             if lock_stream.tell() == 0:
-                lock_stream.write(b"\\0")
+                lock_stream.write(bytes([0]))
                 lock_stream.flush()
             lock_stream.seek(0)
             msvcrt.locking(lock_stream.fileno(), msvcrt.LK_LOCK, 1)
@@ -140,7 +140,7 @@ class IndependentWitness:
                 "signature": base64.b64encode(self.signing_key.sign(_canonical(payload))).decode("ascii"),
             }
             with self.path.open("a", encoding="utf-8") as stream:
-                stream.write(_canonical(receipt).decode("utf-8") + "\\n")
+                stream.write(_canonical(receipt).decode("utf-8") + chr(10))
                 stream.flush()
                 os.fsync(stream.fileno())
             return receipt
