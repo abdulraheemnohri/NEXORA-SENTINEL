@@ -87,7 +87,6 @@ def _render_recovery_readiness(data_dir: Path) -> str:
 
 def _render_recovery_history(data_dir: Path) -> str:
     from nexora.recovery_history import RecoveryHistoryError, read_recovery_history
-
     from nexora.recovery_readiness import RecoverySettings
 
     config = Path("config/recovery.json")
