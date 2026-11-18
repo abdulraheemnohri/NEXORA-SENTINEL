@@ -66,6 +66,8 @@ def main(argv=None):
     update_keygen.add_argument("--public-key", type=Path, required=True)
     update_install = update_sub.add_parser("install")
     update_install.add_argument("--confirm", action="store_true", required=True)
+    update_install.add_argument("--manifest", type=Path, required=True)
+    update_install.add_argument("--trusted-key", type=Path, required=True)
     update_sign = update_sub.add_parser("sign-manifest")
     update_sign.add_argument("--commit-sha", required=True)
     update_sign.add_argument("--version", required=True)
@@ -140,7 +142,10 @@ def main(argv=None):
             print(json.dumps(result, indent=2))
             return 0
         try:
-            result = main_result(args.update_cmd, Path.cwd(), getattr(args, "confirm", False))
+            result = main_result(
+                args.update_cmd, Path.cwd(), getattr(args, "confirm", False),
+                getattr(args, "manifest", None), getattr(args, "trusted_key", None),
+            )
         except (UpdateError, OSError) as exc:
             print(json.dumps({"updated": False, "error": str(exc)}, indent=2))
             return 2
