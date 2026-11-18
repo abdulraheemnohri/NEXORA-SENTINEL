@@ -88,11 +88,19 @@ def _render_recovery_readiness(data_dir: Path) -> str:
 def _render_recovery_history(data_dir: Path) -> str:
     from nexora.recovery_history import RecoveryHistoryError, read_recovery_history
 
-    history = Path(data_dir) / "recovery" / "history.jsonl"
-    receipts = Path(data_dir) / "recovery-witness" / "receipts.jsonl"
-    public_key = Path(data_dir) / "recovery-witness-signing-key.pub.pem"
+    from nexora.recovery_readiness import RecoverySettings
+
+    config = Path("config/recovery.json")
+    settings = RecoverySettings.load(config) if config.is_file() else RecoverySettings().validate()
+    history = Path(settings.history_log)
+    receipts = Path(settings.witness_receipt_log)
+    public_key = Path(settings.witness_public_key)
+    history_lock = history.with_name(history.name + ".lock")
+    receipt_lock = receipts.with_name(receipts.name + ".lock")
     if not history.is_file() or not receipts.is_file() or not public_key.is_file():
         return json.dumps({"configured": False, "status": "NOT_CONFIGURED", "read_only": True})
+    if not history_lock.is_file() or not receipt_lock.is_file():
+        return json.dumps({"configured": True, "status": "LOCK_STATE_NOT_INITIALIZED", "read_only": True})
     try:
         return json.dumps(read_recovery_history(
             history, receipts, trusted_witness_public_key=public_key,
