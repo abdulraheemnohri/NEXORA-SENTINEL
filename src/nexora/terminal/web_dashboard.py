@@ -25,6 +25,7 @@ VIEWS = {
     "/api/proposals": render_proposals,
     "/api/capabilities": render_registry,
     "/api/memory": lambda root: _render_memory(root),
+    "/api/runtime": lambda root: _render_runtime(),
 }
 
 
@@ -42,6 +43,16 @@ def _render_memory(data_dir: Path) -> str:
         )
     except (OSError, sqlite3.Error, ValueError) as exc:
         return f"MEMORY — read failed closed ({type(exc).__name__})"
+
+
+def _render_runtime() -> str:
+    from nexora.intelligence.litertlm import runtime_status
+
+    try:
+        return json.dumps(runtime_status(), ensure_ascii=False, indent=2)
+    except (OSError, ValueError, TypeError) as exc:
+        return json.dumps({"provider": "LiteRT-LM", "available": False,
+                           "error": type(exc).__name__})
 
 
 def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPServer:
@@ -83,6 +94,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Self-family proposals", "/api/proposals"),
                     ("Capability registry", "/api/capabilities"),
                     ("Local memory", "/api/memory"),
+                    ("LiteRT-LM runtime and local models", "/api/runtime"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
