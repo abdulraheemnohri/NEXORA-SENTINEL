@@ -61,6 +61,9 @@ def main(argv=None):
     update = sub.add_parser("update")
     update_sub = update.add_subparsers(dest="update_cmd", required=True)
     update_sub.add_parser("check")
+    update_keygen = update_sub.add_parser("keygen")
+    update_keygen.add_argument("--private-key", type=Path, required=True)
+    update_keygen.add_argument("--public-key", type=Path, required=True)
     update_install = update_sub.add_parser("install")
     update_install.add_argument("--confirm", action="store_true", required=True)
     update_sign = update_sub.add_parser("sign-manifest")
@@ -87,12 +90,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.cmd == "update":
         from nexora.updater import UpdateError, main_result
-        if args.update_cmd in ("sign-manifest", "verify-manifest"):
+        if args.update_cmd in ("keygen", "sign-manifest", "verify-manifest"):
             from nexora.update_signing import (
-                UpdateSignatureError, create_manifest, verify_manifest,
+                UpdateSignatureError, create_manifest, generate_update_signing_keypair,\n                verify_manifest,
             )
             try:
-                if args.update_cmd == "sign-manifest":
+                if args.update_cmd == "keygen":\n                    result = {\n                        "created": True,\n                        "signer_fingerprint": generate_update_signing_keypair(\n                            args.private_key, args.public_key\n                        ),\n                        "private_key": str(args.private_key),\n                        "public_key": str(args.public_key),\n                        "warning": "Back up the private key securely. Never commit or share it; distribute the public key through an independent trusted channel.",\n                    }\n                elif args.update_cmd == "sign-manifest":
                     result = create_manifest(
                         commit_sha=args.commit_sha, version=args.version,
                         signing_key=args.signing_key, output=args.output,
