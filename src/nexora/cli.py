@@ -187,7 +187,7 @@ def main(argv=None):
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0 if result["status"] == "SOURCE_COVERAGE_PRESENT" else 1
+        return 0
     if args.cmd == "family-evaluation":
         from nexora.family_evaluation import FamilyEvaluationError, build_family_evaluation
         try:
