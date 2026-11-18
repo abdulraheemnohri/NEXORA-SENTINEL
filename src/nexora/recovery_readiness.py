@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +27,7 @@ class RecoverySettings:
     automatic_restore: bool = False
     automatic_deletion: bool = False
 
-    def validate(self) -> "RecoverySettings":
+    def validate(self) -> RecoverySettings:
         for name in ("retention_days", "keep_latest", "max_backup_age_hours", "min_verified_points"):
             value = getattr(self, name)
             if type(value) is not int or value < 1:
@@ -43,7 +43,7 @@ class RecoverySettings:
         return self
 
     @classmethod
-    def load(cls, path: Path) -> "RecoverySettings":
+    def load(cls, path: Path) -> RecoverySettings:
         source = Path(path)
         try:
             raw = json.loads(source.read_text(encoding="utf-8"))
