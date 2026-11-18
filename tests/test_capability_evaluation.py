@@ -11,6 +11,7 @@ from nexora.evidence import EvidenceLedger
 def test_evaluation_reports_missing_gates_without_promoting(tmp_path):
     ledger = EvidenceLedger(tmp_path / "registry.sqlite3")
     ledger.add(85, "source_record", "spec:85", "a" * 64, "operator")
+    ledger.add(85, "schema_validation", "artifact://schema/85", "b" * 64, "operator")
     report = evaluate_from_ledger(tmp_path / "registry.sqlite3", 85)
     assert report["assessment"] == "EVIDENCE_GAPS"
     assert report["stages"][0]["ready"] is True
