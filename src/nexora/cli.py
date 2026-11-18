@@ -208,8 +208,12 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.cmd == "approval":
         from nexora.approval import (
-            ApprovalError, ApprovalReceiptStore, create_receipt,
-            generate_keypair, load_private_key, load_public_key,
+            ApprovalError,
+            ApprovalReceiptStore,
+            create_receipt,
+            generate_keypair,
+            load_private_key,
+            load_public_key,
         )
         try:
             if args.approval_cmd == "keygen":
