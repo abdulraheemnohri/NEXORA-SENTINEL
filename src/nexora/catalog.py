@@ -21,8 +21,8 @@ def status(path: Path = CATALOG) -> dict:
         }
         for x in rows
     )
-    expected = data.get("expected_capability_count", 215)
-    expected_families = data.get("expected_family_count", 31)
+    expected = data.get("expected_capability_count", 264)
+    expected_families = data.get("expected_family_count", 40)
     unique = len(ids) == len(set(ids))
     complete = len(rows) == expected and len(families) == expected_families and unique and valid
     return {
