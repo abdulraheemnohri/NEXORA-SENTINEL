@@ -82,7 +82,7 @@ def record_recovery_simulation(
             history_path.parent.mkdir(parents=True, exist_ok=True)
             fd = os.open(history_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
             try:
-                payload = _canonical({"event": event, "event_hash": event_hash}) + b"\\n"
+                payload = _canonical({"event": event, "event_hash": event_hash}) + bytes([10])
                 with os.fdopen(fd, "ab", closefd=True) as stream:
                     stream.write(payload)
                     stream.flush()
@@ -146,13 +146,13 @@ def read_recovery_history(
                 _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")),
                 history_path.open(encoding="utf-8") as stream,
             ):
-                    for number, line in enumerate(stream, 1):
-                        row = json.loads(line)
-                        event = row.get("event")
-                        event_hash = row.get("event_hash")
-                        if not isinstance(event, dict) or _digest(event) != event_hash:
-                            raise RecoveryHistoryError(f"history_record_integrity_invalid:{number}")
-                        if event_hash in trusted_hashes:
+                for number, line in enumerate(stream, 1):
+                    row = json.loads(line)
+                    event = row.get("event")
+                    event_hash = row.get("event_hash")
+                    if not isinstance(event, dict) or _digest(event) != event_hash:
+                        raise RecoveryHistoryError(f"history_record_integrity_invalid:{number}")
+                    if event_hash in trusted_hashes:
                             events.append(event)
         events.sort(key=lambda item: (item.get("timestamp", ""), item.get("simulation_id", "")), reverse=True)
         return {
