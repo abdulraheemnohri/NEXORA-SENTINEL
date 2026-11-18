@@ -4,8 +4,8 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
 from typing import TextIO
 
 from nexora.catalog import status as catalog_status
