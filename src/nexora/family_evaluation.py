@@ -60,15 +60,23 @@ def build_family_evaluation(
     catalog_path: Path | None = None,
     family: str | None = None,
 ) -> dict[str, Any]:
-    """Evaluate evidence coverage for source-backed capabilities by family."""
+    """Evaluate evidence coverage for all canonical families, including source gaps."""
     all_rows = _catalogue(catalog_path)
-    rows = all_rows
+    selected_family = None
     if family is not None:
         if not isinstance(family, str) or not family.strip():
             raise FamilyEvaluationError("family_filter_invalid")
-        rows = [row for row in rows if row["family"].casefold() == family.casefold()]
+        selected_family = family.strip().upper()
+        if selected_family not in ALL_FAMILIES and selected_family != "CROSS-CUTTING":
+            raise FamilyEvaluationError("family_filter_unknown")
+    rows = (
+        [row for row in all_rows if row["family"] == selected_family]
+        if selected_family is not None else all_rows
+    )
 
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for code in ( [selected_family] if selected_family else list(FAMILIES) ):
+        grouped[code]  # Keep canonical families visible even with no source records.
     for row in rows:
         grouped[row["family"]].append(row)
 
@@ -123,7 +131,9 @@ def build_family_evaluation(
                 "evidence": evidence,
             })
         assessments = Counter(item["evidence"]["assessment"] for item in capability_reports)
-        if ledger_state == "NOT_FOUND":
+        if not members:
+            assessment = "SOURCE_DEFINITIONS_NOT_PRESENT"
+        elif ledger_state == "NOT_FOUND":
             assessment = "NOT_EVALUATED_NO_LEDGER"
         elif ledger_state == "INVALID":
             assessment = "BLOCKED_LEDGER_INTEGRITY"
@@ -140,7 +150,11 @@ def build_family_evaluation(
         else:
             assessment = "EVIDENCE_GAPS"
         family_reports.append({
-            "family": family_code, "family_name": members[0]["family_name"],
+            "family": family_code,
+            "family_name": members[0]["family_name"] if members else None,
+            "catalogue_coverage": (
+                "SOURCE_BACKED_RECORDS_PRESENT" if members else "NO_SOURCE_BACKED_RECORDS"
+            ),
             "source_backed_capabilities": len(members),
             "catalogue_status_counts": dict(sorted(statuses.items())),
             "evidence_assessment": assessment,
@@ -158,14 +172,19 @@ def build_family_evaluation(
             "target_capabilities": 264, "source_backed_capabilities": len(all_ids),
             "missing_source_definition_count": len(missing_ids),
             "missing_source_definition_ids": missing_ids,
-            "represented_families": len({row["family"] for row in all_rows}),
+            "represented_families": len({row["family"] for row in all_rows if row["family"] in ALL_FAMILIES}),
             "expected_families": 40,
+            "families_without_source_backed_records": [
+                report["family"] for report in family_reports
+                if report["family"] in ALL_FAMILIES and not report["source_backed_capabilities"]
+            ],
         },
-        "filter": {"family": family}, "families": family_reports,
+        "filter": {"family": selected_family}, "families": family_reports,
         "lifecycle_changed": False, "capability_promotions_performed": False,
         "execution_enabled": False, "policy_mutation_enabled": False,
         "note": (
             "Evidence presence is not artifact validation or authorization. "
-            "Missing source definitions and unknown relationships remain unknown."
+            "A family with no source-backed records is shown without an invented name or "
+            "capability assignment. Missing source definitions and unknown relationships remain unknown."
         ),
     }
