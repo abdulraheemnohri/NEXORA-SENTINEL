@@ -68,6 +68,15 @@ def main(argv=None):
     inventory = sub.add_parser("backup-inventory", help="Read-only inventory of a backup directory")
     inventory.add_argument("--directory", type=Path, default=Path("data/backups"))
     inventory.add_argument("--trusted-key", type=Path)
+    recovery_plan = sub.add_parser("recovery-plan", help="Rank verified recovery points and propose retention")
+    recovery_plan.add_argument("--directory", type=Path, default=Path("data/backups"))
+    recovery_plan.add_argument("--trusted-key", type=Path, required=True)
+    recovery_plan.add_argument("--retention-days", type=int, default=30)
+    recovery_plan.add_argument("--keep-latest", type=int, default=3)
+    recovery_simulate = sub.add_parser("recovery-simulate", help="Simulate restore in temporary isolated storage")
+    recovery_simulate.add_argument("backup", type=Path)
+    recovery_simulate.add_argument("--trusted-key", type=Path, required=True)
+    recovery_simulate.add_argument("--confirm-simulation", action="store_true", required=True)
     verify = sub.add_parser("verify-backup")
     verify.add_argument("backup", type=Path)
     verify.add_argument("--trusted-key", type=Path)
@@ -392,6 +401,30 @@ def main(argv=None):
         return 0
     private_default = args.data_dir / "backup-signing-key.pem"
     public_default = args.data_dir / "backup-signing-key.pub.pem"
+    if args.cmd == "recovery-plan":
+        from nexora.recovery_planner import RecoveryPlanningError, build_recovery_plan
+        try:
+            result = build_recovery_plan(
+                args.directory, trusted_public_key=args.trusted_key,
+                retention_days=args.retention_days, keep_latest=args.keep_latest,
+            )
+        except (RecoveryPlanningError, OSError, ValueError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.cmd == "recovery-simulate":
+        from nexora.recovery_planner import RecoveryPlanningError, simulate_recovery
+        try:
+            result = simulate_recovery(
+                args.backup, trusted_public_key=args.trusted_key,
+                confirm=args.confirm_simulation,
+            )
+        except (RecoveryPlanningError, OSError, ValueError) as exc:
+            print(json.dumps({"simulation": "FAILED", "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
     if args.cmd == "backup-inventory":
         from nexora.backup_inventory import BackupInventoryError, build_backup_inventory
         try:
