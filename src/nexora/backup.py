@@ -120,6 +120,16 @@ def _publish_no_replace(source: Path, destination: Path) -> None:
         raise BackupError("atomic_no_replace_publish_unavailable") from exc
 
 
+def _set_delete_journal_mode(connection: sqlite3.Connection) -> None:
+    """Publish portable standalone snapshots, not databases dependent on WAL sidecars."""
+    try:
+        mode = connection.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
+    except sqlite3.Error as exc:
+        raise BackupError("sqlite_journal_mode_normalization_failed") from exc
+    if str(mode).lower() != "delete":
+        raise BackupError("sqlite_journal_mode_normalization_failed")
+
+
 def _inspect(database: Path) -> dict[str, Any]:
     try:
         with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as db:
@@ -156,6 +166,7 @@ def create_backup(
     try:
         with sqlite3.connect(source, timeout=10) as src, sqlite3.connect(temporary) as dst:
             src.backup(dst, pages=256, sleep=0.01)
+            _set_delete_journal_mode(dst)
         manifest = {
             "format_version": FORMAT_VERSION,
             "created_at": datetime.now(UTC).isoformat(),
@@ -235,6 +246,7 @@ def restore_backup(
     try:
         with sqlite3.connect(f"file:{backup}?mode=ro", uri=True) as src, sqlite3.connect(temporary) as dst:
             src.backup(dst, pages=256, sleep=0.01)
+            _set_delete_journal_mode(dst)
         restored = _inspect(temporary)
         expected = {key: verified[key] for key in ("integrity", "user_version", "tables")}
         if restored != expected:
