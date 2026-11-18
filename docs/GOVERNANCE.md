@@ -116,3 +116,16 @@ nexora rollback-record 42 --from-release v2 --target-release v1 --reason regress
 ```
 
 The rollback record consumes both nonces atomically and is append-only. Replays, expired or revoked keys, duplicate approver IDs, duplicate signing keys, scope mismatches and invalid signatures are rejected. This is an authorization record, not a deployment rollback engine. Verify its stored signatures and nonce-consumption records with `nexora rollback-verify 42`.
+
+
+## Revocation dependency impact analysis
+
+Before deciding whether to revoke related capabilities, inspect explicitly declared dependency edges:
+
+```bash
+nexora governance-impact 42
+```
+
+The analyzer treats a directed `source depends_on target` entry as meaning that source is a dependent of target. It walks transitive dependents, reports detected cycles, and uses only exact directed `depends_on` entries. It does not infer relationships from capability IDs, family membership, names, or other relation types.
+
+The current interaction matrix has zero declared pairs. Consequently the current report will list no proven dependents while explicitly marking relationship coverage incomplete and unknown relationships as `BLOCK_AND_ESCALATE`. An empty result is not proof that a capability has no dependents. The report is read-only, requires human review, and never revokes or disables another capability automatically. Do not populate the matrix without source-backed evidence and governance review.
