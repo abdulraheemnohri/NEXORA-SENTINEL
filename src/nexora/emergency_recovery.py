@@ -19,7 +19,6 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from nexora.approval import (
-    ApprovalError,
     DEFAULT_KEY_LIFETIME_DAYS,
     MAX_KEY_LIFETIME_DAYS,
     public_key_bytes,
