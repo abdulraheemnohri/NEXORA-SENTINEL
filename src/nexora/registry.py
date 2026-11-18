@@ -147,9 +147,21 @@ class CapabilityRegistry:
     def transition(
         self, capability_id: int, requested_state: str, evidence, *,
         approver_id: str | None = None, approval_receipt: dict | None = None,
+        approval_receipts: list[dict] | None = None,
+        approver_ids: list[str] | None = None,
     ):
         supplied = self._evidence(evidence)
         operator = self._operator(approver_id) if requested_state in {"APPROVED", "ENABLED"} else None
+        if approval_receipts is not None:
+            if approval_receipt is not None or approval_receipts == []:
+                raise RegistryError("provide_one_approval_receipt_argument")
+            if approver_ids is None or len(approver_ids) != len(approval_receipts):
+                raise RegistryError("multi_approval_identity_count_mismatch")
+            normalized_approvers = [self._operator(item) for item in approver_ids]
+            if len(set(normalized_approvers)) != len(normalized_approvers):
+                raise RegistryError("distinct_approvers_required")
+        else:
+            normalized_approvers = None
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -167,14 +179,27 @@ class CapabilityRegistry:
             if not decision.allowed:
                 raise RegistryError(decision.reason)
             if requested_state in {"APPROVED", "ENABLED"}:
-                if approval_receipt is None:
-                    raise RegistryError("signed_approval_receipt_required")
                 try:
-                    self.approvals.verify_and_consume(
-                        approval_receipt, capability_id=capability_id,
-                        transition=requested_state, evidence=supplied,
-                        approver_id=operator, connection=db,
-                    )
+                    if requested_state == "ENABLED":
+                        if approval_receipts is None:
+                            raise RegistryError("two_independent_approvals_required_for_enabled")
+                        self.approvals.verify_and_consume_many(
+                            approval_receipts, capability_id=capability_id,
+                            transition=requested_state, evidence=supplied,
+                            approver_ids=normalized_approvers, connection=db,
+                            minimum_approvals=2, maximum_approvals=5,
+                        )
+                        operator = ",".join(normalized_approvers)
+                    elif approval_receipts is not None:
+                        raise RegistryError("multi_approval_not_supported_for_approved_transition")
+                    else:
+                        if approval_receipt is None:
+                            raise RegistryError("signed_approval_receipt_required")
+                        self.approvals.verify_and_consume(
+                            approval_receipt, capability_id=capability_id,
+                            transition=requested_state, evidence=supplied,
+                            approver_id=operator, connection=db,
+                        )
                 except ApprovalError as exc:
                     raise RegistryError(str(exc)) from exc
             if requested_state == current:
