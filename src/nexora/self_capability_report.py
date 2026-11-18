@@ -22,7 +22,7 @@ def _read(path: Path) -> dict[str, Any]:
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError(f"self_capability_spec_unreadable:{Path(path).name}") from exc
     if not isinstance(value, dict):
-        raise ValueError(f"self_capability_spec_must_be_object:{Path(path).name}")
+        raise TypeError(f"self_capability_spec_must_be_object:{Path(path).name}")
     return value
 
 
@@ -35,14 +35,14 @@ def build_report(*, catalog_path: Path | None = None, rules_path: Path | None = 
     matrix = _read(matrix_path or _spec_path("interaction_matrix.json"))
     rows, rule_rows = catalog.get("capabilities"), rules.get("rules")
     if not isinstance(rows, list) or not isinstance(rule_rows, list):
-        raise ValueError("self_capability_spec_rows_invalid")
+        raise TypeError("self_capability_spec_rows_invalid")
     ids: list[int] = []
     family_counts: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
     valid_rows = []
     for row in rows:
         if not isinstance(row, dict):
-            raise ValueError("capability_record_must_be_object")
+            raise TypeError("capability_record_must_be_object")
         value = row.get("id")
         if type(value) is not int or not 1 <= value <= 264:
             raise ValueError("capability_id_invalid")
@@ -58,7 +58,7 @@ def build_report(*, catalog_path: Path | None = None, rules_path: Path | None = 
     rule_ids: list[int] = []
     for row in rule_rows:
         if not isinstance(row, dict):
-            raise ValueError("meta_rule_record_must_be_object")
+            raise TypeError("meta_rule_record_must_be_object")
         value = row.get("id")
         if type(value) is not int or not 1 <= value <= 45:
             raise ValueError("meta_rule_id_invalid")
@@ -77,7 +77,7 @@ def build_report(*, catalog_path: Path | None = None, rules_path: Path | None = 
         selected = [row for row in valid_rows if row["family"].casefold() == family.casefold()]
     entries = matrix.get("entries")
     if not isinstance(entries, list):
-        raise ValueError("interaction_matrix_entries_invalid")
+        raise TypeError("interaction_matrix_entries_invalid")
     return {
         "catalogue": {
             "expected_capabilities": 264, "source_backed_capabilities": len(valid_rows),
