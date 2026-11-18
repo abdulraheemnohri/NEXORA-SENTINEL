@@ -163,7 +163,7 @@ def main(argv=None):
                 return 0
             settings = load_settings(args.config)
             model_path = args.model
-            if not model_path.is_absolute():
+            if not model_path.is_absolute() and not model_path.is_file():
                 model_path = Path(settings["model_directory"]) / model_path
             return run_local_model(
                 model_path,
