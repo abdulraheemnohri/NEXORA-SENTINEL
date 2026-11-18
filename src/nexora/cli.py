@@ -35,11 +35,19 @@ def main(argv=None):
     approval_enroll = approval_sub.add_parser("enroll")
     approval_enroll.add_argument("--public-key", type=Path, required=True)
     approval_enroll.add_argument("--label", required=True)
+    approval_enroll.add_argument("--validity-days", type=int, default=365)
     approval_rotate = approval_sub.add_parser("rotate")
     approval_rotate.add_argument("--old-fingerprint", required=True)
     approval_rotate.add_argument("--new-public-key", type=Path, required=True)
     approval_rotate.add_argument("--new-label", required=True)
     approval_rotate.add_argument("--reason", required=True)
+    approval_rotate.add_argument("--validity-days", type=int, default=365)
+    approval_renew = approval_sub.add_parser("renew")
+    approval_renew.add_argument("--old-fingerprint", required=True)
+    approval_renew.add_argument("--new-public-key", type=Path, required=True)
+    approval_renew.add_argument("--new-label", required=True)
+    approval_renew.add_argument("--reason", required=True)
+    approval_renew.add_argument("--validity-days", type=int, default=365)
     approval_revoke = approval_sub.add_parser("revoke")
     approval_revoke.add_argument("--fingerprint", required=True)
     approval_revoke.add_argument("--reason", required=True)
@@ -243,14 +251,25 @@ def main(argv=None):
             else:
                 store = ApprovalReceiptStore(args.data_dir / "registry.sqlite3")
                 if args.approval_cmd == "enroll":
-                    fingerprint = store.enroll_key(load_public_key(args.public_key), label=args.label)
+                    fingerprint = store.enroll_key(
+                        load_public_key(args.public_key), label=args.label,
+                        validity_days=args.validity_days,
+                    )
                     result = {"enrolled": True, "fingerprint": fingerprint}
                 elif args.approval_cmd == "rotate":
                     fingerprint = store.rotate_key(
                         args.old_fingerprint, load_public_key(args.new_public_key),
                         new_label=args.new_label, reason=args.reason,
+                        validity_days=args.validity_days,
                     )
                     result = {"rotated": True, "new_fingerprint": fingerprint}
+                elif args.approval_cmd == "renew":
+                    fingerprint = store.rotate_key(
+                        args.old_fingerprint, load_public_key(args.new_public_key),
+                        new_label=args.new_label, reason=args.reason,
+                        validity_days=args.validity_days,
+                    )
+                    result = {"renewed": True, "new_fingerprint": fingerprint}
                 elif args.approval_cmd == "revoke":
                     store.revoke_key(args.fingerprint, reason=args.reason)
                     result = {"revoked": True, "fingerprint": args.fingerprint}
