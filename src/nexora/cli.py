@@ -68,6 +68,10 @@ def main(argv=None):
     inventory = sub.add_parser("backup-inventory", help="Read-only inventory of a backup directory")
     inventory.add_argument("--directory", type=Path, default=Path("data/backups"))
     inventory.add_argument("--trusted-key", type=Path)
+    recovery_compare = sub.add_parser("recovery-compare", help="Compare two independently verified recovery points")
+    recovery_compare.add_argument("older_backup", type=Path)
+    recovery_compare.add_argument("newer_backup", type=Path)
+    recovery_compare.add_argument("--trusted-key", type=Path, required=True)
     recovery_plan = sub.add_parser("recovery-plan", help="Rank verified recovery points and propose retention")
     recovery_plan.add_argument("--directory", type=Path, default=Path("data/backups"))
     recovery_plan.add_argument("--trusted-key", type=Path, required=True)
@@ -418,6 +422,18 @@ def main(argv=None):
         return 0
     private_default = args.data_dir / "backup-signing-key.pem"
     public_default = args.data_dir / "backup-signing-key.pub.pem"
+    if args.cmd == "recovery-compare":
+        from nexora.recovery_compare import RecoveryComparisonError, compare_recovery_points
+        try:
+            result = compare_recovery_points(
+                args.older_backup, args.newer_backup, trusted_public_key=args.trusted_key,
+            )
+        except (RecoveryComparisonError, OSError, ValueError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+
     if args.cmd == "recovery-plan":
         from nexora.recovery_planner import RecoveryPlanningError, build_recovery_plan
         try:
