@@ -4,9 +4,9 @@ This module records eligibility decisions only; it never executes capabilities.
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import IntEnum
-from typing import Iterable
 
 LIFECYCLE = (
     "SPECIFIED", "REGISTERED", "IMPLEMENTED", "TESTED",
