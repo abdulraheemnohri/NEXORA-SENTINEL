@@ -219,14 +219,24 @@ def test_registry_rejects_unknown_capability_and_duplicate_id(tmp_path):
 
 
 def test_revocation_is_terminal_and_append_only(tmp_path):
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from nexora.approval import create_receipt
     from nexora.registry import CapabilityRegistry, RegistryError
 
     registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
     registry.register(219, "Covert behavior detection", "AG", source_record=True)
+    keys = [Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate()]
+    for index, key in enumerate(keys):
+        registry.approvals.enroll_key(key.public_key(), label=f"operator-{index}")
+    evidence = {"revocation_basis", "incident_record", "reason:Operator withdrew authorization"}
+    receipts = [
+        create_receipt(key, capability_id=219, transition="REVOKE",
+                       evidence=evidence, approver_id=f"operator-{index}")
+        for index, key in enumerate(keys)
+    ]
     registry.revoke(
-        219, "Operator withdrew authorization",
-        {"revocation_basis", "incident_record"},
-        approver_id="operator:local",
+        219, "Operator withdrew authorization", evidence,
+        approval_receipts=receipts, approver_ids=["operator-0", "operator-1"],
     )
     assert registry.get(219)["control_state"] == "REVOKED"
     assert len(registry.revocation_history(219)) == 1
@@ -234,24 +244,38 @@ def test_revocation_is_terminal_and_append_only(tmp_path):
         registry.transition(219, "REGISTERED", {"source_record", "schema_validation"})
     with pytest.raises(RegistryError, match="already_revoked"):
         registry.revoke(
-            219, "duplicate", {"revocation_basis"}, approver_id="operator:local"
+            219, "duplicate", {"revocation_basis", "reason:duplicate"},
+            approval_receipts=receipts, approver_ids=["operator-0", "operator-1"],
         )
 
 
 def test_rollback_is_audited_but_never_executed_by_registry(tmp_path):
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from nexora.approval import create_receipt
     from nexora.registry import CapabilityRegistry, RegistryError
 
     registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
     registry.register(220, "Uncertainty ledger", "AH", source_record=True)
-    with pytest.raises(RegistryError, match="rollback_evidence_incomplete"):
+    with pytest.raises(RegistryError, match="rollback_metadata_must_be_signed"):
         registry.record_rollback(
             220, "v2", "v1", "Regression detected",
-            {"rollback_plan"}, approver_id="operator:local",
+            {"rollback_plan"}, approval_receipts=[], approver_ids=[],
         )
+    keys = [Ed25519PrivateKey.generate(), Ed25519PrivateKey.generate()]
+    for index, key in enumerate(keys):
+        registry.approvals.enroll_key(key.public_key(), label=f"operator-{index}")
+    evidence = {
+        "rollback_plan", "validation_report", "human_approval",
+        "from_release:v2", "target_release:v1", "reason:Regression detected",
+    }
+    receipts = [
+        create_receipt(key, capability_id=220, transition="ROLLBACK",
+                       evidence=evidence, approver_id=f"operator-{index}")
+        for index, key in enumerate(keys)
+    ]
     event = registry.record_rollback(
-        220, "v2", "v1", "Regression detected",
-        {"rollback_plan", "validation_report", "human_approval"},
-        approver_id="operator:local",
+        220, "v2", "v1", "Regression detected", evidence,
+        approval_receipts=receipts, approver_ids=["operator-0", "operator-1"],
     )
     assert event["from_release"] == "v2"
     assert event["target_release"] == "v1"
