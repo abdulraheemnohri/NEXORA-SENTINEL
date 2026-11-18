@@ -75,6 +75,52 @@ def generate_signing_key(private_path: Path, *, overwrite: bool = False) -> str:
     return public_key_fingerprint(key.public_key())
 
 
+def generate_keypair(private_path: Path, public_path: Path) -> str:
+    """Generate a dedicated Ed25519 keypair without overwriting either output."""
+    private_destination, public_destination = Path(private_path), Path(public_path)
+    if private_destination.resolve() == public_destination.resolve():
+        raise ApprovalError("key_paths_must_be_different")
+    if private_destination.exists() or public_destination.exists():
+        raise ApprovalError("key_output_already_exists")
+    private_destination.parent.mkdir(parents=True, exist_ok=True)
+    public_destination.parent.mkdir(parents=True, exist_ok=True)
+    key = Ed25519PrivateKey.generate()
+    private_data = key.private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    public_data = key.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    created: list[Path] = []
+    try:
+        for destination, data, mode in (
+            (private_destination, private_data, 0o600),
+            (public_destination, public_data, 0o644),
+        ):
+            fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
+            created.append(destination)
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(data)
+                stream.flush()
+                os.fsync(stream.fileno())
+    except OSError as exc:
+        for destination in created:
+            destination.unlink(missing_ok=True)
+        raise ApprovalError("keypair_write_failed") from exc
+    return public_key_fingerprint(key.public_key())
+
+
+def load_public_key(path: Path) -> Ed25519PublicKey:
+    try:
+        key = serialization.load_pem_public_key(Path(path).read_bytes())
+    except (OSError, ValueError, TypeError) as exc:
+        raise ApprovalError("public_key_unreadable_or_invalid") from exc
+    if not isinstance(key, Ed25519PublicKey):
+        raise ApprovalError("ed25519_public_key_required")
+    return key
+
+
 def load_private_key(path: Path) -> Ed25519PrivateKey:
     """Load a private key, refusing group/other-readable POSIX files."""
     key_path = Path(path)
