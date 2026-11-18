@@ -69,3 +69,16 @@ The CLI defaults to:
 Override paths with `--history-log`, `--witness-log`, `--witness-key`, `--trusted-witness-key` and `--audit-log` where supported. A missing witness private key causes recording to fail; an unsigned event is never reported as a trusted simulation. The history reader verifies the entire witness chain and each event digest, excludes unreceipted events, and is read-only. A damaged receipt chain blocks the report.
 
 This is local cryptographic evidence, not remote attestation. Protect the witness private key and retain an independently stored public-key pin. The audit log and witness log are separate chains; the audit entry references the simulation event hash and witness sequence. A simulation does not authorize a production restore, delete backups, or replace a live database.
+
+
+## Recovery-point comparison
+
+Compare two backups only after both have independently verified signatures:
+
+```bash
+nexora recovery-compare \
+  data/backups/before.sqlite3 data/backups/after.sqlite3 \
+  --trusted-key /secure/off-device/backup-signing-key.pub.pem
+```
+
+The report compares integrity, schema table names and SQLite `user_version`. It explicitly does not compare table rows or claim data equality. It is read-only and never restores or modifies either backup.
