@@ -13,7 +13,7 @@ dependencies = ["cryptography>=42,<51", "PyYAML>=6,<7"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.6,<1"]
-litertlm = ["litert-lm>=0.1"]
+litertlm = ["litert-lm"]
 
 [project.scripts]
 nexora = "nexora.cli:main"
