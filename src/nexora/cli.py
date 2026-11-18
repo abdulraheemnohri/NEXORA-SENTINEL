@@ -43,6 +43,9 @@ def main(argv=None):
     evidence_sub.add_parser("verify")
     evidence_evaluate = evidence_sub.add_parser("evaluate", help="Report evidence readiness without changing lifecycle state")
     evidence_evaluate.add_argument("capability_id", type=int)
+    family_eval = sub.add_parser("family-evaluation", help="Evaluate source-backed capability families")
+    family_eval.add_argument("--family")
+    family_eval.add_argument("--database", type=Path)
     check = sub.add_parser("check")
     check.add_argument("action")
     check.add_argument("--risk", choices=("low", "medium", "high", "critical"), default="medium")
@@ -165,6 +168,18 @@ def main(argv=None):
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
         return 0
+    if args.cmd == "family-evaluation":
+        from nexora.family_evaluation import FamilyEvaluationError, build_family_evaluation
+        try:
+            result = build_family_evaluation(
+                args.database or (args.data_dir / "registry.sqlite3"),
+                family=args.family,
+            )
+        except (FamilyEvaluationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["ledger"]["status"] != "INVALID" else 2
     if args.cmd == "update":
         from nexora.updater import UpdateError, main_result
         if args.update_cmd in ("keygen", "sign-manifest", "verify-manifest"):
