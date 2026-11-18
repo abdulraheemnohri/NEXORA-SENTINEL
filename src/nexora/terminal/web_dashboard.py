@@ -26,6 +26,7 @@ VIEWS = {
     "/api/capabilities": render_registry,
     "/api/memory": lambda root: _render_memory(root),
     "/api/runtime": lambda root: _render_runtime(),
+    "/api/self-capabilities": lambda root: _render_self_capabilities(),
 }
 
 
@@ -53,6 +54,12 @@ def _render_runtime() -> str:
     except (OSError, ValueError, TypeError, RuntimeError) as exc:
         return json.dumps({"provider": "LiteRT-LM", "available": False,
                            "error": type(exc).__name__})
+
+
+def _render_self_capabilities() -> str:
+    from nexora.self_capability_report import build_report
+
+    return json.dumps(build_report(include_records=True), ensure_ascii=False, indent=2)
 
 
 def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPServer:
@@ -95,6 +102,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Capability registry", "/api/capabilities"),
                     ("Local memory", "/api/memory"),
                     ("LiteRT-LM runtime and local models", "/api/runtime"),
+                    ("Self-capability catalogue and source gaps", "/api/self-capabilities"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
