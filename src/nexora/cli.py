@@ -417,8 +417,8 @@ def main(argv=None):
         return 0
     if args.cmd == "governance-impact":
         from nexora.governance.validation import (
-            GovernanceValidationError,
             DEFAULT_MATRIX,
+            GovernanceValidationError,
             analyze_revocation_impact,
         )
         try:
