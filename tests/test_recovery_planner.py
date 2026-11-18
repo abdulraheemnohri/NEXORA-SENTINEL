@@ -36,13 +36,9 @@ def test_recovery_plan_ranks_valid_points_and_proposes_retention_only(tmp_path):
     private, public = _keys(tmp_path)
     first = _backup(_database(tmp_path / "first.db", "first"), directory / "first.sqlite3", private)
     second = _backup(_database(tmp_path / "second.db", "second"), directory / "second.sqlite3", private)
-    old = datetime.now(UTC) - timedelta(days=90)
-    import os
-    os.utime(first, (old.timestamp(), old.timestamp()))
-    os.utime(Path(str(first) + ".manifest.json"), (old.timestamp(), old.timestamp()))
     report = build_recovery_plan(
         directory, trusted_public_key=public, retention_days=30,
-        keep_latest=1, now=datetime.now(UTC),
+        keep_latest=1, now=datetime.now(UTC) + timedelta(days=60),
     )
     assert report["valid_recovery_points"] == 2
     decisions = {item["name"]: item["decision"] for item in report["retention"]["proposals"]}
