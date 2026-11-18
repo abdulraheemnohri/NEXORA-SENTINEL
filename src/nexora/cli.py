@@ -83,11 +83,14 @@ def main(argv=None):
     litertlm_install.add_argument("--confirm", action="store_true", required=True)
     for command_name in ("run", "chat"):
         runtime_command = litertlm_sub.add_parser(command_name)
-        runtime_command.add_argument("--model", type=Path, required=True)
+        model_source = runtime_command.add_mutually_exclusive_group(required=True)
+        model_source.add_argument("--model", type=Path)
+        model_source.add_argument("--from-huggingface-repo", dest="huggingface_repo")
         runtime_command.add_argument("--backend", choices=("cpu", "gpu"))
         runtime_command.add_argument("--config", type=Path, default=Path("config/litertlm.yaml"))
         runtime_command.add_argument("--timeout", type=int)
         runtime_command.add_argument("--confirm-inference", action="store_true", required=True)
+        runtime_command.add_argument("--confirm-download", action="store_true")
         if command_name == "run":
             runtime_command.add_argument("--prompt", required=True)
 
@@ -149,6 +152,7 @@ def main(argv=None):
             install_cli,
             load_settings,
             model_inventory,
+            run_huggingface_repo,
             run_local_model,
             runtime_status,
         )
@@ -166,6 +170,19 @@ def main(argv=None):
                 print(json.dumps(model_inventory(Path(settings["model_directory"])), indent=2))
                 return 0
             settings = load_settings(args.config)
+            if args.huggingface_repo:
+                return run_huggingface_repo(
+                    args.huggingface_repo,
+                    getattr(args, "prompt", None),
+                    backend=args.backend or settings["default_backend"],
+                    executable=settings["executable"],
+                    timeout=args.timeout or max(settings["timeout_seconds"], 1800),
+                    confirm_download=args.confirm_download,
+                    confirm_inference=args.confirm_inference,
+                    runtime_enabled=settings["runtime_enabled"],
+                    network_downloads_enabled=settings["network_downloads_enabled"],
+                    interactive=args.litertlm_cmd == "chat",
+                )
             model_path = args.model
             if not model_path.is_absolute() and not model_path.is_file():
                 model_path = Path(settings["model_directory"]) / model_path
