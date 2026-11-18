@@ -50,7 +50,7 @@ def _render_runtime() -> str:
 
     try:
         return json.dumps(runtime_status(), ensure_ascii=False, indent=2)
-    except (OSError, ValueError, TypeError) as exc:
+    except (OSError, ValueError, TypeError, RuntimeError) as exc:
         return json.dumps({"provider": "LiteRT-LM", "available": False,
                            "error": type(exc).__name__})
 
