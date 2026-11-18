@@ -136,8 +136,10 @@ def read_recovery_history(
                     trusted_hashes.add(receipt["payload"]["event_hash"])
         events = []
         if history_path.is_file():
-            with _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")):
-                with history_path.open(encoding="utf-8") as stream:
+            with (
+                _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")),
+                history_path.open(encoding="utf-8") as stream,
+            ):
                     for number, line in enumerate(stream, 1):
                         row = json.loads(line)
                         event = row.get("event")
@@ -161,4 +163,4 @@ def read_recovery_history(
         raise RecoveryHistoryError(f"recovery_history_verification_failed:{type(exc).__name__}") from exc
 
 
-__all__ = ["RecoveryHistoryError", "record_recovery_simulation", "read_recovery_history"]
+__all__ = ["RecoveryHistoryError", "read_recovery_history", "record_recovery_simulation"]
