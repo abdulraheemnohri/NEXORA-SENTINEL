@@ -55,3 +55,21 @@ def test_evaluation_rejects_invalid_capability_id():
 
     with pytest.raises(CapabilityEvaluationError):
         evaluate_capability(True, [], ledger_valid=True)
+
+
+def test_evaluation_includes_required_evidence_older_than_display_limit(tmp_path):
+    path = tmp_path / "registry.sqlite3"
+    ledger = EvidenceLedger(path)
+    # The required source token is deliberately older than the 500-row UI limit.
+    ledger.add(87, "source_record", "spec:87", "a" * 64, "operator")
+    for index in range(505):
+        ledger.add(
+            87, "test_report", f"artifact://tests/{index}", "b" * 64, "operator"
+        )
+    report = evaluate_from_ledger(path, 87)
+    assert report["evidence_records"] == 506
+    assert "source_record" in report["evidence_types"]
+    assert "source_record" not in report["stages"][0]["missing_evidence"]
+    assert report["ledger_valid"] is True
+    assert report["lifecycle_changed"] is False
+    assert report["execution_enabled"] is False
