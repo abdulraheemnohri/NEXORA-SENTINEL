@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -123,7 +123,7 @@ class EvidenceLedger:
                 "FROM capability_evidence"
             ).fetchone()
             sequence = sequence_row["next_sequence"]
-            created_at = datetime.now(timezone.utc).isoformat(timespec="microseconds").replace(
+            created_at = datetime.now(UTC).isoformat(timespec="microseconds").replace(
                 "+00:00", "Z"
             )
             body = {
