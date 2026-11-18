@@ -245,7 +245,8 @@ class ApprovalReceiptStore:
                     key.verify(signature, _canonical(payload))
                 except Exception as exc:
                     raise ApprovalError("receipt_signature_invalid") from exc
-                db.execute("BEGIN IMMEDIATE")
+                if connection is None:
+                    db.execute("BEGIN IMMEDIATE")
                 try:
                     db.execute(
                         "INSERT INTO consumed_approval_receipts(nonce,fingerprint,capability_id,transition,consumed_at) VALUES(?,?,?,?,?)",

@@ -368,7 +368,7 @@ def test_registry_consumes_signed_receipt_atomically_with_transition(tmp_path):
         private, capability_id=222, transition="APPROVED", evidence=evidence,
         approver_id="operator:test", now=1000,
     )
-    with pytest.raises(RegistryError, match="lifecycle_transition"):
+    with pytest.raises(RegistryError, match="non_sequential_transition_denied"):
         registry.transition(
             222, "APPROVED", evidence, approver_id="operator:test",
             approval_receipt=receipt,
