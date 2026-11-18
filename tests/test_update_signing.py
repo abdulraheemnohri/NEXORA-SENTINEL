@@ -86,3 +86,38 @@ def test_manifest_rejects_wrong_repository_or_ref(tmp_path):
     manifest.write_text(json.dumps(payload))
     with pytest.raises(UpdateSignatureError, match="repository_or_ref_mismatch"):
         verify_manifest(manifest, public)
+
+
+
+def test_update_keygen_creates_matching_restricted_keypair(tmp_path):
+    private = tmp_path / "keys" / "update-private.pem"
+    public = tmp_path / "keys" / "update-public.pem"
+    fingerprint = generate_update_signing_keypair(private, public)
+    assert private.exists()
+    assert public.exists()
+    assert len(fingerprint) == 64
+    if private.stat().st_mode & 0o777 != 0o600:
+        pytest.fail("private key permissions must be 0600")
+    manifest = tmp_path / "release.json"
+    create_manifest(
+        commit_sha="f" * 40, version="0.3.0",
+        signing_key=private, output=manifest,
+    )
+    assert verify_manifest(manifest, public)["signer_fingerprint"] == fingerprint
+
+
+def test_update_keygen_refuses_overwrite(tmp_path):
+    private = tmp_path / "private.pem"
+    public = tmp_path / "public.pem"
+    private.write_text("existing private data")
+    with pytest.raises(UpdateSignatureError, match="output_exists"):
+        generate_update_signing_keypair(private, public)
+    assert private.read_text() == "existing private data"
+    assert not public.exists()
+
+
+def test_update_keygen_requires_distinct_paths(tmp_path):
+    destination = tmp_path / "same.pem"
+    with pytest.raises(UpdateSignatureError, match="paths_must_be_different"):
+        generate_update_signing_keypair(destination, destination)
+    assert not destination.exists()
