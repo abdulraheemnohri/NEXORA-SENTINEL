@@ -92,10 +92,19 @@ def main(argv=None):
         from nexora.updater import UpdateError, main_result
         if args.update_cmd in ("keygen", "sign-manifest", "verify-manifest"):
             from nexora.update_signing import (
-                UpdateSignatureError, create_manifest, generate_update_signing_keypair,\n                verify_manifest,
+                UpdateSignatureError,\n                create_manifest,\n                generate_update_signing_keypair,\n                verify_manifest,
             )
             try:
-                if args.update_cmd == "keygen":\n                    result = {\n                        "created": True,\n                        "signer_fingerprint": generate_update_signing_keypair(\n                            args.private_key, args.public_key\n                        ),\n                        "private_key": str(args.private_key),\n                        "public_key": str(args.public_key),\n                        "warning": "Back up the private key securely. Never commit or share it; distribute the public key through an independent trusted channel.",\n                    }\n                elif args.update_cmd == "sign-manifest":
+                if args.update_cmd == "keygen":
+                    result = {
+                        "created": True,
+                        "signer_fingerprint": generate_update_signing_keypair(
+                            args.private_key, args.public_key
+                        ),
+                        "private_key": str(args.private_key),
+                        "public_key": str(args.public_key),
+                        "warning": "Back up the private key securely. Never commit or share it; distribute the public key through an independent trusted channel.",
+                    }\n                elif args.update_cmd == "sign-manifest":
                     result = create_manifest(
                         commit_sha=args.commit_sha, version=args.version,
                         signing_key=args.signing_key, output=args.output,
