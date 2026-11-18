@@ -19,6 +19,8 @@ def compare_recovery_points(
 ) -> dict[str, Any]:
     """Compare verified SQLite schema metadata; never expose row data or mutate backups."""
     older_path, newer_path = Path(older_backup), Path(newer_backup)
+    if older_path.is_symlink() or newer_path.is_symlink():
+        raise RecoveryComparisonError("recovery_point_symlink_refused")
     if older_path.resolve() == newer_path.resolve():
         raise RecoveryComparisonError("recovery_points_must_be_distinct")
     try:
