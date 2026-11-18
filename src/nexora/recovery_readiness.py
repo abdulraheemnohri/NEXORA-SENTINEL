@@ -19,6 +19,11 @@ class RecoveryReadinessError(ValueError):
 class RecoverySettings:
     backup_directory: str = "data/backups"
     trusted_public_key: str = ""
+    history_log: str = "data/recovery/history.jsonl"
+    witness_receipt_log: str = "data/recovery-witness/receipts.jsonl"
+    witness_private_key: str = "data/recovery-witness-signing-key.pem"
+    witness_public_key: str = "data/recovery-witness-signing-key.pub.pem"
+    audit_log: str = "data/audit.jsonl"
     retention_days: int = 30
     keep_latest: int = 3
     max_backup_age_hours: int = 168
@@ -36,6 +41,10 @@ class RecoverySettings:
             raise RecoveryReadinessError("backup_directory_required")
         if not isinstance(self.trusted_public_key, str):
             raise RecoveryReadinessError("trusted_public_key_must_be_string")
+        for name in ("history_log", "witness_receipt_log", "witness_private_key", "witness_public_key", "audit_log"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise RecoveryReadinessError(f"{name}_must_be_nonempty_path")
         if type(self.require_simulation_confirmation) is not bool:
             raise RecoveryReadinessError("require_simulation_confirmation_must_be_boolean")
         if self.automatic_restore is not False or self.automatic_deletion is not False:
