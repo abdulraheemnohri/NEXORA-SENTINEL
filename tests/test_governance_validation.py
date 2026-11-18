@@ -4,9 +4,9 @@ import pytest
 
 from nexora.governance.validation import (
     GovernanceValidationError,
+    analyze_revocation_impact,
     build_governance_report,
     inspect_relation,
-    analyze_revocation_impact,
 )
 
 
