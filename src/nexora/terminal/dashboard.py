@@ -5,7 +5,8 @@ import hashlib
 import json
 import sqlite3
 from pathlib import Path
-from typing import Callable, TextIO
+from collections.abc import Callable
+from typing import TextIO
 
 from nexora.catalog import status as catalog_status
 from nexora.oversight import KillSwitch

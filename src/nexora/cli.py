@@ -58,7 +58,6 @@ def main(argv=None):
     stop = KillSwitch(args.data_dir / "KILL")
     policy = PolicyKernel(stop)
 
-    if args.cmd == "tui":\n        import sys\n        return run_read_only_tui(args.data_dir, output=sys.stdout)\n    if args.cmd == "status":
         valid = log.verify()
         print(json.dumps({
             "version": "0.2.0",
