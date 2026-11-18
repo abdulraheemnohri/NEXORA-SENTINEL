@@ -4,4 +4,5 @@ cd "$(dirname "$0")/.."
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -e '.[dev]'
+mkdir -p models data && chmod 700 models data
 .venv/bin/nexora status
