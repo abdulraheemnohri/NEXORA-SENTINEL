@@ -332,7 +332,7 @@ class CapabilityRegistry:
                 (capability_id, from_release.strip(), target_release.strip(), reason.strip(),
                  json.dumps(supplied, separators=(",", ":")), ",".join(normalized),
                  json.dumps([p["key_fingerprint"] for p in payloads], separators=(",", ":")),
-                 json.dumps(payloads, sort_keys=True, separators=(",", ":"))),
+                 json.dumps([{"payload": payload, "signature": receipt["signature"]} for payload, receipt in zip(payloads, approval_receipts)], sort_keys=True, separators=(",", ":"))),
             )
             row = db.execute(
                 "SELECT * FROM rollback_events WHERE event_id=?", (cursor.lastrowid,)
