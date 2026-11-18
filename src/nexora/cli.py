@@ -124,6 +124,10 @@ def main(argv=None):
     rollback_record.add_argument("--evidence", nargs="+", required=True)
     rollback_record.add_argument("--approver-id", nargs="+", required=True)
     rollback_record.add_argument("--approval-receipt", type=Path, nargs="+", required=True)
+    revocation_verify = sub.add_parser("registry-revocation-verify", help="Cryptographically verify signed revocation history")
+    revocation_verify.add_argument("capability_id", type=int)
+    rollback_verify = sub.add_parser("rollback-verify", help="Cryptographically verify signed rollback authorization history")
+    rollback_verify.add_argument("capability_id", type=int)
     governance_check = sub.add_parser("governance-check", help="Validate governance artifacts without changing policy")
     governance_check.add_argument("--matrix", type=Path)
     governance_check.add_argument("--precedence", type=Path)
@@ -694,6 +698,17 @@ def main(argv=None):
         print(json.dumps({"authorized": True, "rollback": result,
                           "executed": False}, ensure_ascii=False, indent=2))
         return 0
+    if args.cmd in {"registry-revocation-verify", "rollback-verify"}:
+        try:
+            kind = "revocation" if args.cmd == "registry-revocation-verify" else "rollback"
+            result = CapabilityRegistry(args.data_dir / "registry.sqlite3").verify_signed_history(
+                args.capability_id, kind=kind,
+            )
+        except (OSError, ValueError, RegistryError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["valid"] else 2
     if args.cmd == "registry-init":
         database = args.data_dir / "registry.sqlite3"
         CapabilityRegistry(database)
