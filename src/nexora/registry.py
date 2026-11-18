@@ -5,9 +5,13 @@ only: this module never invokes capability implementations or rolls software bac
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from nexora.approval import ApprovalError, ApprovalReceiptStore
 from nexora.lifecycle import validate_transition
@@ -334,6 +338,91 @@ class CapabilityRegistry:
             ).fetchone()
             result = dict(row)
         return result
+
+    def verify_signed_history(self, capability_id: int, *, kind: str = "revocation") -> dict:
+        """Verify stored receipt signatures, evidence scope and nonce-consumption records."""
+        if kind not in {"revocation", "rollback"}:
+            raise RegistryError("signed_history_kind_invalid")
+        table = "revocation_events" if kind == "revocation" else "rollback_events"
+        transition = "REVOKE" if kind == "revocation" else "ROLLBACK"
+        with self._connect() as db:
+            rows = db.execute(
+                f"SELECT * FROM {table} WHERE capability_id=? ORDER BY event_id",
+                (capability_id,),
+            ).fetchall()
+            reports = []
+            for row in rows:
+                event = dict(row)
+                errors = []
+                try:
+                    evidence = json.loads(event["evidence_json"])
+                    envelopes = json.loads(event["receipt_payloads_json"])
+                    fingerprints = json.loads(event["signer_fingerprints_json"])
+                    if not isinstance(evidence, list) or not isinstance(envelopes, list) or len(envelopes) < 2:
+                        raise ValueError("signed_receipt_history_missing")
+                    if len(envelopes) != len(fingerprints):
+                        raise ValueError("signer_fingerprint_count_mismatch")
+                    evidence_values = sorted({item.strip() for item in evidence if isinstance(item, str) and item.strip()})
+                    evidence_digest = hashlib.sha256(json.dumps(
+                        {"evidence": evidence_values}, sort_keys=True,
+                        separators=(",", ":"), ensure_ascii=False,
+                    ).encode("utf-8")).hexdigest()
+                    signer_ids = []
+                    seen_fingerprints = set()
+                    for index, envelope in enumerate(envelopes):
+                        payload = envelope["payload"]
+                        signature = base64.b64decode(envelope["signature"], validate=True)
+                        fingerprint = payload["key_fingerprint"]
+                        if fingerprint != fingerprints[index] or fingerprint in seen_fingerprints:
+                            raise ValueError("signed_receipt_signer_mismatch")
+                        seen_fingerprints.add(fingerprint)
+                        if (
+                            payload.get("capability_id") != capability_id
+                            or payload.get("transition") != transition
+                            or payload.get("evidence_sha256") != evidence_digest
+                            or payload.get("schema_version") != 1
+                        ):
+                            raise ValueError("signed_receipt_scope_mismatch")
+                        issued, expires = payload.get("issued_at"), payload.get("expires_at")
+                        if type(issued) is not int or type(expires) is not int or not issued < expires or expires - issued > 900:
+                            raise ValueError("signed_receipt_time_invalid")
+                        trusted = db.execute(
+                            "SELECT public_key FROM trusted_signing_keys WHERE fingerprint=?",
+                            (fingerprint,),
+                        ).fetchone()
+                        if trusted is None:
+                            raise ValueError("historical_signing_key_missing")
+                        public_bytes = trusted["public_key"]
+                        if hashlib.sha256(public_bytes).hexdigest() != fingerprint:
+                            raise ValueError("historical_signing_key_fingerprint_mismatch")
+                        Ed25519PublicKey.from_public_bytes(public_bytes).verify(
+                            signature,
+                            json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8"),
+                        )
+                        consumed = db.execute(
+                            """SELECT consumed_at FROM consumed_approval_receipts
+                               WHERE nonce=? AND fingerprint=? AND capability_id=? AND transition=?""",
+                            (payload["nonce"], fingerprint, capability_id, transition),
+                        ).fetchone()
+                        if consumed is None or not issued <= consumed["consumed_at"] <= expires:
+                            raise ValueError("signed_receipt_nonce_consumption_missing")
+                        signer_ids.append(payload["approver_id"])
+                    if len(set(signer_ids)) != len(signer_ids) or event["approver_id"] != ",".join(signer_ids):
+                        raise ValueError("signed_receipt_approver_history_mismatch")
+                except (KeyError, TypeError, ValueError, base64.binascii.Error, Exception) as exc:
+                    errors.append(str(exc) or "signed_receipt_verification_failed")
+                reports.append({
+                    "event_id": event["event_id"],
+                    "valid": not errors,
+                    "errors": errors,
+                })
+        return {
+            "capability_id": capability_id,
+            "kind": kind,
+            "valid": all(item["valid"] for item in reports) and bool(reports),
+            "event_count": len(reports),
+            "events": reports,
+        }
 
     def get(self, capability_id: int) -> dict | None:
         with self._connect() as db:
