@@ -131,9 +131,8 @@ def test_readonly_ledger_rejects_schema_creation_and_writes(tmp_path):
     path = tmp_path / "ledger.sqlite3"
     EvidenceLedger(path)
     readonly = EvidenceLedger(path, readonly=True)
-    with pytest.raises(sqlite3.OperationalError):
-        with readonly._connect() as db:
-            db.execute("CREATE TABLE forbidden (value TEXT)")
+    with pytest.raises(sqlite3.OperationalError), readonly._connect() as db:
+        db.execute("CREATE TABLE forbidden (value TEXT)")
     with sqlite3.connect(path) as db:
         names = {
             row[0] for row in db.execute(
