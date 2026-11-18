@@ -92,7 +92,10 @@ def main(argv=None):
         from nexora.updater import UpdateError, main_result
         if args.update_cmd in ("keygen", "sign-manifest", "verify-manifest"):
             from nexora.update_signing import (
-                UpdateSignatureError,\n                create_manifest,\n                generate_update_signing_keypair,\n                verify_manifest,
+                UpdateSignatureError,
+                create_manifest,
+                generate_update_signing_keypair,
+                verify_manifest,
             )
             try:
                 if args.update_cmd == "keygen":
@@ -104,7 +107,8 @@ def main(argv=None):
                         "private_key": str(args.private_key),
                         "public_key": str(args.public_key),
                         "warning": "Back up the private key securely. Never commit or share it; distribute the public key through an independent trusted channel.",
-                    }\n                elif args.update_cmd == "sign-manifest":
+                    }
+                elif args.update_cmd == "sign-manifest":
                     result = create_manifest(
                         commit_sha=args.commit_sha, version=args.version,
                         signing_key=args.signing_key, output=args.output,
