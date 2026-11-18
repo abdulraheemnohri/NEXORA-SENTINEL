@@ -140,6 +140,24 @@ def main(argv=None):
     governance_relation.add_argument("source", type=int)
     governance_relation.add_argument("target", type=int)
     governance_relation.add_argument("--matrix", type=Path)
+    governance_arbitrate = sub.add_parser(
+        "governance-arbitrate",
+        help="Propose a fixed-precedence winner for an explicitly declared conflict",
+    )
+    governance_arbitrate.add_argument("left_id", type=int)
+    governance_arbitrate.add_argument("right_id", type=int)
+    governance_arbitrate.add_argument(
+        "--left-priority",
+        choices=("SAFETY", "GOVERNANCE", "OPERATIONAL", "CONVENIENCE"),
+        required=True,
+    )
+    governance_arbitrate.add_argument(
+        "--right-priority",
+        choices=("SAFETY", "GOVERNANCE", "OPERATIONAL", "CONVENIENCE"),
+        required=True,
+    )
+    governance_arbitrate.add_argument("--matrix", type=Path)
+    governance_arbitrate.add_argument("--wait-graph", type=Path)
     source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
     source_status.add_argument("--catalog", type=Path)
     source_status.add_argument("--rules", type=Path)
@@ -420,6 +438,33 @@ def main(argv=None):
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
         return 0
+    if args.cmd == "governance-arbitrate":
+        from nexora.governance.arbitration import (
+            ArbitrationError,
+            arbitrate_conflict,
+            load_wait_graph,
+        )
+        from nexora.governance.validation import DEFAULT_MATRIX
+        try:
+            result = arbitrate_conflict(
+                args.left_id,
+                args.right_id,
+                left_priority=args.left_priority,
+                right_priority=args.right_priority,
+                matrix_path=args.matrix or DEFAULT_MATRIX,
+                wait_graph=load_wait_graph(args.wait_graph),
+            )
+        except (ArbitrationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "decision": "BLOCK_AND_ESCALATE",
+                "valid": False,
+                "error": str(exc),
+                "proposal_authorized": False,
+                "execution_enabled": False,
+            }, indent=2))
+            return 3
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["decision"] == "PRECEDENCE_WINNER_PROPOSED_REVIEW_REQUIRED" else 3
     if args.cmd == "governance-impact":
         from nexora.governance.validation import (
             DEFAULT_MATRIX,
