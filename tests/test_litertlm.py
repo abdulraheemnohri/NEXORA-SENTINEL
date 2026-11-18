@@ -18,14 +18,14 @@ from nexora.intelligence.litertlm import (
 
 def _settings(path, *, enabled=False, downloads=False):
     path.write_text(
-        "version: 1\\n"
-        f"runtime_enabled: {'true' if enabled else 'false'}\\n"
-        "executable: litert-lm\\n"
-        "default_backend: cpu\\n"
-        "model_directory: models\\n"
-        "timeout_seconds: 600\\n"
-        f"network_downloads_enabled: {'true' if downloads else 'false'}\\n"
-        "presets_enabled: false\\n",
+        "version: 1\n"
+        f"runtime_enabled: {'true' if enabled else 'false'}\n"
+        "executable: litert-lm\n"
+        "default_backend: cpu\n"
+        "model_directory: models\n"
+        "timeout_seconds: 600\n"
+        f"network_downloads_enabled: {'true' if downloads else 'false'}\n"
+        "presets_enabled: false\n",
         encoding="utf-8",
     )
 
@@ -39,7 +39,7 @@ def test_missing_settings_use_disabled_safe_defaults(tmp_path):
 
 def test_settings_reject_unknown_fields(tmp_path):
     path = tmp_path / "litertlm.yaml"
-    path.write_text("version: 1\\nruntime_enabled: false\\nunknown: true\\n")
+    path.write_text("version: 1\nruntime_enabled: false\nunknown: true\n")
     with pytest.raises(LiteRTLMError, match="schema_invalid"):
         load_settings(path)
 
@@ -48,8 +48,9 @@ def test_settings_allow_network_only_as_explicit_boolean_opt_in(tmp_path):
     path = tmp_path / "litertlm.yaml"
     _settings(path, enabled=True, downloads=True)
     assert load_settings(path)["network_downloads_enabled"] is True
-    path.write_text(path.read_text().replace("network_downloads_enabled: true", "network_downloads_enabled: yes"))
-    assert load_settings(path)["network_downloads_enabled"] is True
+    path.write_text(path.read_text().replace("network_downloads_enabled: true", 'network_downloads_enabled: "true"'))
+    with pytest.raises(LiteRTLMError, match="must_be_boolean"):
+        load_settings(path)
 
 
 def test_settings_reject_presets(tmp_path):
