@@ -111,8 +111,14 @@ def test_install_blocks_known_failed_ci(monkeypatch, tmp_path):
         "local_sha": local, "latest_sha": "a" * 40, "update_available": True,
         "ci": {"state": "failure"},
     })
-    with pytest.raises(updater.UpdateError, match="latest_commit_ci_failed"):
-        updater.install_update(root, confirm=True)
+    monkeypatch.setattr(updater, "verify_manifest", lambda *_: {
+        "valid": True, "commit_sha": "a" * 40, "signer_fingerprint": "f" * 64,
+    })
+    with pytest.raises(updater.UpdateError, match="ci_not_verified_success"):
+        updater.install_update(
+            root, confirm=True, manifest=tmp_path / "manifest.json",
+            trusted_key=tmp_path / "trusted.pub",
+        )
 
 
 
