@@ -11,7 +11,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
-from typing import Mapping
+from collections.abc import Mapping
 
 
 class SelfFamily(StrEnum):
@@ -77,7 +77,7 @@ class SelfFamilySettings:
     evolution_enabled: bool = False
     autonomy_level: str = "L0"
 
-    def validate(self) -> "SelfFamilySettings":
+    def validate(self) -> SelfFamilySettings:
         flags = (
             self.observation_enabled,
             self.diagnostics_enabled,
