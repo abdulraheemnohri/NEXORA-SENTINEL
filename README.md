@@ -3,7 +3,7 @@
 Self-Terminal Autonomous Intelligence Platform · STA-264  
 Autonomy Through Verifiability. · v0.1.0 Safety Kernel Foundation
 
-This is a safety-governed, local-first foundation, not a completed autonomous agent. The exact source specification for the 264 capabilities and 45 numbered meta-rules must be imported verbatim. Missing definitions are not fabricated.
+This is a safety-governed, local-first foundation, not a completed autonomous agent. The specification now records capabilities 85–264 (180 entries), meta-rules 16–45 (30 entries), and a 264×264 interaction-matrix schema. Earlier capabilities 1–84 and rules 1–15 remain unregistered because their source definitions have not yet been supplied.
 
 ## Foundation delivered
 - Python package and nexora CLI
@@ -11,7 +11,9 @@ This is a safety-governed, local-first foundation, not a completed autonomous ag
 - Persistent emergency kill switch
 - SHA-256 hash-chained JSONL audit log
 - Separate local witness receipts
-- Capability catalog completeness gate and 264×264 matrix schema
+- Capability registry with Addenda III–V entries 85–264, including mechanism and gate metadata for 216–264
+- Meta-rules 16–45; immutable-to-agent flags
+- 264×264 interaction-matrix schema (relations intentionally unpopulated)
 - Tests, GitHub Actions CI, Android Debian install script
 
 ## Not enabled
@@ -34,9 +36,9 @@ Tests: bash scripts/run_tests.sh
 Safety outranks all other priorities. Unknown actions/interactions are denied or reviewed. Autonomy defaults to L0. A proposal is not a mutation. Privilege expansion requires human approval. Audit integrity failure blocks appends. No generated code executes in this milestone. A local hash chain is tamper-evident, not tamper-proof.
 
 ## Specification import gate
-- spec/capability_catalog.json: exact 264 IDs/names, 40 families A–AN, gates, metrics, failure modes and autonomy ceilings.
-- spec/meta_rules.json: all 45 exact numbered rules.
-- spec/interaction_matrix.json: specified relations only; unknown remains unknown.
+- spec/capability_catalog.json: 180 registered entries (85–264); IDs 1–84 remain missing. Addendum V includes mechanism and gate fields for 216–264.
+- spec/meta_rules.json: 30 registered rules (16–45); rules 1–15 remain missing.
+- spec/interaction_matrix.json: 264×264 dimensions; relations remain unpopulated and unknown by default.
 
 Until imported, catalog-check exits non-zero intentionally. See docs/ARCHITECTURE.md and docs/THREAT_MODEL.md.
 
