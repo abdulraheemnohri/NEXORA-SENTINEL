@@ -139,12 +139,14 @@ def test_web_dashboard_exposes_family_evaluation_without_creating_storage(tmp_pa
         response = connection.getresponse()
         payload = json.loads(response.read().decode())
         assert response.status == 200
-        assert payload["scope"] == "source_backed_catalogue_records_only"
-        assert payload["ledger"]["status"] == "NOT_FOUND"
-        assert payload["filter"]["family"] == "O"
-        assert len(payload["families"]) == 1
-        assert payload["families"][0]["family"] == "O"
-        assert payload["execution_enabled"] is False
+        assert payload["read_only"] is True
+        report = json.loads(payload["view"])
+        assert report["scope"] == "source_backed_catalogue_records_only"
+        assert report["ledger"]["status"] == "NOT_FOUND"
+        assert report["filter"]["family"] == "O"
+        assert len(report["families"]) == 1
+        assert report["families"][0]["family"] == "O"
+        assert report["execution_enabled"] is False
         assert not data_dir.exists()
         connection.close()
     finally:
