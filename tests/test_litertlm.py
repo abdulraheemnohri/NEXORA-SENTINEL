@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
+import nexora.intelligence.litertlm as adapter
 from nexora.intelligence.litertlm import (
     LiteRTLMError,
     find_executable,
@@ -100,9 +103,6 @@ def test_find_executable_uses_path_lookup(monkeypatch):
 
 
 def test_run_uses_argument_vector_and_never_shell(tmp_path, monkeypatch):
-    from types import SimpleNamespace
-    import nexora.intelligence.litertlm as adapter
-
     model = tmp_path / "model with spaces.litertlm"
     model.write_bytes(b"model")
     calls = []
