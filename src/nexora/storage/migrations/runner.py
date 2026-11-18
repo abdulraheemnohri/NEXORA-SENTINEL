@@ -13,7 +13,7 @@ Migration = Callable[[sqlite3.Connection], None]
 
 def _validate_registry(migrations: Mapping[int, Migration]) -> None:
     if not isinstance(migrations, Mapping):
-        raise ValueError("migration_registry_invalid")
+        raise TypeError("migration_registry_invalid")
     for version, migration in migrations.items():
         if type(version) is not int or version < 1 or not callable(migration):
             raise ValueError("migration_registry_invalid")

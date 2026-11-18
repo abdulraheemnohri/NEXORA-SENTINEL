@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Mapping
 
-from nexora.backup import create_backup, restore_backup, verify_backup
+from nexora.backup import BackupError, create_backup, restore_backup, verify_backup
 from nexora.storage.migrations.runner import Migration, apply_migrations
 
 
@@ -62,13 +62,13 @@ def migrate_with_backup(
         previous = int(connection.execute("PRAGMA user_version").fetchone()[0])
         try:
             current = apply_migrations(connection, migrations)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - every migration failure must trigger recovery.
             try:
                 restore_backup(
                     backup_path, recovery_copy_path,
                     trusted_public_key=trusted_public_key,
                 )
-            except Exception as recovery_exc:
+            except (BackupError, OSError, sqlite3.Error, ValueError) as recovery_exc:
                 raise MigrationRecoveryError(
                     f"migration_failed_and_recovery_copy_failed:{type(recovery_exc).__name__}",
                     backup=backup_path, recovery_copy=recovery_copy_path,
