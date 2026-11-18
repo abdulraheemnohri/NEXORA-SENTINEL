@@ -346,3 +346,18 @@ def test_backup_source_survives_snapshot_failure(tmp_path, monkeypatch):
     assert not backup.exists()
     assert not backup.with_name(backup.name + ".manifest.json").exists()
     assert not list(tmp_path.glob(".nexora-backup-*"))
+
+
+
+def test_backup_and_restore_are_standalone_sqlite_files(tmp_path):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, public, _ = _keys(tmp_path)
+    create_backup(source, backup, signing_key=private)
+    restored = tmp_path / "restored.sqlite3"
+    restore_backup(backup, restored, trusted_public_key=public)
+    for database in (backup, restored):
+        assert not Path(str(database) + "-wal").exists()
+        assert not Path(str(database) + "-shm").exists()
+        with sqlite3.connect(database) as connection:
+            assert connection.execute("PRAGMA journal_mode").fetchone()[0].lower() == "delete"
