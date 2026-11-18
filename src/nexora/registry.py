@@ -409,7 +409,7 @@ class CapabilityRegistry:
                         signer_ids.append(payload["approver_id"])
                     if len(set(signer_ids)) != len(signer_ids) or event["approver_id"] != ",".join(signer_ids):
                         raise ValueError("signed_receipt_approver_history_mismatch")
-                except (KeyError, TypeError, ValueError, base64.binascii.Error, Exception) as exc:
+                except Exception as exc:
                     errors.append(str(exc) or "signed_receipt_verification_failed")
                 reports.append({
                     "event_id": event["event_id"],
