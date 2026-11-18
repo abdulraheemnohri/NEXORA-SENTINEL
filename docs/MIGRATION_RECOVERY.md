@@ -37,6 +37,8 @@ The signing public key must be an independently trusted key. Never treat a publi
 
 A `MigrationRecoveryError` exposes `backup` and `recovery_copy` paths. Inspect both and preserve the original database. Replacing or rolling back the live database is a separate operator-controlled procedure and is intentionally not automated.
 
+Backup and restored database files are normalized to SQLite `journal_mode=DELETE` before publication. This makes each published snapshot self-contained instead of depending on temporary `-wal` or `-shm` sidecars. Tests verify the standalone mode and check that sidecars are absent.
+
 ## Fault-injection coverage
 
 The backup tests inject failures during database snapshot validation, publication of the database/manifest pair, and restored-copy validation. They assert that failed operations do not leave a published partial destination, temporary artifacts are cleaned up, and the source database remains unchanged. These are controlled exception-path tests; they do not simulate physical power loss, filesystem corruption, storage-controller cache loss, or every platform's hard-link semantics. Keep independent copies of important backups and test restore on the target filesystem.
