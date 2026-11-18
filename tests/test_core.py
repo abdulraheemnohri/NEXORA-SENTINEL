@@ -135,3 +135,56 @@ def test_conflict_resolution_is_fail_closed():
         "safety", "governance",
         {"safety": Precedence.SAFETY, "governance": Precedence.SAFETY},
     ).allowed
+
+
+def test_persistent_registry_records_state_and_append_only_history(tmp_path):
+    from nexora.registry import CapabilityRegistry
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    registry.register(216, "Adversarial input detection", "AG", source_record=True)
+    registry.transition(216, "REGISTERED", {"source_record", "schema_validation"})
+    registry.transition(216, "IMPLEMENTED", {"implementation_reference"})
+    registry.transition(216, "TESTED", {"test_report", "test_passed"})
+    registry.transition(216, "SHADOWED", {"shadow_report", "no_side_effects"})
+    registry.transition(216, "APPROVED", {"human_approval"}, approver_id="operator:local")
+    registry.transition(
+        216, "ENABLED",
+        {"human_approval", "rollback_plan", "monitoring_plan"},
+        approver_id="operator:local",
+    )
+    assert registry.get(216)["state"] == "ENABLED"
+    history = registry.history(216)
+    assert [event["requested_state"] for event in history] == [
+        "SPECIFIED", "REGISTERED", "IMPLEMENTED", "TESTED",
+        "SHADOWED", "APPROVED", "ENABLED",
+    ]
+    assert history[-1]["approver_id"] == "operator:local"
+
+
+def test_registry_rejects_missing_approver_and_preserves_state(tmp_path):
+    from nexora.registry import CapabilityRegistry, RegistryError
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    registry.register(217, "Uncertainty map", "AH", source_record=True)
+    for state, evidence in [
+        ("REGISTERED", {"source_record", "schema_validation"}),
+        ("IMPLEMENTED", {"implementation_reference"}),
+        ("TESTED", {"test_report", "test_passed"}),
+        ("SHADOWED", {"shadow_report", "no_side_effects"}),
+    ]:
+        registry.transition(217, state, evidence)
+    with pytest.raises(RegistryError, match="human_authorization_required"):
+        registry.transition(217, "APPROVED", {"human_approval"})
+    assert registry.get(217)["state"] == "SHADOWED"
+    assert len(registry.history(217)) == 5
+
+
+def test_registry_rejects_unknown_capability_and_duplicate_id(tmp_path):
+    from nexora.registry import CapabilityRegistry, RegistryError
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    with pytest.raises(RegistryError, match="unknown_capability_denied"):
+        registry.transition(999, "REGISTERED", {"source_record", "schema_validation"})
+    registry.register(218, "Interface contracts", "AI", source_record=True)
+    with pytest.raises(RegistryError, match="duplicate_or_invalid_capability"):
+        registry.register(218, "Duplicate", "AI", source_record=True)
