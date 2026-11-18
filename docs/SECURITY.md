@@ -27,6 +27,21 @@ This project is not a hardened OS sandbox, secure boot, remote witness, hardware
 
 ## Approval signing-key lifecycle
 
+Trusted approval keys expire after 365 days by default. Enrollment and rotation/renewal accept `--validity-days` from 1 through 730. Existing trust-store rows are migrated to an expiry timestamp 365 days after their original enrollment time; they are not silently granted a fresh lifetime. Expired keys cannot authorize new receipts. Renewal uses a newly generated keypair and atomically revokes the old key while enrolling the replacement; do not extend or reuse the old private key.
+
+```bash
+nexora approval enroll --public-key /secure/operator.pub.pem --label "operator-1" --validity-days 365
+nexora approval renew \\
+  --old-fingerprint OLD_FINGERPRINT \\
+  --new-public-key /secure/operator-next.pub.pem \\
+  --new-label "operator-1-renewed" \\
+  --reason "annual key renewal" \\
+  --validity-days 365
+nexora approval keys
+```
+
+`approval keys` reports the public-key expiry timestamp. Expiration is enforced at receipt verification time, independently of the short receipt TTL. Keep system clocks synchronized; the receipt clock-skew allowance does not extend a signing key's lifetime.
+
 Use a dedicated Ed25519 keypair for lifecycle approvals. Generate it locally:
 
 ```bash
