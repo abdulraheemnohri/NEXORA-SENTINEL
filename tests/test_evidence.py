@@ -155,3 +155,42 @@ def test_readonly_ledger_rejects_uninitialized_database_without_mutating_it(tmp_
             )
         }
     assert names == {"operator_marker"}
+
+
+
+def test_evidence_ledger_refuses_to_append_to_corrupt_chain(tmp_path):
+    path = tmp_path / "ledger.sqlite3"
+    ledger = EvidenceLedger(path)
+    ledger.add(85, "implementation_reference", "ref", HASH, "operator")
+    with sqlite3.connect(path) as db:
+        db.execute("DROP TRIGGER capability_evidence_no_update")
+        db.execute("UPDATE capability_evidence SET note='tampered' WHERE sequence=1")
+
+    with pytest.raises(EvidenceError, match="integrity_failure_before_append:1"):
+        ledger.add(86, "test_report", "new-ref", "b" * 64, "operator")
+
+    result = ledger.verify()
+    assert result["valid"] is False
+    assert result["verified_records"] == 0
+    with sqlite3.connect(path) as db:
+        assert db.execute("SELECT COUNT(*) FROM capability_evidence").fetchone()[0] == 1
+
+
+def test_evidence_ledger_serializes_concurrent_appends(tmp_path):
+    from concurrent.futures import ThreadPoolExecutor
+
+    path = tmp_path / "concurrent.sqlite3"
+    ledger = EvidenceLedger(path)
+
+    def append(index):
+        return ledger.add(
+            85, "implementation_reference", f"ref-{index}",
+            f"{index + 1:064x}", "operator",
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        records = list(pool.map(append, range(24)))
+
+    assert sorted(record["sequence"] for record in records) == list(range(1, 25))
+    assert ledger.verify()["valid"] is True
+    assert ledger.verify()["verified_records"] == 24
