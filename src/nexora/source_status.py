@@ -28,14 +28,21 @@ def build_source_status(
     rule_rows = rules.get("rules", [])
     if not isinstance(capability_rows, list) or not isinstance(rule_rows, list):
         raise ValueError("source_artifact_records_must_be_lists")
-    capability_ids = {
-        row.get("id") for row in capability_rows
-        if isinstance(row, dict) and type(row.get("id")) is int
-    }
-    rule_ids = {
-        row.get("id") for row in rule_rows
-        if isinstance(row, dict) and type(row.get("id")) is int
-    }
+    def validated_ids(rows: list[Any], expected: int, label: str) -> set[int]:
+        identifiers: list[int] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                raise ValueError(f"{label}_record_must_be_object")
+            identifier = row.get("id")
+            if type(identifier) is not int or not 1 <= identifier <= expected:
+                raise ValueError(f"{label}_id_invalid")
+            identifiers.append(identifier)
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError(f"{label}_duplicate_id")
+        return set(identifiers)
+
+    capability_ids = validated_ids(capability_rows, 264, "capability")
+    rule_ids = validated_ids(rule_rows, 45, "meta_rule")
     missing_capabilities = sorted(set(range(1, 265)) - capability_ids)
     missing_rules = sorted(set(range(1, 46)) - rule_ids)
     return {
