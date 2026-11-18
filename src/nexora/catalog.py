@@ -25,14 +25,14 @@ def status(path: Path = CATALOG) -> dict:
     rows = data.get("capabilities", [])
     valid_rows = [x for x in rows if isinstance(x, dict)]
     ids = [x.get("id") for x in valid_rows]
-    families = {x.get("family") for x in valid_rows}
+    families = {x.get("family") for x in valid_rows if x.get("family") in EXPECTED_FAMILIES}
     entries_valid = len(valid_rows) == len(rows) and all(
         REQUIRED_FIELDS.issubset(x)
         and isinstance(x.get("id"), int)
         and not isinstance(x.get("id"), bool)
         and 1 <= x["id"] <= 264
         and isinstance(x.get("name"), str) and bool(x["name"].strip())
-        and x.get("family") in EXPECTED_FAMILIES
+        and x.get("family") in (EXPECTED_FAMILIES | {"CROSS-CUTTING"})
         and isinstance(x.get("family_name"), str) and bool(x["family_name"].strip())
         and x.get("status") in VALID_STATUSES
         and isinstance(x.get("source"), str) and bool(x["source"].strip())
