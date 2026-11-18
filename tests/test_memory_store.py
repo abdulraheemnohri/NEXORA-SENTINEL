@@ -73,3 +73,37 @@ def test_legacy_memory_records_are_imported_once(tmp_path):
     assert store.get(1)["provenance_valid"] is True
     MemoryStore(path)
     assert len(store.recent()) == 1
+
+
+
+def test_memory_tombstone_cli_reports_no_physical_erasure(tmp_path, capsys):
+    from nexora.cli import main
+
+    data_dir = tmp_path / "data"
+    store = MemoryStore(data_dir / "memory.sqlite3")
+    memory_id = store.add("CLI tombstone test", source="test")
+    assert main([
+        "--data-dir", str(data_dir), "memory-tombstone", str(memory_id),
+        "--reason", "operator request", "--confirm",
+    ]) == 0
+    import json
+    result = json.loads(capsys.readouterr().out)
+    assert result["tombstoned"] is True
+    assert result["physical_erasure"] is False
+    assert store.get(memory_id) is None
+
+
+def test_memory_delete_compatibility_alias_reports_no_physical_erasure(tmp_path, capsys):
+    from nexora.cli import main
+    import json
+
+    data_dir = tmp_path / "data"
+    store = MemoryStore(data_dir / "memory.sqlite3")
+    memory_id = store.add("CLI legacy alias test", source="test")
+    assert main([
+        "--data-dir", str(data_dir), "memory-delete", str(memory_id),
+        "--reason", "operator request", "--confirm",
+    ]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["tombstoned"] is True
+    assert result["physical_erasure"] is False
