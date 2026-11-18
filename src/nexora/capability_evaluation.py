@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from nexora.evidence import EvidenceLedger
+from nexora.evidence import EVIDENCE_TYPES, EvidenceLedger
 from nexora.lifecycle import EVIDENCE_FOR, LIFECYCLE
 
 
