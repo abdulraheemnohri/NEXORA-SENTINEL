@@ -1,0 +1,8 @@
+version: 1
+runtime_enabled: false
+executable: litert-lm
+default_backend: cpu
+model_directory: models
+timeout_seconds: 600
+network_downloads_enabled: false
+presets_enabled: false
