@@ -11,9 +11,9 @@ import os
 import secrets
 import sqlite3
 import time
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
-from contextlib import nullcontext
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (

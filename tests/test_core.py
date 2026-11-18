@@ -147,6 +147,7 @@ def test_persistent_registry_records_state_and_append_only_history(tmp_path):
     registry.transition(216, "TESTED", {"test_report", "test_passed"})
     registry.transition(216, "SHADOWED", {"shadow_report", "no_side_effects"})
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     from nexora.approval import create_receipt
 
     private = Ed25519PrivateKey.generate()
