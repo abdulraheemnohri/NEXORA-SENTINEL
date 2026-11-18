@@ -164,7 +164,7 @@ def test_persistent_registry_records_state_and_append_only_history(tmp_path):
     enabled_evidence = {"human_approval", "rollback_plan", "monitoring_plan"}
     enabled_receipt = create_receipt(
         private, capability_id=216, transition="ENABLED",
-        evidence=enabled_evidence, approver_id="operator:local", now=1000,
+        evidence=enabled_evidence, approver_id="operator:local",
     )
     registry.transition(
         216, "ENABLED", enabled_evidence, approver_id="operator:local",
