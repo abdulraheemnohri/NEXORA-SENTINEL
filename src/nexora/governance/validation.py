@@ -160,7 +160,6 @@ def analyze_revocation_impact(
         current = frontier.pop(0)
         for dependent in sorted(dependents.get(current, set())):
             if dependent == capability_id:
-                cycle = [capability_id]
                 node = current
                 chain = [node]
                 while node in parent and node != capability_id:
