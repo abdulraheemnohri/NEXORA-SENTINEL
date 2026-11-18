@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 
-from nexora.evidence import EvidenceLedger
+from nexora.evidence import EVIDENCE_TYPES, EvidenceLedger
 from nexora.family_evaluation import FamilyEvaluationError, build_family_evaluation
 
 
@@ -70,3 +70,23 @@ def test_family_report_rejects_unknown_family(tmp_path):
     catalog = _catalogue(tmp_path / "catalog.json", [{**_row(85), "family": "ZZ"}])
     with pytest.raises(FamilyEvaluationError, match="capability_family_unknown"):
         build_family_evaluation(catalog_path=catalog)
+
+
+
+def test_family_report_separates_evidence_presence_from_authorization(tmp_path):
+    catalog = _catalogue(tmp_path / "catalog.json", [_row(85)])
+    database = tmp_path / "registry.sqlite3"
+    ledger = EvidenceLedger(database)
+    for index, evidence_type in enumerate(sorted(EVIDENCE_TYPES)):
+        ledger.add(
+            85, evidence_type, f"artifact:{evidence_type}",
+            f"{index % 16:x}" * 64, "operator",
+        )
+    result = build_family_evaluation(database, catalog_path=catalog)
+    family = result["families"][0]
+    assert family["evidence_assessment"] == "EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION"
+    assert (
+        family["capabilities"][0]["evidence"]["assessment"]
+        == "EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION"
+    )
+    assert result["capability_promotions_performed"] is False
