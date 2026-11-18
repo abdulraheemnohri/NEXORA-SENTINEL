@@ -5,7 +5,8 @@ from nexora.terminal.web_dashboard import create_read_only_server
 
 
 def test_web_dashboard_serves_read_only_views_without_creating_storage(tmp_path):
-    server = create_read_only_server(tmp_path, 0)
+    data_dir = tmp_path / "missing-data"
+    server = create_read_only_server(data_dir, 0)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -16,7 +17,7 @@ def test_web_dashboard_serves_read_only_views_without_creating_storage(tmp_path)
         assert response.status == 200
         assert '"read_only":true' in body
         assert "Autonomy: L0" in body
-        assert not tmp_path.exists()
+        assert not data_dir.exists()
         connection.close()
     finally:
         server.shutdown()
