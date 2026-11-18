@@ -24,6 +24,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 SCHEMA_VERSION = 1
 MAX_TTL_SECONDS = 900
 CLOCK_SKEW_SECONDS = 60
+DEFAULT_KEY_LIFETIME_DAYS = 365
+MAX_KEY_LIFETIME_DAYS = 730
 
 
 class ApprovalError(RuntimeError):
@@ -223,9 +225,14 @@ class ApprovalReceiptStore:
                 ("revoked_at", "INTEGER"),
                 ("revoked_reason", "TEXT"),
                 ("replaced_by", "TEXT"),
+                ("expires_at", "INTEGER"),
             ):
                 if name not in columns:
                     db.execute(f"ALTER TABLE trusted_signing_keys ADD COLUMN {name} {definition}")
+            db.execute(
+                "UPDATE trusted_signing_keys SET expires_at=enrolled_at+? WHERE expires_at IS NULL",
+                (DEFAULT_KEY_LIFETIME_DAYS * 86400,),
+            )
 
     def _connect(self):
         db = sqlite3.connect(self.database, timeout=10)
@@ -235,18 +242,24 @@ class ApprovalReceiptStore:
         db.execute("PRAGMA synchronous=FULL")
         return db
 
-    def enroll_key(self, public_key: Ed25519PublicKey, *, label: str, now: int | None = None) -> str:
+    def enroll_key(
+        self, public_key: Ed25519PublicKey, *, label: str,
+        validity_days: int = DEFAULT_KEY_LIFETIME_DAYS, now: int | None = None,
+    ) -> str:
         if not isinstance(public_key, Ed25519PublicKey):
             raise ApprovalError("ed25519_public_key_required")
         if not isinstance(label, str) or not label.strip():
             raise ApprovalError("key_label_required")
+        if type(validity_days) is not int or not 1 <= validity_days <= MAX_KEY_LIFETIME_DAYS:
+            raise ApprovalError("key_validity_days_out_of_range")
         fingerprint = public_key_fingerprint(public_key)
         with self._connect() as db:
             try:
                 timestamp = int(time.time()) if now is None else int(now)
+                expires_at = timestamp + validity_days * 86400
                 db.execute(
-                    "INSERT INTO trusted_signing_keys(fingerprint,public_key,label,active,enrolled_at) VALUES(?,?,?,1,?)",
-                    (fingerprint, public_key_bytes(public_key), label.strip()[:256], timestamp),
+                    "INSERT INTO trusted_signing_keys(fingerprint,public_key,label,active,enrolled_at,expires_at) VALUES(?,?,?,1,?,?)",
+                    (fingerprint, public_key_bytes(public_key), label.strip()[:256], timestamp, expires_at),
                 )
                 db.execute(
                     """INSERT INTO signing_key_events
@@ -261,7 +274,7 @@ class ApprovalReceiptStore:
     def list_keys(self, *, include_revoked: bool = True) -> list[dict[str, Any]]:
         """List public trust metadata only; never return private key material."""
         query = (
-            "SELECT fingerprint,label,active,enrolled_at,revoked_at,revoked_reason,replaced_by "
+            "SELECT fingerprint,label,active,enrolled_at,expires_at,revoked_at,revoked_reason,replaced_by "
             "FROM trusted_signing_keys"
         )
         if not include_revoked:
@@ -272,7 +285,8 @@ class ApprovalReceiptStore:
 
     def rotate_key(
         self, old_fingerprint: str, new_public_key: Ed25519PublicKey,
-        *, new_label: str, reason: str, now: int | None = None,
+        *, new_label: str, reason: str,
+        validity_days: int = DEFAULT_KEY_LIFETIME_DAYS, now: int | None = None,
     ) -> str:
         """Atomically enroll replacement and revoke old key in one SQLite transaction."""
         if not isinstance(new_public_key, Ed25519PublicKey):
@@ -281,6 +295,8 @@ class ApprovalReceiptStore:
             raise ApprovalError("key_rotation_reason_required")
         if not isinstance(new_label, str) or not new_label.strip():
             raise ApprovalError("key_label_required")
+        if type(validity_days) is not int or not 1 <= validity_days <= MAX_KEY_LIFETIME_DAYS:
+            raise ApprovalError("key_validity_days_out_of_range")
         new_fingerprint = public_key_fingerprint(new_public_key)
         if new_fingerprint == old_fingerprint:
             raise ApprovalError("replacement_key_must_differ")
@@ -296,10 +312,10 @@ class ApprovalReceiptStore:
             try:
                 db.execute(
                     """INSERT INTO trusted_signing_keys
-                       (fingerprint,public_key,label,active,enrolled_at)
-                       VALUES(?,?,?,1,?)""",
+                       (fingerprint,public_key,label,active,enrolled_at,expires_at)
+                       VALUES(?,?,?,1,?,?)""",
                     (new_fingerprint, public_key_bytes(new_public_key),
-                     new_label.strip()[:256], timestamp),
+                     new_label.strip()[:256], timestamp, timestamp + validity_days * 86400),
                 )
             except sqlite3.IntegrityError as exc:
                 raise ApprovalError("replacement_key_already_enrolled") from exc
@@ -455,12 +471,14 @@ class ApprovalReceiptStore:
             manager = self._connect() if connection is None else nullcontext(connection)
             with manager as db:
                 row = db.execute(
-                    "SELECT public_key FROM trusted_signing_keys WHERE fingerprint=? AND active=1",
+                    "SELECT public_key,expires_at FROM trusted_signing_keys WHERE fingerprint=? AND active=1",
                     (fingerprint,),
                 ).fetchone()
                 if row is None:
                     raise ApprovalError("signing_key_untrusted_or_revoked")
-                key = Ed25519PublicKey.from_public_bytes(row[0])
+                if row["expires_at"] is None or current >= row["expires_at"]:
+                    raise ApprovalError("signing_key_expired")
+                key = Ed25519PublicKey.from_public_bytes(row["public_key"])
                 if public_key_fingerprint(key) != fingerprint:
                     raise ApprovalError("trusted_key_fingerprint_corrupt")
                 try:
