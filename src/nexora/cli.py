@@ -43,6 +43,9 @@ def main(argv=None):
     evidence_sub.add_parser("verify")
     evidence_evaluate = evidence_sub.add_parser("evaluate", help="Report evidence readiness without changing lifecycle state")
     evidence_evaluate.add_argument("capability_id", type=int)
+    source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
+    source_status.add_argument("--catalog", type=Path)
+    source_status.add_argument("--rules", type=Path)
     family_eval = sub.add_parser("family-evaluation", help="Evaluate source-backed capability families")
     family_eval.add_argument("--family")
     family_eval.add_argument("--database", type=Path)
@@ -171,6 +174,20 @@ def main(argv=None):
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
         return 0
+    if args.cmd == "source-status":
+        from nexora.source_status import build_source_status
+        try:
+            kwargs = {}
+            if args.catalog is not None:
+                kwargs["catalog_path"] = args.catalog
+            if args.rules is not None:
+                kwargs["rules_path"] = args.rules
+            result = build_source_status(**kwargs)
+        except (OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "SOURCE_COVERAGE_PRESENT" else 1
     if args.cmd == "family-evaluation":
         from nexora.family_evaluation import FamilyEvaluationError, build_family_evaluation
         try:
