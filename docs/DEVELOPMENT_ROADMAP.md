@@ -6,7 +6,7 @@
 4. Complete audit-log signing and independent verification.
 5. Design an OS-enforced sandbox before considering any code execution.
 6. Add local model adapters behind explicit permissions and resource limits.
-7. Add memory retrieval with source provenance, deletion controls and conflict handling.
+7. Extend provenance-backed lexical memory with conflict handling, retention policy and secure-erasure design; semantic retrieval remains gated.
 8. Implement staged evolution only after reproducible sandbox and rollback evidence exist.
 9. Recover missing original capability definitions 1–84 and meta-rules 1–15 from the owner.
 10. Populate interaction-matrix relationships only from reviewed source specifications.

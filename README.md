@@ -20,6 +20,7 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Backup-first transactional SQLite migration and recovery-copy workflow.
 - Six provisional self-* domains: observation, diagnostics, repair planning, learning, governance assistance and evolution proposals. Only read-only observation/diagnostics are enabled by default; all self-family outputs are proposals, never execution.
 - Conservative YAML configuration profiles and validated settings loader.
+- Durable local memory with source SHA-256 provenance, deterministic lexical retrieval, append-only records and auditable tombstones; no automatic model writes.
 - Dependency-free read-only terminal dashboard for system status, audit history, self-family proposals and capability registry; it exposes no mutation or execution controls.
 - Loopback-only, GET-only local web dashboard with JSON diagnostic endpoints, Host-header validation and no control or execution endpoints.
 
@@ -49,6 +50,18 @@ For Android Debian, use bash scripts/install_android_debian.sh.
 ~~~bash
 bash scripts/verify.sh
 ~~~
+
+## Explicit local memory commands
+
+Memory is only written by an explicit operator command; inference cannot silently store trusted memories.
+
+~~~bash
+nexora memory-add "A note to remember" --source operator-note
+nexora memory-search "note remember"
+nexora memory-delete 1 --reason "No longer relevant" --confirm
+~~~
+
+Deletion hides a record from retrieval by appending a tombstone; the append-only audit record is retained. This is not secure physical erasure. The web dashboard only displays recent memory records and exposes no memory mutation endpoints.
 
 ## Local read-only web dashboard
 

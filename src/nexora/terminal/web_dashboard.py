@@ -23,7 +23,24 @@ VIEWS = {
     "/api/audit": render_audit,
     "/api/proposals": render_proposals,
     "/api/capabilities": render_registry,
+    "/api/memory": lambda root: _render_memory(root),
 }
+
+
+def _render_memory(data_dir: Path) -> str:
+    from nexora.memory.long_term import MemoryStore
+
+    database = Path(data_dir) / "memory.sqlite3"
+    if not database.is_file():
+        return "MEMORY — no local store"
+    try:
+        return json.dumps(
+            MemoryStore(database, create=False).recent(50),
+            ensure_ascii=False,
+            indent=2,
+        )
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        return f"MEMORY — read failed closed ({type(exc).__name__})"
 
 
 def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPServer:
@@ -64,6 +81,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Audit log", "/api/audit"),
                     ("Self-family proposals", "/api/proposals"),
                     ("Capability registry", "/api/capabilities"),
+                    ("Local memory", "/api/memory"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(

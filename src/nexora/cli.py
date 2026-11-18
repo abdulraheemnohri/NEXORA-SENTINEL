@@ -52,6 +52,16 @@ def main(argv=None):
 
     web = sub.choices["web"]
     web.add_argument("--port", type=int, default=8765)
+    memory_add = sub.add_parser("memory-add")
+    memory_add.add_argument("content")
+    memory_add.add_argument("--source", required=True)
+    memory_search = sub.add_parser("memory-search")
+    memory_search.add_argument("query")
+    memory_search.add_argument("--limit", type=int, default=10)
+    memory_delete = sub.add_parser("memory-delete")
+    memory_delete.add_argument("memory_id", type=int)
+    memory_delete.add_argument("--reason", required=True)
+    memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
     if args.cmd == "web":
@@ -59,6 +69,25 @@ def main(argv=None):
     if args.cmd == "tui":
         import sys
         return run_read_only_tui(args.data_dir, output=sys.stdout)
+    if args.cmd == "memory-search":
+        from nexora.memory.long_term import MemoryStore
+        store = MemoryStore(args.data_dir / "memory.sqlite3", create=False)
+        print(json.dumps(store.search(args.query, limit=args.limit), indent=2))
+        return 0
+    if args.cmd == "memory-add":
+        from nexora.memory.long_term import MemoryStore
+        memory_id = MemoryStore(args.data_dir / "memory.sqlite3").add(
+            args.content, source=args.source
+        )
+        print(json.dumps({"created": True, "memory_id": memory_id}, indent=2))
+        return 0
+    if args.cmd == "memory-delete":
+        from nexora.memory.long_term import MemoryStore
+        MemoryStore(args.data_dir / "memory.sqlite3", create=False).delete(
+            args.memory_id, reason=args.reason
+        )
+        print(json.dumps({"tombstoned": True, "memory_id": args.memory_id}, indent=2))
+        return 0
     args.data_dir.mkdir(parents=True, exist_ok=True)
     log = AuditLog(args.data_dir / "audit.jsonl")
     stop = KillSwitch(args.data_dir / "KILL")

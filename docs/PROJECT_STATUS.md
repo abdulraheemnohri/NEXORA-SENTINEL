@@ -17,13 +17,14 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 - Read-only terminal dashboard: overview, audit chain, proposals and capability registry. SQLite dashboard views open the database in read-only mode and do not initialize or mutate it.
 - Loopback-only GET web dashboard and JSON diagnostic endpoints; Host header is checked, mutation methods are rejected, and the server binds only to 127.0.0.1.
 - Conservative YAML profiles, modular package structure and TLA+ lifecycle model.
+- Durable explicit-write memory store with SHA-256 source fingerprints, deterministic AND-term retrieval, append-only record/event tables, tombstone deletion and legacy-store import; read-only search does not create missing storage.
 
 ## Explicitly incomplete
 
 - Canonical capability source records 1–84 and meta-rules 1–15 have not been supplied.
 - The 264×264 interaction matrix remains unknown/unpopulated.
 - Interactive API/control plane is not shipped; the local web dashboard is read-only diagnostics only.
-- Model inference and trusted-memory retrieval remain disabled/limited.
+- Model inference remains disabled. Trusted memory now supports explicit local writes and deterministic provenance-verified lexical retrieval; no semantic/embedding retrieval or model-originated writes.
 - Staging is not an OS-enforced sandbox; no tool or code execution is enabled.
 - Self-* domains do not autonomously repair, learn into trusted memory, or evolve.
 - Operator labels do not prove identity; local witness is not remote attestation.
