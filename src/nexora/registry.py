@@ -151,7 +151,11 @@ class CapabilityRegistry:
         approver_ids: list[str] | None = None,
     ):
         supplied = self._evidence(evidence)
-        operator = self._operator(approver_id) if requested_state in {"APPROVED", "ENABLED"} else None
+        operator = (
+            self._operator(approver_id)
+            if requested_state in {"APPROVED", "ENABLED"} and approval_receipts is None
+            else None
+        )
         if approval_receipts is not None:
             if approval_receipt is not None or approval_receipts == []:
                 raise RegistryError("provide_one_approval_receipt_argument")
