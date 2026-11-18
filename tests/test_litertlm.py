@@ -96,3 +96,32 @@ def test_status_is_read_only_and_safe(tmp_path):
 def test_find_executable_uses_path_lookup(monkeypatch):
     monkeypatch.setattr("nexora.intelligence.litertlm.shutil.which", lambda value: "/bin/" + value)
     assert find_executable("litert-lm") == "/bin/litert-lm"
+
+
+
+def test_run_uses_argument_vector_and_never_shell(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    import nexora.intelligence.litertlm as adapter
+
+    model = tmp_path / "model with spaces.litertlm"
+    model.write_bytes(b"model")
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout="answer", stderr="")
+
+    monkeypatch.setattr(adapter, "find_executable", lambda _name: "/usr/bin/litert-lm")
+    monkeypatch.setattr(adapter.subprocess, "run", fake_run)
+    result = adapter.run_local_model(
+        model, "hello; do not split me", backend="cpu",
+        confirm_inference=True, runtime_enabled=True,
+    )
+    assert result == 0
+    command, kwargs = calls[0]
+    assert command[0] == "/usr/bin/litert-lm"
+    assert command[1] == "run"
+    assert "--prompt=hello; do not split me" in command
+    assert kwargs["check"] is False
+    assert kwargs["capture_output"] is True
+    assert "shell" not in kwargs
