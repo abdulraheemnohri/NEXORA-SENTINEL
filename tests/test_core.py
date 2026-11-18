@@ -162,13 +162,20 @@ def test_persistent_registry_records_state_and_append_only_history(tmp_path):
         approval_receipt=approved_receipt,
     )
     enabled_evidence = {"human_approval", "rollback_plan", "monitoring_plan"}
+    second_private = Ed25519PrivateKey.generate()
+    registry.approvals.enroll_key(second_private.public_key(), label="second test operator")
     enabled_receipt = create_receipt(
         private, capability_id=216, transition="ENABLED",
         evidence=enabled_evidence, approver_id="operator:local",
     )
+    second_enabled_receipt = create_receipt(
+        second_private, capability_id=216, transition="ENABLED",
+        evidence=enabled_evidence, approver_id="operator:second",
+    )
     registry.transition(
-        216, "ENABLED", enabled_evidence, approver_id="operator:local",
-        approval_receipt=enabled_receipt,
+        216, "ENABLED", enabled_evidence,
+        approval_receipts=[enabled_receipt, second_enabled_receipt],
+        approver_ids=["operator:local", "operator:second"],
     )
     assert registry.get(216)["state"] == "ENABLED"
     history = registry.history(216)
@@ -176,7 +183,7 @@ def test_persistent_registry_records_state_and_append_only_history(tmp_path):
         "SPECIFIED", "REGISTERED", "IMPLEMENTED", "TESTED",
         "SHADOWED", "APPROVED", "ENABLED",
     ]
-    assert history[-1]["approver_id"] == "operator:local"
+    assert history[-1]["approver_id"] == "operator:local,operator:second"
 
 
 def test_registry_rejects_missing_approver_and_preserves_state(tmp_path):
