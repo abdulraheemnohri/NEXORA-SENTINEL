@@ -93,3 +93,49 @@ nexora registry-transition 42 APPROVED \
 The receipt is bound to capability ID, transition, approver label and a digest of the sorted evidence set; it expires within at most 15 minutes and is single-use. Receipt nonce consumption and lifecycle-state update share the same SQLite transaction. Invalid, expired, replayed, revoked-key or scope-mismatched receipts do not advance state.
 
 A key signature is not proof of a person's legal identity. Key custody, fingerprint verification, operator identity checks and out-of-band approval remain organizational responsibilities. The local SQLite trust store is not remotely tamper-proof; back it up and protect the host. Do not rotate keys by copying private material into the repository.
+
+
+## Emergency approval-key recovery
+
+Emergency recovery is a separate trust domain from ordinary capability approval. Enroll two or three recovery authorities before an incident, using independently generated Ed25519 keypairs and independently verified fingerprints. Recovery authority keys must not be the same keys used for normal approval signing. Keep each recovery private key under separate custody; the recommended operational arrangement is three authorities with a two-of-three threshold.
+
+Generate each authority keypair on its own controlled device or account:
+
+```bash
+nexora approval keygen --private-key /secure/recovery-1.pem --public-key /secure/recovery-1.pub.pem
+nexora approval recovery-enroll --public-key /secure/recovery-1.pub.pem --authority-id recovery-1 --label "Recovery custodian 1"
+```
+
+Repeat for recovery-2 and recovery-3. Verify fingerprints out-of-band before enrollment and review the enrolled list:
+
+```bash
+nexora approval recovery-authorities
+```
+
+During an incident, generate a new ordinary approval keypair. Each of two independent recovery authorities reviews the incident and signs the exact same recovery operation. Authorizations bind the old fingerprint, replacement public key, replacement label, reason, authority identity, expiry and unique nonce:
+
+```bash
+nexora approval recovery-issue \\
+  --private-key /secure/recovery-1.pem \\
+  --authority-id recovery-1 \\
+  --old-fingerprint OLD_APPROVAL_FINGERPRINT \\
+  --new-public-key /secure/operator-replacement.pub.pem \\
+  --new-label "operator-recovered" \\
+  --reason "operator key compromised" \\
+  --output /secure/recovery-1.json
+```
+
+Repeat on the second authority's controlled device with its own private key and output path. Then apply both authorizations:
+
+```bash
+nexora approval recover \\
+  --old-fingerprint OLD_APPROVAL_FINGERPRINT \\
+  --new-public-key /secure/operator-replacement.pub.pem \\
+  --new-label "operator-recovered" \\
+  --reason "operator key compromised" \\
+  --authorization /secure/recovery-1.json /secure/recovery-2.json
+```
+
+The recovery transaction verifies two or three distinct, active, unexpired authority keys and signatures; checks the exact operation scope; consumes all nonces; enrolls the replacement approval key; revokes the old approval key; and appends a recovery event in one SQLite transaction. Invalid signatures, duplicate authorities, expired authorizations, replay, revoked/expired recovery keys, or an inactive target key fail closed. Authorization lifetime is at most ten minutes. Recovery authorities can be revoked with the API and their public status/history is available through `approval recovery-authorities` and `approval recovery-history`.
+
+This is not a remote or hardware-backed recovery service. Recovery authority trust pins live in the local SQLite database, so an attacker with unrestricted write access to that host/database may tamper with local trust state. Keep the host and database protected, retain independently controlled backups, and perform authority enrollment/fingerprint verification out-of-band. Two keys prove two signing-key possessions, not two real-world identities. The recovery mechanism does not restore lost data, recover private keys, or bypass OS access controls.
