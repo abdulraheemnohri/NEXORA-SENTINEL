@@ -159,7 +159,7 @@ def create_receipt(
 ) -> dict[str, Any]:
     if not isinstance(capability_id, int) or isinstance(capability_id, bool) or not 1 <= capability_id <= 264:
         raise ApprovalError("capability_id_out_of_range")
-    if transition not in {"APPROVED", "ENABLED"}:
+    if transition not in {"APPROVED", "ENABLED", "REVOKE", "ROLLBACK"}:
         raise ApprovalError("unsupported_approval_transition")
     if not isinstance(approver_id, str) or not approver_id.strip():
         raise ApprovalError("approver_id_required")
