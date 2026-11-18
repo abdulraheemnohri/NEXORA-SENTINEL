@@ -17,6 +17,7 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 - Read-only terminal dashboard: overview, audit chain, proposals and capability registry. SQLite dashboard views open the database in read-only mode and do not initialize or mutate it.
 - Loopback-only GET web dashboard and JSON diagnostic endpoints; Host header is checked, mutation methods are rejected, and the server binds only to 127.0.0.1.
 - Conservative YAML profiles, modular package structure and TLA+ lifecycle model.
+- Built-in GitHub updater: checks the official main-branch commit; explicit installation requires confirmation, official origin, main branch, clean worktree and fast-forward-only history. It reinstalls the local package and attempts source rollback if installation fails.
 - Read-only settings inspection and validation CLI: missing files use safe L0 defaults; existing invalid files and unknown keys fail closed; no settings mutation or execution toggles are exposed.
 - Durable explicit-write memory store with SHA-256 source fingerprints, deterministic AND-term retrieval, append-only record/event tables, tombstone deletion and legacy-store import; read-only search does not create missing storage.
 
@@ -33,11 +34,12 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 
 ## Next priorities
 
-1. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
-2. Test read-only dashboard behavior on supported Linux and Android Debian terminals.
-3. Validate the read-only web dashboard on Linux and Android Debian; retain loopback-only binding.
-4. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
-5. Design OS-enforced sandbox isolation before any execution feature.
-6. Verify installation and behavior on Pixel/Android Debian locally.
+1. Add update signature/release provenance verification and an operator-facing change preview before installation.
+2. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
+3. Test read-only dashboard behavior on supported Linux and Android Debian terminals.
+4. Validate the read-only web dashboard on Linux and Android Debian; retain loopback-only binding.
+5. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
+6. Design OS-enforced sandbox isolation before any execution feature.
+7. Verify installation and behavior on Pixel/Android Debian locally.
 
 No merge or release is performed without owner approval.
