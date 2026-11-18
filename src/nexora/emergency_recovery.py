@@ -223,6 +223,9 @@ class EmergencyRecoveryStore:
         if not isinstance(authorizations, list) or not MIN_RECOVERY_AUTHORITIES <= len(authorizations) <= MAX_RECOVERY_AUTHORITIES:
             raise EmergencyRecoveryError("independent_recovery_authority_threshold_not_met")
         new_fingerprint = public_key_fingerprint(new_public_key)
+        replacement_pem = new_public_key.public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode("ascii")
         timestamp = int(time.time()) if now is None else int(now)
         normalized: list[tuple[dict[str, Any], str, str]] = []
         authority_ids: set[str] = set()
@@ -243,6 +246,7 @@ class EmergencyRecoveryStore:
                     raise EmergencyRecoveryError("recovery_authorization_action_invalid")
                 if (payload["old_fingerprint"] != old_fingerprint
                     or payload["new_fingerprint"] != new_fingerprint
+                    or payload["new_public_key_pem"] != replacement_pem
                     or payload["new_label"] != new_label.strip()[:256]
                     or payload["reason"] != reason.strip()[:1000]):
                     raise EmergencyRecoveryError("recovery_authorization_scope_mismatch")
