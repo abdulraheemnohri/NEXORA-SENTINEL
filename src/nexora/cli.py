@@ -133,7 +133,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.cmd == "evidence":
         from nexora.evidence import EvidenceError, EvidenceLedger
-        ledger = EvidenceLedger(args.data_dir / "registry.sqlite3")
+        ledger = (
+            None if args.evidence_cmd == "evaluate"
+            else EvidenceLedger(args.data_dir / "registry.sqlite3")
+        )
         try:
             if args.evidence_cmd == "add":
                 result = ledger.add(
