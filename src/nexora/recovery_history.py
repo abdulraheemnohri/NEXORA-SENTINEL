@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from nexora.backup import BackupError
 from nexora.oversight.witness import (
     IndependentWitness,
     WitnessVerificationError,
@@ -106,7 +107,7 @@ def record_recovery_simulation(
             "history_log": str(history_path),
             "witness_receipt_log": str(receipt_path),
         }
-    except (OSError, ValueError, KeyError, TypeError, RecoveryPlanningError, WitnessVerificationError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, BackupError, RecoveryPlanningError, WitnessVerificationError) as exc:
         raise RecoveryHistoryError(f"recovery_simulation_recording_failed:{type(exc).__name__}") from exc
 
 
