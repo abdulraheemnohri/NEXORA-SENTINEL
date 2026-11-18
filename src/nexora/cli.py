@@ -84,6 +84,9 @@ def main(argv=None):
     recovery_apply.add_argument("--authorization", type=Path, nargs="+", required=True)
     recovery_apply.add_argument("--validity-days", type=int, default=365)
     approval_sub.add_parser("recovery-authorities")
+    recovery_revoke = approval_sub.add_parser("recovery-revoke")
+    recovery_revoke.add_argument("--fingerprint", required=True)
+    recovery_revoke.add_argument("--reason", required=True)
     approval_sub.add_parser("recovery-history")
     evidence = sub.add_parser("evidence", help="Record and verify capability evidence references")
     evidence_sub = evidence.add_subparsers(dest="evidence_cmd", required=True)
@@ -312,6 +315,9 @@ def main(argv=None):
                     result = {"recovered": True, "new_fingerprint": fingerprint}
                 elif args.approval_cmd == "recovery-authorities":
                     result = {"authorities": recovery.list_authorities()}
+                elif args.approval_cmd == "recovery-revoke":
+                    recovery.revoke_authority(args.fingerprint, reason=args.reason)
+                    result = {"revoked": True, "authority_fingerprint": args.fingerprint}
                 elif args.approval_cmd == "recovery-history":
                     result = {"events": recovery.history()}
                 elif args.approval_cmd == "enroll":
