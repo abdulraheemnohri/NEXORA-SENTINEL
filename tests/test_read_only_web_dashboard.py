@@ -185,7 +185,7 @@ def test_web_dashboard_exposes_recovery_readiness_without_trust_anchor_or_storag
         report = json.loads(payload["view"])
         assert response.status == 200
         assert payload["read_only"] is True
-        assert report["status"] == "BLOCKED_TRUST_ANCHOR"
+        assert report["status"] == "NO_BACKUP_DIRECTORY"
         assert report["automatic_restore"] is False
         assert report["automatic_deletion"] is False
         assert not data_dir.exists()
