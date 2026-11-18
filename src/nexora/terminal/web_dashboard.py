@@ -31,6 +31,7 @@ VIEWS = {
     "/api/recovery-readiness": lambda root: _render_recovery_readiness(root),
     "/api/recovery-history": lambda root: _render_recovery_history(root),
     "/api/governance": lambda root: _render_governance(),
+    "/api/sandbox-readiness": lambda root: _render_sandbox_readiness(),
 }
 
 
@@ -75,6 +76,12 @@ def _render_family_evaluation(data_dir: Path, family: str | None = None) -> str:
         indent=2,
     )
 
+
+
+def _render_sandbox_readiness() -> str:
+    from nexora.sandbox_readiness import inspect_sandbox_readiness
+
+    return json.dumps(inspect_sandbox_readiness(), ensure_ascii=False, indent=2)
 
 
 def _render_governance() -> str:
@@ -169,6 +176,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Recovery readiness (trust anchor required for verification)", "/api/recovery-readiness"),
                     ("Witnessed recovery simulation history", "/api/recovery-history"),
                     ("Capability governance validation", "/api/governance"),
+                    ("OS sandbox readiness (preflight only)", "/api/sandbox-readiness"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
