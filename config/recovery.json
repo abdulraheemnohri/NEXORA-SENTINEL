@@ -7,5 +7,10 @@
   "min_verified_points": 1,
   "require_simulation_confirmation": true,
   "automatic_restore": false,
-  "automatic_deletion": false
+  "automatic_deletion": false,
+  "history_log": "data/recovery/history.jsonl",
+  "witness_receipt_log": "data/recovery-witness/receipts.jsonl",
+  "witness_private_key": "data/recovery-witness-signing-key.pem",
+  "witness_public_key": "data/recovery-witness-signing-key.pub.pem",
+  "audit_log": "data/audit.jsonl"
 }
