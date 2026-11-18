@@ -233,8 +233,11 @@ class CapabilityRegistry:
                 (capability_id, from_release.strip(), target_release.strip(), reason.strip(),
                  json.dumps(supplied, separators=(",", ":")), operator),
             )
-            event_id = cursor.lastrowid
-        return self.rollback_history(capability_id)[-1]
+            row = db.execute(
+                "SELECT * FROM rollback_events WHERE event_id=?", (cursor.lastrowid,)
+            ).fetchone()
+            result = dict(row)
+        return result
 
     def get(self, capability_id: int) -> dict | None:
         with self._connect() as db:
