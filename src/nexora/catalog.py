@@ -1,7 +1,9 @@
 """Exact-source catalog loading; no invented capability entries."""
 import json
 from pathlib import Path
+
 CATALOG = Path(__file__).resolve().parents[2] / "spec" / "capability_catalog.json"
+
 def status(path: Path = CATALOG) -> dict:
     data=json.loads(path.read_text(encoding="utf-8")); rows=data.get("capabilities",[])
     ids=[x.get("id") for x in rows if isinstance(x,dict)]
