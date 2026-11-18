@@ -60,6 +60,7 @@ def test_history_excludes_unwitnessed_rows(tmp_path):
     event = {"schema_version": 1, "simulation_id": "untrusted", "timestamp": "2026-01-01T00:00:00+00:00"}
     import hashlib
     digest = hashlib.sha256(json.dumps(event, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
+    receipts.write_text("")
     history.write_text(json.dumps({"event": event, "event_hash": digest}) + "\n")
     report = read_recovery_history(history, receipts, trusted_witness_public_key=witness_public)
     assert report["record_count"] == 0
@@ -70,6 +71,7 @@ def test_history_tampering_fails_closed(tmp_path):
     _, witness_public = _keys(tmp_path, "witness")
     history = tmp_path / "history.jsonl"
     receipts = tmp_path / "receipts.jsonl"
+    receipts.write_text("")
     history.write_text(json.dumps({"event": {"simulation_id": "x"}, "event_hash": "0" * 64}) + "\n")
     with pytest.raises(RecoveryHistoryError, match="history_record_integrity_invalid"):
         read_recovery_history(history, receipts, trusted_witness_public_key=witness_public)
