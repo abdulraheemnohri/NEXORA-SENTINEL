@@ -168,6 +168,33 @@ class EvidenceLedger:
                 ).fetchall()
         return [dict(row) for row in rows]
 
+    def evidence_summary(self, capability_id: int) -> dict[str, Any]:
+        """Return complete evidence coverage without a presentation-size limit.
+
+        Callers must verify the hash chain before trusting this summary.
+        """
+        if type(capability_id) is not int or not 1 <= capability_id <= 264:
+            raise EvidenceError("capability_id_out_of_range")
+        with self._connect() as db:
+            row = db.execute(
+                """SELECT COUNT(*) AS record_count,
+                          COALESCE(json_group_array(evidence_type), '[]') AS evidence_types
+                   FROM (
+                       SELECT DISTINCT evidence_type FROM capability_evidence
+                       WHERE capability_id=? ORDER BY evidence_type
+                   )""",
+                (capability_id,),
+            ).fetchone()
+            count = db.execute(
+                "SELECT COUNT(*) FROM capability_evidence WHERE capability_id=?",
+                (capability_id,),
+            ).fetchone()[0]
+        return {
+            "capability_id": capability_id,
+            "record_count": count,
+            "evidence_types": json.loads(row["evidence_types"]),
+        }
+
     def verify(self) -> dict[str, Any]:
         previous = GENESIS
         count = 0
