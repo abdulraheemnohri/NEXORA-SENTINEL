@@ -29,6 +29,7 @@ VIEWS = {
     "/api/self-capabilities": lambda root: _render_self_capabilities(),
     "/api/family-evaluation": lambda root: _render_family_evaluation(root),
     "/api/recovery-readiness": lambda root: _render_recovery_readiness(root),
+    "/api/recovery-history": lambda root: _render_recovery_history(root),
 }
 
 
@@ -84,6 +85,22 @@ def _render_recovery_readiness(data_dir: Path) -> str:
     return json.dumps(report, ensure_ascii=False, indent=2)
 
 
+def _render_recovery_history(data_dir: Path) -> str:
+    from nexora.recovery_history import RecoveryHistoryError, read_recovery_history
+
+    history = Path(data_dir) / "recovery" / "history.jsonl"
+    receipts = Path(data_dir) / "recovery-witness" / "receipts.jsonl"
+    public_key = Path(data_dir) / "recovery-witness-signing-key.pub.pem"
+    if not history.is_file() or not receipts.is_file() or not public_key.is_file():
+        return json.dumps({"configured": False, "status": "NOT_CONFIGURED", "read_only": True})
+    try:
+        return json.dumps(read_recovery_history(
+            history, receipts, trusted_witness_public_key=public_key,
+        ), ensure_ascii=False, indent=2)
+    except (RecoveryHistoryError, OSError, ValueError) as exc:
+        return json.dumps({"valid": False, "error": type(exc).__name__, "read_only": True})
+
+
 def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPServer:
     """Create a loopback-only server; callers may use port 0 for ephemeral tests."""
     if type(port) is not int or not 0 <= port <= 65535:
@@ -127,6 +144,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Self-capability catalogue and source gaps", "/api/self-capabilities"),
                     ("Capability family evidence evaluation", "/api/family-evaluation"),
                     ("Recovery readiness (trust anchor required for verification)", "/api/recovery-readiness"),
+                    ("Witnessed recovery simulation history", "/api/recovery-history"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
