@@ -86,9 +86,6 @@ def test_manifest_rejects_wrong_repository_or_ref(tmp_path):
     # Re-signing with the trusted key still cannot authorize a different ref.
     payload_without_signature = {key: value for key, value in payload.items()
                                  if key != "signature"}
-    from nexora.update_signing import _canonical
-    signature = private.read_bytes()
-    del signature
     manifest.write_text(json.dumps(payload))
     with pytest.raises(UpdateSignatureError, match="repository_or_ref_mismatch"):
         verify_manifest(manifest, public)
