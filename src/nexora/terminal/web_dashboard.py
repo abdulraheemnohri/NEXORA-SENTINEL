@@ -77,10 +77,19 @@ def _render_family_evaluation(data_dir: Path, family: str | None = None) -> str:
 
 
 def _render_recovery_readiness(data_dir: Path) -> str:
-    from nexora.recovery_readiness import build_recovery_readiness
+    from nexora.recovery_readiness import RecoverySettings, build_recovery_readiness
 
+    config = Path("config/recovery.json")
+    settings = RecoverySettings.load(config) if config.is_file() else RecoverySettings().validate()
+    backup_key = Path(settings.trusted_public_key) if settings.trusted_public_key else None
     report = build_recovery_readiness(
-        Path(data_dir) / "backups", trusted_public_key=None,
+        Path(settings.backup_directory), trusted_public_key=backup_key,
+        retention_days=settings.retention_days, keep_latest=settings.keep_latest,
+        max_backup_age_hours=settings.max_backup_age_hours,
+        min_verified_points=settings.min_verified_points,
+        history_log=Path(settings.history_log),
+        witness_receipt_log=Path(settings.witness_receipt_log),
+        trusted_witness_public_key=Path(settings.witness_public_key),
     )
     return json.dumps(report, ensure_ascii=False, indent=2)
 
