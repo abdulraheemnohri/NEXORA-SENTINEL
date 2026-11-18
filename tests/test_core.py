@@ -20,13 +20,13 @@ def test_audit_chain_and_tamper_detection(tmp_path):
     lines = path.read_text().splitlines()
     row = json.loads(lines[0])
     row["payload"]["x"] = 7
-    path.write_text(json.dumps(row) + "\\n" + lines[1] + "\\n")
+    path.write_text(json.dumps(row) + "\n" + lines[1] + "\n")
     assert not log.verify()
 
 
 def test_corrupt_audit_refuses_append(tmp_path):
     p = tmp_path / "audit.jsonl"
-    p.write_text("{bad\\n")
+    p.write_text("{bad\n")
     with pytest.raises(RuntimeError):
         AuditLog(p).append("x", {})
 
@@ -89,8 +89,8 @@ def test_resume_keeps_kill_switch_engaged_if_audit_is_corrupt(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
     marker = data / "KILL"
-    marker.write_text("operator\\n")
-    (data / "audit.jsonl").write_text("{broken\\n")
+    marker.write_text("operator\n")
+    (data / "audit.jsonl").write_text("{broken\n")
     with pytest.raises(RuntimeError):
         main(["--data-dir", str(data), "resume"])
     assert marker.exists()
