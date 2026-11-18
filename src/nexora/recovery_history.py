@@ -76,10 +76,14 @@ def record_recovery_simulation(
             fd = os.open(history_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
             try:
                 payload = _canonical({"event": event, "event_hash": event_hash}) + b"\\n"
-                os.write(fd, payload)
-                os.fsync(fd)
+                with os.fdopen(fd, "ab", closefd=True) as stream:
+                    stream.write(payload)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                fd = -1
             finally:
-                os.close(fd)
+                if fd >= 0:
+                    os.close(fd)
         receipt = IndependentWitness(receipt_path, Path(witness_private_key)).attest(
             event_hash, "recovery_simulation",
         )
@@ -117,7 +121,9 @@ def read_recovery_history(
     if type(limit) is not int or not 1 <= limit <= 500:
         raise RecoveryHistoryError("history_limit_out_of_range")
     history_path, receipt_path = Path(history_log), Path(witness_receipt_log)
-    if history_path.is_symlink() or receipt_path.is_symlink():
+    history_lock = history_path.with_name(history_path.name + ".lock")
+    receipt_lock = receipt_path.with_name(receipt_path.name + ".lock")
+    if any(path.is_symlink() for path in (history_path, receipt_path, history_lock, receipt_lock)):
         raise RecoveryHistoryError("history_or_receipt_log_symlink_refused")
     try:
         chain = verify_witness_chain(receipt_path, Path(trusted_witness_public_key))
