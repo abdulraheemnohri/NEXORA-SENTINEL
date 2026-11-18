@@ -176,7 +176,7 @@ def main(argv=None):
                     getattr(args, "prompt", None),
                     backend=args.backend or settings["default_backend"],
                     executable=settings["executable"],
-                    timeout=args.timeout or max(settings["timeout_seconds"], 1800),
+                    timeout=args.timeout or settings["timeout_seconds"],
                     confirm_download=args.confirm_download,
                     confirm_inference=args.confirm_inference,
                     runtime_enabled=settings["runtime_enabled"],
