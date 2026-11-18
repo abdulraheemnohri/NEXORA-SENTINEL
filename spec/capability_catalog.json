@@ -1,0 +1,1 @@
+{"schema_version":"1.0","architecture":"STA-264","expected_capability_count":264,"expected_family_count":40,"family_range":"A-AN","status":"incomplete_source_specification_required","completeness_note":"Import exact IDs, names, gates, metrics, failure modes and autonomy ceilings verbatim. No synthetic entries.","capabilities":[]}
