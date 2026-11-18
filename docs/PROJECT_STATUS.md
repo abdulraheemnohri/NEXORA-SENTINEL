@@ -25,12 +25,12 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 
 - Canonical capability source records 1–84 and meta-rules 1–15 have not been supplied.
 - The 264×264 interaction matrix remains unknown/unpopulated.
-- Interactive API/control plane is not shipped; the local web dashboard is read-only diagnostics only.
-- Model inference remains disabled. Trusted memory now supports explicit local writes and deterministic provenance-verified lexical retrieval; no semantic/embedding retrieval or model-originated writes.
+- Interactive API/control plane is not shipped; the local web dashboard is read-only diagnostics only, including the new Runtime & Models page.
+- LiteRT-LM integration is implemented as an optional managed CLI adapter with local `.litertlm` model inventory, explicit runtime/inference opt-in, CPU default, bounded subprocess execution, no shell, no model downloads and no Python presets. The broader autonomous agent inference/tool loop remains disabled. Trusted memory supports explicit local writes and deterministic provenance-verified lexical retrieval; no semantic/embedding retrieval or model-originated writes.
 - Staging is not an OS-enforced sandbox; no tool or code execution is enabled.
 - Self-* domains do not autonomously repair, learn into trusted memory, or evolve.
 - Operator labels do not prove identity; local witness is not remote attestation.
-- Android Debian/Pixel verification has not been performed.
+- Android Debian/Pixel LiteRT-LM package, model-load, CPU and GPU verification has not been performed.
 
 ## Next priorities
 
@@ -40,6 +40,6 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 4. Validate the read-only web dashboard on Linux and Android Debian; retain loopback-only binding.
 5. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
 6. Design OS-enforced sandbox isolation before any execution feature.
-7. Verify installation and behavior on Pixel/Android Debian locally.
+7. Verify the official LiteRT-LM CLI package and a small `.litertlm` model on Pixel/Android Debian; record CPU memory, load time and token throughput without making unmeasured performance claims.
 
 No merge or release is performed without owner approval.
