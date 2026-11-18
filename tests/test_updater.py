@@ -24,6 +24,21 @@ def repository(tmp_path):
     return root
 
 
+def stub_remote(monkeypatch, sha, message="new version", ci_state="success"):
+    monkeypatch.setattr(updater, "latest_commit", lambda: {"sha": sha, "message": message})
+    monkeypatch.setattr(
+        updater, "change_preview",
+        lambda *_: {"ahead_by": 1, "behind_by": 0, "files": [
+            {"path": "src/example.py", "status": "modified", "additions": 2, "deletions": 1}
+        ], "files_truncated": False},
+    )
+    monkeypatch.setattr(
+        updater, "ci_summary",
+        lambda *_: {"state": ci_state, "runs": [{"name": "CI", "status": "completed",
+                                                "conclusion": ci_state, "url": ""}]},
+    )
+
+
 def test_latest_commit_rejects_invalid_github_response(monkeypatch):
     class Response:
         def __enter__(self):
@@ -40,14 +55,23 @@ def test_latest_commit_rejects_invalid_github_response(monkeypatch):
         updater.latest_commit()
 
 
-def test_check_reports_latest_commit(monkeypatch, tmp_path):
+def test_check_reports_current_commit(monkeypatch, tmp_path):
     root = repository(tmp_path)
     local = updater._git(root, "rev-parse", "HEAD")
-    monkeypatch.setattr(updater, "latest_commit", lambda: {"sha": local, "message": "current"})
+    stub_remote(monkeypatch, local, "current")
     report = updater.check_update(root)
     assert report["update_available"] is False
     assert report["branch"] == "main"
     assert report["install_requires_confirmation"] is True
+    assert report["ci"]["state"] == "success"
+
+
+def test_check_includes_change_preview(monkeypatch, tmp_path):
+    root = repository(tmp_path)
+    stub_remote(monkeypatch, "a" * 40)
+    report = updater.check_update(root)
+    assert report["change_preview"]["ahead_by"] == 1
+    assert report["change_preview"]["files"][0]["path"] == "src/example.py"
 
 
 def test_install_requires_explicit_confirmation(tmp_path):
@@ -72,12 +96,20 @@ def test_check_rejects_non_main_branch(monkeypatch, tmp_path):
 def test_install_refuses_dirty_worktree(monkeypatch, tmp_path):
     root = repository(tmp_path)
     local = updater._git(root, "rev-parse", "HEAD")
-    monkeypatch.setattr(
-        updater, "latest_commit",
-        lambda: {"sha": "a" * 40, "message": "new version"},
-    )
+    stub_remote(monkeypatch, "a" * 40)
     (root / "uncommitted.txt").write_text("keep me")
     with pytest.raises(updater.UpdateError, match="working_tree_not_clean"):
         updater.install_update(root, confirm=True)
     assert (root / "uncommitted.txt").read_text() == "keep me"
     assert updater._git(root, "rev-parse", "HEAD") == local
+
+
+def test_install_blocks_known_failed_ci(monkeypatch, tmp_path):
+    root = repository(tmp_path)
+    local = updater._git(root, "rev-parse", "HEAD")
+    monkeypatch.setattr(updater, "check_update", lambda *_: {
+        "local_sha": local, "latest_sha": "a" * 40, "update_available": True,
+        "ci": {"state": "failure"},
+    })
+    with pytest.raises(updater.UpdateError, match="latest_commit_ci_failed"):
+        updater.install_update(root, confirm=True)
