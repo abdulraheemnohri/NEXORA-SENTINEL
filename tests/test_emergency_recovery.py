@@ -47,7 +47,7 @@ def _issue(authorities, old_fp, replacement, *, now=200, reason="operator key co
 
 
 def test_two_independent_recovery_authorities_replace_and_revoke_approval_key(tmp_path):
-    _, approvals, recovery, old, old_fp, authorities, replacement = _setup(tmp_path)
+    _, approvals, recovery, _old, old_fp, authorities, replacement = _setup(tmp_path)
     authorizations = _issue(authorities, old_fp, replacement)
     new_fp = recovery.recover_approval_key(
         old_fingerprint=old_fp,
@@ -167,10 +167,8 @@ def test_recovery_authorization_expiry_is_enforced(tmp_path):
 
 
 def test_recovery_event_history_is_append_only(tmp_path):
-    database, _, recovery, _, _, authorities, _ = _setup(tmp_path)
-    with pytest.raises(sqlite3.IntegrityError, match="append-only"):
-        with sqlite3.connect(database) as db:
-            db.execute("UPDATE emergency_recovery_events SET detail='tampered' WHERE event_id=1")
-    with pytest.raises(sqlite3.IntegrityError, match="append-only"):
-        with sqlite3.connect(database) as db:
-            db.execute("DELETE FROM emergency_recovery_events WHERE event_id=1")
+    database, _, recovery, _, _, _authorities, _ = _setup(tmp_path)
+    with pytest.raises(sqlite3.IntegrityError, match="append-only"), sqlite3.connect(database) as db:
+        db.execute("UPDATE emergency_recovery_events SET detail='tampered' WHERE event_id=1")
+    with pytest.raises(sqlite3.IntegrityError, match="append-only"), sqlite3.connect(database) as db:
+        db.execute("DELETE FROM emergency_recovery_events WHERE event_id=1")
