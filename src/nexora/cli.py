@@ -13,7 +13,7 @@ from nexora.backup import (
 from nexora.catalog import status
 from nexora.oversight import AuditLog, KillSwitch, PolicyKernel
 from nexora.oversight.witness import IndependentWitness, verify_witness_chain
-from nexora.registry import CapabilityRegistry
+from nexora.registry import CapabilityRegistry, RegistryError
 from nexora.terminal.dashboard import run_read_only_tui
 from nexora.terminal.web_dashboard import run_read_only_web_dashboard
 
