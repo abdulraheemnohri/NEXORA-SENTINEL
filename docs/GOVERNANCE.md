@@ -91,7 +91,7 @@ nexora registry-revoke 42 --reason unsafe_behavior \
   --approval-receipt operator-1-revoke.json operator-2-revoke.json
 ```
 
-A revoked capability cannot be restored by ordinary `APPROVED` or `ENABLED` receipts. Revocation is terminal in this release; no revocation-undo command exists. Revoke events retain the approver IDs, signer fingerprints and signed receipt payloads in append-only history.
+A revoked capability cannot be restored by ordinary `APPROVED` or `ENABLED` receipts. Revocation is terminal in this release; no revocation-undo command exists. Revoke events retain the approver IDs, signer fingerprints and complete signed receipt envelopes in append-only history.
 
 ## Signed rollback authorization
 
