@@ -63,6 +63,14 @@ def main(argv=None):
     update_sub.add_parser("check")
     update_install = update_sub.add_parser("install")
     update_install.add_argument("--confirm", action="store_true", required=True)
+    update_sign = update_sub.add_parser("sign-manifest")
+    update_sign.add_argument("--commit-sha", required=True)
+    update_sign.add_argument("--version", required=True)
+    update_sign.add_argument("--signing-key", type=Path, required=True)
+    update_sign.add_argument("--output", type=Path, required=True)
+    update_verify = update_sub.add_parser("verify-manifest")
+    update_verify.add_argument("manifest", type=Path)
+    update_verify.add_argument("--trusted-key", type=Path, required=True)
 
     settings = sub.add_parser("settings")
     settings_sub = settings.add_subparsers(dest="settings_cmd", required=True)
@@ -79,6 +87,23 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.cmd == "update":
         from nexora.updater import UpdateError, main_result
+        if args.update_cmd in ("sign-manifest", "verify-manifest"):
+            from nexora.update_signing import (
+                UpdateSignatureError, create_manifest, verify_manifest,
+            )
+            try:
+                if args.update_cmd == "sign-manifest":
+                    result = create_manifest(
+                        commit_sha=args.commit_sha, version=args.version,
+                        signing_key=args.signing_key, output=args.output,
+                    )
+                else:
+                    result = verify_manifest(args.manifest, args.trusted_key)
+            except (UpdateSignatureError, OSError, ValueError) as exc:
+                print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+                return 2
+            print(json.dumps(result, indent=2))
+            return 0
         try:
             result = main_result(args.update_cmd, Path.cwd(), getattr(args, "confirm", False))
         except (UpdateError, OSError) as exc:
