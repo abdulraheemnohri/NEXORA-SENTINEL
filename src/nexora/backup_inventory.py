@@ -1,10 +1,12 @@
 """Read-only inventory and integrity assessment for one backup directory."""
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from nexora.backup import MANIFEST_SUFFIX, BackupError, verify_backup
+
 
 class BackupInventoryError(ValueError):
     """Raised when an inventory scope cannot be safely inspected."""
