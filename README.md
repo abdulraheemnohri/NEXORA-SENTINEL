@@ -241,3 +241,17 @@ The updater requires the manifest commit to equal the current GitHub `main` SHA,
 
 
 Capability evidence ledger: see `docs/CAPABILITY_EVIDENCE.md` for append-only evidence references, hash-chain verification, CLI usage, and security limits.
+
+
+
+## Capability family evidence evaluation
+
+The family evaluator aggregates source-backed capability records and their verified evidence-ledger coverage. It keeps catalogue status separate from evidence status, distinguishes missing evidence tokens from evidence that is present but still awaiting human authorization, and exposes source gaps without inventing missing family definitions or dependencies.
+
+```bash
+nexora family-evaluation
+nexora family-evaluation --family O
+nexora family-evaluation --database data/registry.sqlite3
+```
+
+The read-only dashboard exposes `/api/family-evaluation` and accepts an optional `?family=O` filter. This is a diagnostic report only: no lifecycle promotion, policy mutation, or capability execution occurs. See `docs/CAPABILITY_FAMILY_EVALUATION.md`.
