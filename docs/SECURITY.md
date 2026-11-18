@@ -147,3 +147,12 @@ Capability revocation requires two to five distinct approver IDs and distinct tr
 A signed `ROLLBACK` receipt set authorizes only an auditable rollback record. It does not execute code, deploy artifacts, restore a previous version, or reverse a capability revocation. The exact source release, target release and reason are included in the signed evidence. Receipt payloads and signer fingerprints are retained in append-only event tables.
 
 These controls protect against ordinary application-level replay and concurrent requests. They do not protect a local SQLite database from an attacker with unrestricted filesystem or process access; protect the host, keep external backups, and independently verify operator identities and key fingerprints. A two-key threshold proves possession of two distinct private keys, not two distinct people.
+
+Verify stored historical signatures and one-time nonce consumption without changing lifecycle state:
+
+```bash
+nexora registry-revocation-verify 42
+nexora rollback-verify 42
+```
+
+Historical verification uses the retained public trust key, canonical signed payload, evidence digest, signer fingerprint and consumed-nonce record. A missing trust key or incomplete/altered receipt envelope is reported as invalid; the verifier does not require a historical signer key to remain active today.
