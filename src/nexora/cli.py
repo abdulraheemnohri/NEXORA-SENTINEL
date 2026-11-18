@@ -74,8 +74,8 @@ def main(argv=None):
     registry_transition.add_argument("capability_id", type=int)
     registry_transition.add_argument("state", choices=("REGISTERED", "IMPLEMENTED", "TESTED", "SHADOWED", "APPROVED", "ENABLED"))
     registry_transition.add_argument("--evidence", nargs="+", required=True)
-    registry_transition.add_argument("--approver-id")
-    registry_transition.add_argument("--approval-receipt", type=Path)
+    registry_transition.add_argument("--approver-id", nargs="+")
+    registry_transition.add_argument("--approval-receipt", type=Path, nargs="+")
     governance_check = sub.add_parser("governance-check", help="Validate governance artifacts without changing policy")
     governance_check.add_argument("--matrix", type=Path)
     governance_check.add_argument("--precedence", type=Path)
@@ -533,12 +533,32 @@ def main(argv=None):
         return 0 if valid else 2
     if args.cmd == "registry-transition":
         try:
+            receipts = None
             receipt = None
             if args.approval_receipt is not None:
-                receipt = json.loads(args.approval_receipt.read_text(encoding="utf-8"))
+                loaded = [
+                    json.loads(path.read_text(encoding="utf-8"))
+                    for path in args.approval_receipt
+                ]
+                if args.state == "ENABLED":
+                    receipts = loaded
+                elif len(loaded) == 1:
+                    receipt = loaded[0]
+                else:
+                    raise ValueError("APPROVED accepts exactly one receipt")
+            approver_id = None
+            approver_ids = None
+            if args.approver_id is not None:
+                if args.state == "ENABLED":
+                    approver_ids = args.approver_id
+                elif len(args.approver_id) == 1:
+                    approver_id = args.approver_id[0]
+                else:
+                    raise ValueError("APPROVED accepts exactly one approver ID")
             result = CapabilityRegistry(args.data_dir / "registry.sqlite3").transition(
                 args.capability_id, args.state, args.evidence,
-                approver_id=args.approver_id, approval_receipt=receipt,
+                approver_id=approver_id, approval_receipt=receipt,
+                approval_receipts=receipts, approver_ids=approver_ids,
             )
         except (OSError, ValueError, RegistryError) as exc:
             print(json.dumps({"transitioned": False, "error": str(exc)}, indent=2))
