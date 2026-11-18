@@ -155,7 +155,31 @@ class ApprovalReceiptStore:
                     transition TEXT NOT NULL,
                     consumed_at INTEGER NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS signing_key_events (
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_type TEXT NOT NULL CHECK(event_type IN ('ENROLLED','ROTATED','REVOKED')),
+                    fingerprint TEXT NOT NULL,
+                    related_fingerprint TEXT,
+                    reason TEXT NOT NULL,
+                    created_at INTEGER NOT NULL
+                );
+                CREATE TRIGGER IF NOT EXISTS signing_key_events_no_update
+                BEFORE UPDATE ON signing_key_events BEGIN
+                    SELECT RAISE(ABORT, 'signing key history is append-only');
+                END;
+                CREATE TRIGGER IF NOT EXISTS signing_key_events_no_delete
+                BEFORE DELETE ON signing_key_events BEGIN
+                    SELECT RAISE(ABORT, 'signing key history is append-only');
+                END;
             """)
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(trusted_signing_keys)")}
+            for name, definition in (
+                ("revoked_at", "INTEGER"),
+                ("revoked_reason", "TEXT"),
+                ("replaced_by", "TEXT"),
+            ):
+                if name not in columns:
+                    db.execute(f"ALTER TABLE trusted_signing_keys ADD COLUMN {name} {definition}")
 
     def _connect(self):
         db = sqlite3.connect(self.database, timeout=10)
@@ -180,7 +204,101 @@ class ApprovalReceiptStore:
                 raise ApprovalError("signing_key_already_enrolled") from exc
         return fingerprint
 
-    def revoke_key(self, fingerprint: str) -> None:
+    def list_keys(self, *, include_revoked: bool = True) -> list[dict[str, Any]]:
+        """List public trust metadata only; never return private key material."""
+        query = (
+            "SELECT fingerprint,label,active,enrolled_at,revoked_at,revoked_reason,replaced_by "
+            "FROM trusted_signing_keys"
+        )
+        if not include_revoked:
+            query += " WHERE active=1"
+        query += " ORDER BY enrolled_at,fingerprint"
+        with self._connect() as db:
+            return [dict(row) for row in db.execute(query).fetchall()]
+
+    def rotate_key(
+        self, old_fingerprint: str, new_public_key: Ed25519PublicKey,
+        *, new_label: str, reason: str, now: int | None = None,
+    ) -> str:
+        """Atomically enroll replacement and revoke old key in one SQLite transaction."""
+        if not isinstance(new_public_key, Ed25519PublicKey):
+            raise ApprovalError("ed25519_public_key_required")
+        if not isinstance(reason, str) or not reason.strip():
+            raise ApprovalError("key_rotation_reason_required")
+        if not isinstance(new_label, str) or not new_label.strip():
+            raise ApprovalError("key_label_required")
+        new_fingerprint = public_key_fingerprint(new_public_key)
+        if new_fingerprint == old_fingerprint:
+            raise ApprovalError("replacement_key_must_differ")
+        timestamp = int(time.time()) if now is None else int(now)
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            old = db.execute(
+                "SELECT active FROM trusted_signing_keys WHERE fingerprint=?",
+                (old_fingerprint,),
+            ).fetchone()
+            if old is None or old["active"] != 1:
+                raise ApprovalError("active_signing_key_not_found")
+            try:
+                db.execute(
+                    """INSERT INTO trusted_signing_keys
+                       (fingerprint,public_key,label,active,enrolled_at)
+                       VALUES(?,?,?,1,?)""",
+                    (new_fingerprint, public_key_bytes(new_public_key),
+                     new_label.strip()[:256], timestamp),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ApprovalError("replacement_key_already_enrolled") from exc
+            cursor = db.execute(
+                """UPDATE trusted_signing_keys
+                   SET active=0,revoked_at=?,revoked_reason=?,replaced_by=?
+                   WHERE fingerprint=? AND active=1""",
+                (timestamp, reason.strip()[:1000], new_fingerprint, old_fingerprint),
+            )
+            if cursor.rowcount != 1:
+                raise ApprovalError("active_signing_key_not_found")
+            db.execute(
+                """INSERT INTO signing_key_events
+                   (event_type,fingerprint,related_fingerprint,reason,created_at)
+                   VALUES('ROTATED',?,?,?,?)""",
+                (old_fingerprint, new_fingerprint, reason.strip()[:1000], timestamp),
+            )
+        return new_fingerprint
+
+    def revoke_key(self, fingerprint: str, *, reason: str = "operator_revocation") -> None:
+        if not isinstance(reason, str) or not reason.strip():
+            raise ApprovalError("key_revocation_reason_required")
+        with self._connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            cursor = db.execute(
+                """UPDATE trusted_signing_keys
+                   SET active=0,revoked_at=?,revoked_reason=?
+                   WHERE fingerprint=? AND active=1""",
+                (int(time.time()), reason.strip()[:1000], fingerprint),
+            )
+            if cursor.rowcount != 1:
+                raise ApprovalError("active_signing_key_not_found")
+            db.execute(
+                """INSERT INTO signing_key_events
+                   (event_type,fingerprint,related_fingerprint,reason,created_at)
+                   VALUES('REVOKED',?,NULL,?,?)""",
+                (fingerprint, reason.strip()[:1000], int(time.time())),
+            )
+
+    def key_history(self, fingerprint: str | None = None) -> list[dict[str, Any]]:
+        with self._connect() as db:
+            if fingerprint is None:
+                rows = db.execute(
+                    "SELECT * FROM signing_key_events ORDER BY event_id"
+                ).fetchall()
+            else:
+                rows = db.execute(
+                    """SELECT * FROM signing_key_events
+                       WHERE fingerprint=? OR related_fingerprint=? ORDER BY event_id""",
+                    (fingerprint, fingerprint),
+                ).fetchall()
+        return [dict(row) for row in rows]
+
         with self._connect() as db:
             cursor = db.execute(
                 "UPDATE trusted_signing_keys SET active=0 WHERE fingerprint=? AND active=1",
