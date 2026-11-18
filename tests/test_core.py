@@ -243,6 +243,7 @@ def test_registry_rejects_string_as_evidence_collection(tmp_path):
 
 def _approval_fixture(tmp_path):
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     from nexora.approval import ApprovalReceiptStore
 
     private = Ed25519PrivateKey.generate()
@@ -319,6 +320,7 @@ def test_revoked_signing_key_cannot_authorize(tmp_path):
 
 def test_signing_key_file_is_private_and_not_overwritten(tmp_path):
     import os
+
     from nexora.approval import ApprovalError, generate_signing_key, load_private_key
 
     path = tmp_path / "operator-ed25519.pem"
