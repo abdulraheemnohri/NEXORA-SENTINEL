@@ -255,3 +255,28 @@ nexora family-evaluation --database data/registry.sqlite3
 ```
 
 The read-only dashboard exposes `/api/family-evaluation` and accepts an optional `?family=O` filter. This is a diagnostic report only: no lifecycle promotion, policy mutation, or capability execution occurs. See `docs/CAPABILITY_FAMILY_EVALUATION.md`.
+
+
+## Recovery simulation evidence and history
+
+Recovery simulations can be persisted as metadata-only events, signed by a separate Ed25519 witness key, and linked into the hash-chained audit log. Configure the paths and thresholds in `config/recovery.json`. Automatic restore and deletion remain prohibited.
+
+Create an independent witness keypair (never reuse the backup-signing key):
+
+```bash
+nexora backup-keygen \
+  --private-key data/recovery-witness-signing-key.pem \
+  --public-key data/recovery-witness-signing-key.pub.pem
+```
+
+After independently protecting and pinning the public key, record a confirmed simulation:
+
+```bash
+nexora recovery-simulate data/backups/registry.sqlite3 \
+  --trusted-key /secure/off-device/backup-signing-key.pub.pem \
+  --confirm-simulation
+nexora recovery-history
+nexora recovery-readiness --config config/recovery.json
+```
+
+The readiness report now includes the latest independently witnessed simulation state. The read-only dashboard exposes `/api/recovery-history` and incorporates verified simulation evidence into `/api/recovery-readiness`. Unwitnessed or tampered history is excluded or reported invalid. Simulation never replaces a live database, removes backups, or authorizes production restore.
