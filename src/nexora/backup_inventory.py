@@ -11,6 +11,7 @@ from nexora.backup import MANIFEST_SUFFIX, BackupError, verify_backup
 class BackupInventoryError(ValueError):
     """Raised when an inventory scope cannot be safely inspected."""
 
+
 def build_backup_inventory(directory: Path, *, trusted_public_key: Path | None = None, now: datetime | None = None) -> dict[str, Any]:
     """Inspect direct children only; never create, modify, delete, or restore files."""
     root = Path(directory)
@@ -49,7 +50,7 @@ def build_backup_inventory(directory: Path, *, trusted_public_key: Path | None =
             except (BackupError, OSError, ValueError) as exc:
                 row.update(status="INVALID", reason=str(exc)[:160], action="preserve_and_review")
             else:
-                row.update(status="VALID", sha256=verified["sha256"], signer_fingerprint=verified["signer_fingerprint"], user_version=verified["user_version"], table_count=len(verified["tables"]), action="eligible_for_recovery_simulation")
+                row.update(status="VALID", sha256=verified["sha256"], signer_fingerprint=verified["signer_fingerprint"], created_at=verified.get("created_at"), user_version=verified["user_version"], table_count=len(verified["tables"]), action="eligible_for_recovery_simulation")
         entries.append(row)
     counts: dict[str, int] = {}
     for entry in entries:
