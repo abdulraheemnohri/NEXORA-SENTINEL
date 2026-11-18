@@ -1,11 +1,11 @@
 """Managed adapter for Google's official LiteRT-LM command-line runtime.
 
-NEXORA never shells out through a command string, never executes model presets,
-and never downloads model weights through this adapter. Runtime installation and
-local inference require explicit operator confirmation.
+Network model imports are a separate, explicit opt-in. Model output remains
+untrusted text; this module does not expose model-provided tools or presets.
 """
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +30,8 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "presets_enabled": False,
 }
 
+_REPO_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,95}/[A-Za-z0-9][A-Za-z0-9._-]{0,95}$")
+
 
 def load_settings(path: Path = Path("config/litertlm.yaml")) -> dict[str, Any]:
     """Load strict runtime settings; missing files use disabled defaults."""
@@ -48,8 +50,8 @@ def load_settings(path: Path = Path("config/litertlm.yaml")) -> dict[str, Any]:
         raise LiteRTLMError("litertlm_settings_version_unsupported")
     if type(value.get("runtime_enabled")) is not bool:
         raise LiteRTLMError("litertlm_runtime_enabled_must_be_boolean")
-    if type(value.get("network_downloads_enabled")) is not bool or value["network_downloads_enabled"]:
-        raise LiteRTLMError("litertlm_network_downloads_must_remain_disabled")
+    if type(value.get("network_downloads_enabled")) is not bool:
+        raise LiteRTLMError("litertlm_network_downloads_must_be_boolean")
     if type(value.get("presets_enabled")) is not bool or value["presets_enabled"]:
         raise LiteRTLMError("litertlm_presets_must_remain_disabled")
     if value.get("default_backend") not in {"cpu", "gpu"}:
@@ -90,9 +92,7 @@ def model_inventory(model_directory: Path) -> list[dict[str, Any]]:
     return entries
 
 
-def runtime_status(
-    config_path: Path = Path("config/litertlm.yaml"),
-) -> dict[str, Any]:
+def runtime_status(config_path: Path = Path("config/litertlm.yaml")) -> dict[str, Any]:
     settings = load_settings(config_path)
     executable = find_executable(settings["executable"])
     model_dir = Path(settings["model_directory"])
@@ -107,13 +107,20 @@ def runtime_status(
         "network_downloads_enabled": settings["network_downloads_enabled"],
         "presets_enabled": settings["presets_enabled"],
         "inference_requires": ["runtime_enabled=true", "--confirm-inference"],
+        "huggingface_import_requires": [
+            "runtime_enabled=true",
+            "network_downloads_enabled=true",
+            "--confirm-download",
+            "--confirm-inference",
+        ],
         "installation_command": "python -m pip install --upgrade litert-lm",
         "execution": "local_cli_subprocess_no_shell",
     }
 
 
-def install_cli(*, confirm: bool, python_executable: str = sys.executable,
-                timeout: int = 1800) -> dict[str, Any]:
+def install_cli(
+    *, confirm: bool, python_executable: str = sys.executable, timeout: int = 1800
+) -> dict[str, Any]:
     """Install official CLI into the active Python environment after confirmation."""
     if not confirm:
         raise LiteRTLMError("runtime_install_confirmation_required")
@@ -134,6 +141,24 @@ def install_cli(*, confirm: bool, python_executable: str = sys.executable,
     return {"installed": True, "package": "litert-lm", "python": python_executable}
 
 
+def _run(command: list[str], *, timeout: int, interactive: bool) -> int:
+    try:
+        result = subprocess.run(
+            command, check=False, timeout=timeout,
+            text=True, capture_output=not interactive,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise LiteRTLMError("litertlm_execution_timed_out") from exc
+    except OSError as exc:
+        raise LiteRTLMError("litertlm_cli_could_not_start") from exc
+    if not interactive:
+        if result.stdout:
+            print(result.stdout, end="")
+        if result.stderr:
+            print(result.stderr, file=sys.stderr, end="")
+    return result.returncode
+
+
 def run_local_model(
     model: Path,
     prompt: str | None = None,
@@ -145,7 +170,7 @@ def run_local_model(
     runtime_enabled: bool = False,
     interactive: bool = False,
 ) -> int:
-    """Run a local model only; no HF identifiers, downloads, presets, or shell."""
+    """Run a local model only; this path never initiates a model download."""
     if not confirm_inference:
         raise LiteRTLMError("inference_confirmation_required")
     if not runtime_enabled:
@@ -157,29 +182,57 @@ def run_local_model(
     target = Path(model).expanduser()
     if not target.is_file() or target.suffix.lower() != ".litertlm":
         raise LiteRTLMError("local_litertlm_model_file_required")
-    resolved = target.resolve()
     binary = find_executable(executable)
     if binary is None:
         raise LiteRTLMError("litertlm_cli_not_installed")
-    command = [binary, "run", str(resolved)]
+    command = [binary, "run", str(target.resolve())]
     if backend == "gpu":
         command.append("--backend=gpu")
     if prompt is not None:
         if not prompt.strip():
             raise LiteRTLMError("prompt_must_not_be_empty")
         command.append("--prompt=" + prompt)
-    try:
-        result = subprocess.run(
-            command, check=False, timeout=timeout,
-            text=True, capture_output=not interactive,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise LiteRTLMError("litertlm_inference_timed_out") from exc
-    except OSError as exc:
-        raise LiteRTLMError("litertlm_cli_could_not_start") from exc
-    if not interactive:
-        if result.stdout:
-            print(result.stdout, end="")
-        if result.stderr:
-            print(result.stderr, file=sys.stderr, end="")
-    return result.returncode
+    return _run(command, timeout=timeout, interactive=interactive)
+
+
+def run_huggingface_repo(
+    repo_id: str,
+    prompt: str | None = None,
+    *,
+    backend: str = "cpu",
+    executable: str = "litert-lm",
+    timeout: int = 1800,
+    confirm_download: bool = False,
+    confirm_inference: bool = False,
+    runtime_enabled: bool = False,
+    network_downloads_enabled: bool = False,
+    interactive: bool = False,
+) -> int:
+    """Import/cache and run a Hugging Face LiteRT-LM repo after two approvals."""
+    if not _REPO_ID.fullmatch(repo_id):
+        raise LiteRTLMError("huggingface_repo_id_invalid")
+    if not confirm_download:
+        raise LiteRTLMError("huggingface_download_confirmation_required")
+    if not confirm_inference:
+        raise LiteRTLMError("inference_confirmation_required")
+    if not runtime_enabled:
+        raise LiteRTLMError("litertlm_runtime_disabled_in_settings")
+    if not network_downloads_enabled:
+        raise LiteRTLMError("litertlm_network_downloads_disabled_in_settings")
+    if backend not in {"cpu", "gpu"}:
+        raise LiteRTLMError("litertlm_backend_invalid")
+    if type(timeout) is not int or not 1 <= timeout <= 86400:
+        raise LiteRTLMError("litertlm_timeout_out_of_range")
+    binary = find_executable(executable)
+    if binary is None:
+        raise LiteRTLMError("litertlm_cli_not_installed")
+    command = [
+        binary, "run", "--from-huggingface-repo=" + repo_id,
+    ]
+    if backend == "gpu":
+        command.append("--backend=gpu")
+    if prompt is not None:
+        if not prompt.strip():
+            raise LiteRTLMError("prompt_must_not_be_empty")
+        command.append("--prompt=" + prompt)
+    return _run(command, timeout=timeout, interactive=interactive)
