@@ -41,6 +41,8 @@ def main(argv=None):
     evidence_list.add_argument("--capability-id", type=int)
     evidence_list.add_argument("--limit", type=int, default=100)
     evidence_sub.add_parser("verify")
+    evidence_evaluate = evidence_sub.add_parser("evaluate", help="Report evidence readiness without changing lifecycle state")
+    evidence_evaluate.add_argument("capability_id", type=int)
     check = sub.add_parser("check")
     check.add_argument("action")
     check.add_argument("--risk", choices=("low", "medium", "high", "critical"), default="medium")
@@ -140,6 +142,13 @@ def main(argv=None):
             if args.evidence_cmd == "list":
                 print(json.dumps(ledger.list(args.capability_id, args.limit), indent=2))
                 return 0
+            if args.evidence_cmd == "evaluate":
+                from nexora.capability_evaluation import evaluate_from_ledger
+                result = evaluate_from_ledger(
+                    args.data_dir / "registry.sqlite3", args.capability_id,
+                )
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                return 0 if result["assessment"] != "BLOCKED_LEDGER_INTEGRITY" else 2
             result = ledger.verify()
             print(json.dumps(result, indent=2))
             return 0 if result["valid"] else 2
