@@ -1,36 +1,53 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from nexora.catalog import status
+from nexora.lifecycle import (
+    Precedence, resolve_conflict, validate_transition,
+)
 from nexora.oversight import AuditLog, KillSwitch, PolicyKernel
+from nexora.cli import main
 
 
 def test_audit_chain_and_tamper_detection(tmp_path):
-    path=tmp_path/"audit.jsonl"; log=AuditLog(path); log.append("a",{"x":1}); log.append("b",{"x":2})
+    path = tmp_path / "audit.jsonl"
+    log = AuditLog(path)
+    log.append("a", {"x": 1})
+    log.append("b", {"x": 2})
     assert log.verify()
-    row=json.loads(path.read_text().splitlines()[0]); row["payload"]["x"]=7
-    path.write_text(json.dumps(row)+"\n"+path.read_text().splitlines()[1]+"\n")
+    lines = path.read_text().splitlines()
+    row = json.loads(lines[0])
+    row["payload"]["x"] = 7
+    path.write_text(json.dumps(row) + "\\n" + lines[1] + "\\n")
     assert not log.verify()
 
+
 def test_corrupt_audit_refuses_append(tmp_path):
-    p=tmp_path/"audit.jsonl"; p.write_text("{bad\n")
-    try: AuditLog(p).append("x",{})
-    except RuntimeError: pass
-    else: assert False
+    p = tmp_path / "audit.jsonl"
+    p.write_text("{bad\\n")
+    with pytest.raises(RuntimeError):
+        AuditLog(p).append("x", {})
+
 
 def test_unknown_action_denied(tmp_path):
-    assert not PolicyKernel(KillSwitch(tmp_path/"KILL")).evaluate("shell.exec","low").allowed
+    assert not PolicyKernel(KillSwitch(tmp_path / "KILL")).evaluate("shell.exec", "low").allowed
+
 
 def test_approval_and_kill_switch(tmp_path):
-    stop=KillSwitch(tmp_path/"KILL"); kernel=PolicyKernel(stop)
-    assert not kernel.evaluate("filesystem.read","medium").allowed
-    assert kernel.evaluate("filesystem.read","medium",True).allowed
-    stop.engage("test"); assert not kernel.evaluate("system.status","low").allowed
+    stop = KillSwitch(tmp_path / "KILL")
+    kernel = PolicyKernel(stop)
+    assert not kernel.evaluate("filesystem.read", "medium").allowed
+    assert kernel.evaluate("filesystem.read", "medium", True).allowed
+    stop.engage("test")
+    assert not kernel.evaluate("system.status", "low").allowed
+
 
 def test_runtime_registration_locked(tmp_path):
-    try: PolicyKernel(KillSwitch(tmp_path/"KILL")).register_action("x","low")
-    except PermissionError: pass
-    else: assert False
+    with pytest.raises(PermissionError):
+        PolicyKernel(KillSwitch(tmp_path / "KILL")).register_action("x", "low")
+
 
 def test_catalog_incomplete_is_explicit():
     result = status()
@@ -38,6 +55,8 @@ def test_catalog_incomplete_is_explicit():
     assert result["expected_families"] == 40
     assert result["registered_capabilities"] == 180
     assert not result["complete"]
+    assert not result["exact_id_coverage"]
+    assert not result["exact_family_coverage"]
 
 
 def test_addendum_v_capabilities_are_registered():
@@ -64,3 +83,53 @@ def test_interaction_matrix_targets_264():
     assert matrix["dimensions"] == [264, 264]
     assert matrix["capability_id_range"] == [1, 264]
     assert matrix["entries"] == []
+
+
+def test_resume_keeps_kill_switch_engaged_if_audit_is_corrupt(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    marker = data / "KILL"
+    marker.write_text("operator\\n")
+    (data / "audit.jsonl").write_text("{broken\\n")
+    with pytest.raises(RuntimeError):
+        main(["--data-dir", str(data), "resume"])
+    assert marker.exists()
+
+
+def test_catalog_rejects_arbitrary_family_names(tmp_path):
+    source = Path(__file__).resolve().parents[1] / "spec" / "capability_catalog.json"
+    data = json.loads(source.read_text(encoding="utf-8"))
+    data["capabilities"][0]["family"] = "NOT-A-REAL-FAMILY"
+    target = tmp_path / "catalog.json"
+    target.write_text(json.dumps(data), encoding="utf-8")
+    result = status(target)
+    assert not result["entries_valid"]
+    assert not result["complete"]
+
+
+def test_lifecycle_requires_sequential_evidence_and_human_approval():
+    assert not validate_transition("SPECIFIED", "ENABLED").allowed
+    assert not validate_transition("SPECIFIED", "REGISTERED").allowed
+    registered = validate_transition("SPECIFIED", "REGISTERED", {"source_record", "schema_validation"})
+    assert registered.allowed
+    assert not validate_transition("SHADOWED", "APPROVED", {"human_approval"}).allowed
+    approved = validate_transition("SHADOWED", "APPROVED", {"human_approval"}, human_approved=True)
+    assert approved.allowed
+    assert not validate_transition("APPROVED", "ENABLED", {"human_approval", "rollback_plan", "monitoring_plan"}).allowed
+    enabled = validate_transition(
+        "APPROVED", "ENABLED",
+        {"human_approval", "rollback_plan", "monitoring_plan"},
+        human_approved=True,
+    )
+    assert enabled.allowed
+
+
+def test_conflict_resolution_is_fail_closed():
+    assert not resolve_conflict("safety", "feature").allowed
+    priorities = {"safety": Precedence.SAFETY, "feature": Precedence.CONVENIENCE}
+    decision = resolve_conflict("safety", "feature", priorities)
+    assert decision.allowed and decision.winner == "safety"
+    assert not resolve_conflict(
+        "safety", "governance",
+        {"safety": Precedence.SAFETY, "governance": Precedence.SAFETY},
+    ).allowed
