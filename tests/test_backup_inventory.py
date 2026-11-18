@@ -1,7 +1,9 @@
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+
 import pytest
+
 from nexora.backup import create_backup, generate_backup_signing_key
 from nexora.backup_inventory import BackupInventoryError, build_backup_inventory
 
