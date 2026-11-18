@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from nexora.source_status import build_source_status
 
 
@@ -12,7 +14,8 @@ def test_source_status_reports_missing_ids_without_inventing_records(tmp_path):
     }), encoding="utf-8")
     rules.write_text(json.dumps({
         "status": "partial_source_import",
-        "rules": [{"id": 16, "title": "source-backed"}],
+        "rules": [{"id": identifier, "title": "source-backed"}
+                  for identifier in range(16, 46)],
     }), encoding="utf-8")
 
     result = build_source_status(catalog, rules)
@@ -32,7 +35,6 @@ def test_source_status_rejects_non_list_records(tmp_path):
     catalog.write_text(json.dumps({"capabilities": {}}), encoding="utf-8")
     rules.write_text(json.dumps({"rules": []}), encoding="utf-8")
 
-    import pytest
     with pytest.raises(TypeError, match="source_artifact_records_must_be_lists"):
         build_source_status(catalog, rules)
 
@@ -45,6 +47,5 @@ def test_source_status_rejects_duplicate_ids(tmp_path):
     }), encoding="utf-8")
     rules.write_text(json.dumps({"rules": []}), encoding="utf-8")
 
-    import pytest
     with pytest.raises(ValueError, match="capability_duplicate_id"):
         build_source_status(catalog, rules)
