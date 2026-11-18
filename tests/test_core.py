@@ -4,11 +4,13 @@ from pathlib import Path
 import pytest
 
 from nexora.catalog import status
+from nexora.cli import main
 from nexora.lifecycle import (
-    Precedence, resolve_conflict, validate_transition,
+    Precedence,
+    resolve_conflict,
+    validate_transition,
 )
 from nexora.oversight import AuditLog, KillSwitch, PolicyKernel
-from nexora.cli import main
 
 
 def test_audit_chain_and_tamper_detection(tmp_path):
