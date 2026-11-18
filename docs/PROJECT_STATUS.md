@@ -4,7 +4,7 @@ Last updated: 2026-11-18
 
 ## Current milestone
 
-Safety kernel, modular package structure, local platform foundations, signed SQLite backups and cryptographic witness receipts. The project is not complete.
+Safety kernel, modular package structure, local platform foundations, signed SQLite backups, independent witness receipts, and backup-first SQLite migration/recovery orchestration. The project is not complete.
 
 ## Implemented and CI-verified
 
@@ -15,30 +15,16 @@ Safety kernel, modular package structure, local platform foundations, signed SQL
 - Persistent budget ledger, review-only scheduler and tool proposal queue.
 - Safe staging workspace with path containment; submitted code is not executed.
 - SQLite online backup using WAL-safe snapshot API.
-- Ed25519-signed canonical backup manifests; verification requires a trusted public key supplied independently of the backup.
+- Ed25519-signed canonical backup manifests; verification requires an independently trusted public key.
 - Backup key generation refuses overwrite and protects private-key file permissions.
 - Restore verifies signature, SHA-256, SQLite integrity and schema metadata before non-overwriting publication.
 - Independent witness receipts use a distinct Ed25519 signing key and sequence-linked hash chain.
 - Witness verification checks signatures, signer fingerprint, sequence and previous-receipt linkage.
-- CLI rejects reusing the backup signing key as the witness key.
+- Backup-first migration orchestration: verified backup, all-or-nothing migration transaction, integrity checks and recovery copy to a separate path.
+- Migration runner rejects missing versions, invalid registries, newer database schemas and caller-owned transactions.
 - Conservative YAML settings profiles and validated YAML loader.
 - Modular packages for core, oversight, governance, capabilities, runtime, intelligence, memory, evolution, terminal, interfaces and storage.
-- SQLite migration runner, local memory records, provenance helpers and proposal-only evolution gates.
 - Formal TLA+ lifecycle model and GitHub Actions verification workflows.
-
-## Latest verification — commit ef4d1b9060a79815c02f83bbfedb9a45754f8e7e
-
-All five workflows passed on GitHub-hosted Linux / Python 3.12.16:
-
-- Tests: 61 passed.
-- Ruff: passed.
-- Python compileall: passed.
-- Dependency consistency (pip check): passed.
-- Build wheel: passed.
-- TLA+ formal lifecycle verification: passed.
-- Security workflow: passed.
-
-This is hosted CI evidence, not Android Debian or Pixel 6 device testing.
 
 ## Explicitly incomplete
 
@@ -56,11 +42,11 @@ This is hosted CI evidence, not Android Debian or Pixel 6 device testing.
 
 ## Next priorities
 
-1. Migration compatibility and restore drills across schema versions.
-2. A read-only TUI and local dashboard before any execution controls.
-3. Complete source-backed capability and meta-rule definitions from the project owner.
-4. Populate interaction-matrix relationships only from reviewed source specifications.
-5. Design OS-enforced sandbox isolation before considering code execution.
-6. Conduct Android Debian installation and device verification locally.
+1. Read-only TUI and local dashboard before any execution controls.
+2. Complete source-backed capability and meta-rule definitions from the project owner.
+3. Populate interaction-matrix relationships only from reviewed source specifications.
+4. Design OS-enforced sandbox isolation before considering code execution.
+5. Conduct Android Debian installation and device verification locally.
+6. Expand migration drills against the real registry schema and supported release history.
 
-PR #1 remains open and unmerged. Do not merge or release without explicit owner approval.
+PRs and releases remain subject to explicit owner approval.
