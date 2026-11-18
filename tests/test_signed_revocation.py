@@ -170,6 +170,7 @@ def test_signed_history_verifier_detects_receipt_tampering(tmp_path):
         ).fetchone()
         envelopes = json.loads(row[1])
         envelopes[0]["signature"] = "ZmFrZQ=="
+        db.execute("DROP TRIGGER revocation_events_no_update")
         db.execute(
             "UPDATE revocation_events SET receipt_payloads_json=? WHERE event_id=?",
             (json.dumps(envelopes), row[0]),
