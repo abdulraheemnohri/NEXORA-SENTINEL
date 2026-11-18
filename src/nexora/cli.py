@@ -58,12 +58,27 @@ def main(argv=None):
     memory_search = sub.add_parser("memory-search")
     memory_search.add_argument("query")
     memory_search.add_argument("--limit", type=int, default=10)
+    settings = sub.add_parser("settings")
+    settings_sub = settings.add_subparsers(dest="settings_cmd", required=True)
+    settings_show = settings_sub.add_parser("show")
+    settings_show.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
+    settings_validate = settings_sub.add_parser("validate")
+    settings_validate.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
+
     memory_delete = sub.add_parser("memory-delete")
     memory_delete.add_argument("memory_id", type=int)
     memory_delete.add_argument("--reason", required=True)
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "settings":
+        from nexora.settings_manager import render_settings
+        try:
+            print(render_settings(args.config))
+        except (OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        return 0
     if args.cmd == "web":
         return run_read_only_web_dashboard(args.data_dir, port=args.port)
     if args.cmd == "tui":
