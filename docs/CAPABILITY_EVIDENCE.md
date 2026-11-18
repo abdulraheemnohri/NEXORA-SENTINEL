@@ -39,6 +39,8 @@ Supported evidence types are the exact evidence tokens already declared by
 - Records are appended to `registry.sqlite3` in a separate table.
 - SQLite triggers reject ordinary UPDATE and DELETE operations.
 - Every record hashes its canonical fields and previous record hash.
+- New schema-v2 records also bind their sequence number and UTC creation timestamp into the hash.
+- Existing schema-v1 rows are retained and remain verifiable; the ledger adds a schema-version column without rewriting their historical hashes.
 - Verification detects altered rows, broken links, and record-hash mismatches.
 - The SHA-256 value is supplied by the operator; NEXORA does not fetch or hash
   the referenced artifact. Verify the artifact independently.
