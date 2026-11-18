@@ -290,3 +290,14 @@ nexora recovery-compare data/backups/previous.sqlite3 data/backups/current.sqlit
 ```
 
 The comparison reports schema and SQLite migration-version differences only; it does not inspect or compare application row data.
+
+
+## OS sandbox readiness (preflight only)
+
+Run `nexora sandbox-check` to inspect whether a Linux host and Bubblewrap
+binary are present. The check does not execute Bubblewrap, create namespaces,
+or run staged content. Its result is `UNAVAILABLE` or `UNVERIFIED`; it never
+returns a readiness grant and never enables execution. The loopback dashboard
+also exposes the report at `/api/sandbox-readiness`. See
+`docs/SANDBOX_READINESS.md` for the remaining isolation and adversarial-test
+gates. Android Debian/Termux is not currently qualified.
