@@ -102,12 +102,12 @@ def test_manifest_tampering_is_detected(tmp_path):
 def test_backup_requires_external_trust_anchor(tmp_path):
     source = _database(tmp_path / "source.sqlite3")
     backup = tmp_path / "snapshot.sqlite3"
-    private, public, _ = _keys(tmp_path, "right")
+    private, public, fingerprint = _keys(tmp_path, "right")
     _, wrong_public, _ = _keys(tmp_path, "wrong")
     _create(source, backup, private)
     with pytest.raises(BackupError, match="backup_signer_not_trusted"):
         verify_backup(backup, trusted_public_key=wrong_public)
-    assert verify_backup(backup, trusted_public_key=public)["valid"]
+    assert verify_backup(backup, trusted_public_key=public)["signer_fingerprint"] == fingerprint
 
 
 def test_key_generation_is_non_overwriting_and_private(tmp_path):
@@ -163,7 +163,7 @@ def test_witness_chain_rejects_wrong_trust_anchor(tmp_path):
 
 
 def test_witness_refuses_to_extend_corrupt_chain(tmp_path):
-    private, public, _ = _keys(tmp_path, "witness")
+    private, _, _ = _keys(tmp_path, "witness")
     path = tmp_path / "receipts.jsonl"
     witness = IndependentWitness(path, private)
     witness.attest("d" * 64, "backup")
