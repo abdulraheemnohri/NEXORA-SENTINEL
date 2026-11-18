@@ -57,7 +57,7 @@ def main(argv=None):
     approval_issue = approval_sub.add_parser("issue")
     approval_issue.add_argument("--private-key", type=Path, required=True)
     approval_issue.add_argument("--capability-id", type=int, required=True)
-    approval_issue.add_argument("--transition", choices=("APPROVED", "ENABLED"), required=True)
+    approval_issue.add_argument("--transition", choices=("APPROVED", "ENABLED", "REVOKE", "ROLLBACK"), required=True)
     approval_issue.add_argument("--evidence", nargs="+", required=True)
     approval_issue.add_argument("--approver-id", required=True)
     approval_issue.add_argument("--ttl-seconds", type=int, default=900)
@@ -110,6 +110,20 @@ def main(argv=None):
     registry_transition.add_argument("--evidence", nargs="+", required=True)
     registry_transition.add_argument("--approver-id", nargs="+")
     registry_transition.add_argument("--approval-receipt", type=Path, nargs="+")
+    registry_revoke = sub.add_parser("registry-revoke", help="Immediately revoke a capability using independent signed approvals")
+    registry_revoke.add_argument("capability_id", type=int)
+    registry_revoke.add_argument("--reason", required=True)
+    registry_revoke.add_argument("--evidence", nargs="+", required=True)
+    registry_revoke.add_argument("--approver-id", nargs="+", required=True)
+    registry_revoke.add_argument("--approval-receipt", type=Path, nargs="+", required=True)
+    rollback_record = sub.add_parser("rollback-record", help="Record a signed rollback authorization; does not execute it")
+    rollback_record.add_argument("capability_id", type=int)
+    rollback_record.add_argument("--from-release", required=True)
+    rollback_record.add_argument("--target-release", required=True)
+    rollback_record.add_argument("--reason", required=True)
+    rollback_record.add_argument("--evidence", nargs="+", required=True)
+    rollback_record.add_argument("--approver-id", nargs="+", required=True)
+    rollback_record.add_argument("--approval-receipt", type=Path, nargs="+", required=True)
     governance_check = sub.add_parser("governance-check", help="Validate governance artifacts without changing policy")
     governance_check.add_argument("--matrix", type=Path)
     governance_check.add_argument("--precedence", type=Path)
@@ -653,6 +667,32 @@ def main(argv=None):
             print(json.dumps({"transitioned": False, "error": str(exc)}, indent=2))
             return 2
         print(json.dumps({"transitioned": True, "capability": result}, ensure_ascii=False, indent=2))
+        return 0
+    if args.cmd == "registry-revoke":
+        try:
+            receipts = [json.loads(path.read_text(encoding="utf-8")) for path in args.approval_receipt]
+            result = CapabilityRegistry(args.data_dir / "registry.sqlite3").revoke(
+                args.capability_id, args.reason, args.evidence,
+                approval_receipts=receipts, approver_ids=args.approver_id,
+            )
+        except (OSError, ValueError, RegistryError) as exc:
+            print(json.dumps({"revoked": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps({"revoked": True, "capability": result}, ensure_ascii=False, indent=2))
+        return 0
+    if args.cmd == "rollback-record":
+        try:
+            receipts = [json.loads(path.read_text(encoding="utf-8")) for path in args.approval_receipt]
+            result = CapabilityRegistry(args.data_dir / "registry.sqlite3").record_rollback(
+                args.capability_id, args.from_release, args.target_release,
+                args.reason, args.evidence,
+                approval_receipts=receipts, approver_ids=args.approver_id,
+            )
+        except (OSError, ValueError, RegistryError) as exc:
+            print(json.dumps({"authorized": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps({"authorized": True, "rollback": result,
+                          "executed": False}, ensure_ascii=False, indent=2))
         return 0
     if args.cmd == "registry-init":
         database = args.data_dir / "registry.sqlite3"
