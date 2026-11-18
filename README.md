@@ -16,46 +16,48 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Tool proposal queue; proposed tools are not invoked.
 - Staging workspace with path-containment checks; staged code is not executed.
 - Consistent SQLite online backup, manifest/hash verification and non-destructive restore.
-- Validated local settings, read-only diagnostics, CLI, tests and CI.
+- Conservative YAML configuration profiles and validated settings loader.
+- Modular package surfaces for core, oversight, governance, capabilities, runtime, intelligence, memory, evolution, terminal and storage.
 
 ## Repository map
 
-The package is organized by responsibility under `src/nexora/`: core orchestration, oversight, governance, capabilities, runtime boundaries, intelligence adapters, memory/provenance, evolution gates, terminal validation, interfaces and storage. Existing tested modules remain the source of truth; the new package submodules provide focused import surfaces without duplicating security logic.
-
-See [PROJECT_LAYOUT](docs/PROJECT_LAYOUT.md) for the module map and implementation status.
+The package is organized by responsibility under src/nexora/. Existing tested implementations remain authoritative; modular subpackages delegate to them rather than duplicating policy logic. See docs/PROJECT_LAYOUT.md.
 
 ## Specification completeness
 
-The supplied source records currently cover capabilities **85–264** (180 entries) and meta-rules **16–45** (30 entries). Original definitions **1–84** and **1–15** have not been supplied. The 264×264 interaction matrix remains empty by design. Missing source material is not fabricated. `nexora catalog-check` therefore continues to report incomplete.
+The supplied source records cover capabilities 85–264 (180 entries) and meta-rules 16–45 (30 entries). Original definitions 1–84 and 1–15 have not been supplied. The 264×264 interaction matrix remains empty by design. Missing source material is not fabricated. The catalog-check command therefore continues to report incomplete.
 
 ## Install — Linux / Android Debian
 
-```bash
-bash scripts/install_android_debian.sh
+~~~bash
+bash scripts/install_linux.sh
 .venv/bin/nexora status
-```
+~~~
+
+For Android Debian, use bash scripts/install_android_debian.sh.
 
 ## Verify
 
-```bash
+~~~bash
 bash scripts/verify.sh
-```
+~~~
 
 ## CLI
 
-```bash
+~~~bash
 nexora status
 nexora catalog-check
 nexora check ACTION --risk low
 nexora audit
 nexora kill
 nexora resume
+nexora registry-init
 nexora backup
 nexora verify-backup data/backups/registry.sqlite3
 nexora restore data/backups/registry.sqlite3 data/registry-restored.sqlite3
-```
+~~~
 
-The backup command expects the registry database at `data/registry.sqlite3`; choose a destination explicitly when using a different database path. Backups use SQLite's online backup API (including committed WAL data). A SHA-256 sidecar detects corruption but is **not an authenticated signature**. Restore refuses to overwrite an existing destination.
+The backup command expects the registry database at data/registry.sqlite3; initialize it with nexora registry-init. Backups use SQLite's online backup API (including committed WAL data). A SHA-256 sidecar detects corruption but is **not an authenticated signature**. Restore refuses to overwrite an existing destination.
 
 ## Safety posture
 
@@ -69,10 +71,8 @@ The backup command expects the registry database at `data/registry.sqlite3`; cho
 
 ## Not yet delivered
 
-Full TUI/web/API experiences, local model runtime, production memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
+Full TUI/web/API experiences, local model inference runtime, production memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
 
-## Development
-
-Read [CONTRIBUTING](CONTRIBUTING.md), [SECURITY](SECURITY.md), [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [project status](docs/PROJECT_STATUS.md).
+Read CONTRIBUTING.md, SECURITY.md, docs/ARCHITECTURE.md, docs/THREAT_MODEL.md, and docs/PROJECT_STATUS.md.
 
 License: Unlicense.
