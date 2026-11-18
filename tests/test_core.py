@@ -239,3 +239,92 @@ def test_registry_rejects_string_as_evidence_collection(tmp_path):
     registry.register(221, "Protocol validator", "AI", source_record=True)
     with pytest.raises(RegistryError, match="evidence_must_be_a_collection"):
         registry.transition(221, "REGISTERED", "source_record")
+
+
+def _approval_fixture(tmp_path):
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from nexora.approval import ApprovalReceiptStore
+
+    private = Ed25519PrivateKey.generate()
+    store = ApprovalReceiptStore(tmp_path / "approvals.sqlite3")
+    store.enroll_key(private.public_key(), label="operator workstation")
+    return private, store
+
+
+def test_signed_receipt_verifies_once_and_blocks_replay(tmp_path):
+    from nexora.approval import ApprovalError, create_receipt
+
+    private, store = _approval_fixture(tmp_path)
+    evidence = {"human_approval", "review_record"}
+    receipt = create_receipt(private, capability_id=216, transition="APPROVED",
+                             evidence=evidence, approver_id="operator:local", now=1000)
+    payload = store.verify_and_consume(receipt, capability_id=216, transition="APPROVED",
+                                       evidence=evidence, approver_id="operator:local", now=1001)
+    assert payload["capability_id"] == 216
+    with pytest.raises(ApprovalError, match="receipt_replay_denied"):
+        store.verify_and_consume(receipt, capability_id=216, transition="APPROVED",
+                                 evidence=evidence, approver_id="operator:local", now=1001)
+
+
+def test_signed_receipt_rejects_tampering_wrong_key_and_scope(tmp_path):
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from nexora.approval import ApprovalError, create_receipt
+
+    private, store = _approval_fixture(tmp_path)
+    receipt = create_receipt(private, capability_id=216, transition="APPROVED",
+                             evidence={"human_approval"}, approver_id="operator:local", now=1000)
+    tampered = json.loads(json.dumps(receipt))
+    tampered["payload"]["capability_id"] = 217
+    with pytest.raises(ApprovalError):
+        store.verify_and_consume(tampered, capability_id=216, transition="APPROVED",
+                                 evidence={"human_approval"}, approver_id="operator:local", now=1001)
+    with pytest.raises(ApprovalError, match="receipt_scope_mismatch"):
+        store.verify_and_consume(receipt, capability_id=217, transition="APPROVED",
+                                 evidence={"human_approval"}, approver_id="operator:local", now=1001)
+    wrong = Ed25519PrivateKey.generate()
+    wrong_receipt = create_receipt(wrong, capability_id=216, transition="APPROVED",
+                                   evidence={"human_approval"}, approver_id="operator:local", now=1000)
+    with pytest.raises(ApprovalError, match="signing_key_untrusted_or_revoked"):
+        store.verify_and_consume(wrong_receipt, capability_id=216, transition="APPROVED",
+                                 evidence={"human_approval"}, approver_id="operator:local", now=1001)
+
+
+def test_signed_receipt_rejects_expiry_and_evidence_mismatch(tmp_path):
+    from nexora.approval import ApprovalError, create_receipt
+
+    private, store = _approval_fixture(tmp_path)
+    evidence = {"human_approval", "rollback_plan", "monitoring_plan"}
+    receipt = create_receipt(private, capability_id=218, transition="ENABLED",
+                             evidence=evidence, approver_id="operator:local",
+                             ttl_seconds=30, now=1000)
+    with pytest.raises(ApprovalError, match="receipt_expired"):
+        store.verify_and_consume(receipt, capability_id=218, transition="ENABLED",
+                                 evidence=evidence, approver_id="operator:local", now=1031)
+    with pytest.raises(ApprovalError, match="receipt_evidence_mismatch"):
+        store.verify_and_consume(receipt, capability_id=218, transition="ENABLED",
+                                 evidence={"human_approval"}, approver_id="operator:local", now=1001)
+
+
+def test_revoked_signing_key_cannot_authorize(tmp_path):
+    from nexora.approval import ApprovalError, create_receipt
+
+    private, store = _approval_fixture(tmp_path)
+    receipt = create_receipt(private, capability_id=219, transition="APPROVED",
+                             evidence={"human_approval"}, approver_id="operator:local", now=1000)
+    store.revoke_key(receipt["payload"]["key_fingerprint"])
+    with pytest.raises(ApprovalError, match="signing_key_untrusted_or_revoked"):
+        store.verify_and_consume(receipt, capability_id=219, transition="APPROVED",
+                                 evidence={"human_approval"}, approver_id="operator:local", now=1001)
+
+
+def test_signing_key_file_is_private_and_not_overwritten(tmp_path):
+    import os
+    from nexora.approval import ApprovalError, generate_signing_key, load_private_key
+
+    path = tmp_path / "operator-ed25519.pem"
+    assert generate_signing_key(path)
+    assert load_private_key(path)
+    if os.name == "posix":
+        assert path.stat().st_mode & 0o077 == 0
+    with pytest.raises(ApprovalError, match="private_key_already_exists"):
+        generate_signing_key(path)
