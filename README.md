@@ -17,12 +17,17 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Staging workspace with path-containment checks; staged code is not executed.
 - Consistent SQLite online backups with Ed25519-signed manifests, external trust-key verification and non-overwriting restore.
 - Separate Ed25519 witness receipt chains with independent public-key verification.
+- Backup-first transactional SQLite migration and recovery-copy workflow.
+- Six provisional self-* domains: observation, diagnostics, repair planning, learning, governance assistance and evolution proposals. Only read-only observation/diagnostics are enabled by default; all self-family outputs are proposals, never execution.
 - Conservative YAML configuration profiles and validated settings loader.
-- Modular package surfaces for core, oversight, governance, capabilities, runtime, intelligence, memory, evolution, terminal and storage.
 
 ## Repository map
 
 The package is organized by responsibility under src/nexora/. Existing tested implementations remain authoritative; modular subpackages delegate to them rather than duplicating policy logic. See docs/PROJECT_LAYOUT.md.
+
+## Self-* capability domains
+
+See docs/SELF_FAMILIES.md. These six operational domains are provisional interfaces, **not canonical A–AN source families**. They cannot mutate policy, trusted memory or project files; cannot execute tools; and cannot enable themselves. Proposal generation remains separate from human approval and runtime authorization.
 
 ## Specification completeness
 
@@ -92,6 +97,6 @@ The witness key must be different from the backup signing key. Distribute the wi
 
 Full TUI/web/API experiences, local model inference runtime, production memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
 
-Read CONTRIBUTING.md, SECURITY.md, docs/ARCHITECTURE.md, docs/THREAT_MODEL.md, and docs/PROJECT_STATUS.md.
+Read CONTRIBUTING.md, SECURITY.md, docs/ARCHITECTURE.md, docs/THREAT_MODEL.md, docs/PROJECT_STATUS.md and docs/SELF_FAMILIES.md.
 
 License: Unlicense.
