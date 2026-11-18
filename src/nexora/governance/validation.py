@@ -116,6 +116,82 @@ def build_governance_report(
     }
 
 
+
+def analyze_revocation_impact(
+    capability_id: int, matrix_path: Path = DEFAULT_MATRIX,
+) -> dict[str, Any]:
+    """Find only explicitly declared transitive dependents; never infer or mutate."""
+    if type(capability_id) is not int or not (1 <= capability_id <= 264):
+        raise GovernanceValidationError("capability_id_out_of_range")
+    matrix = _read_object(matrix_path, "interaction_matrix")
+    if matrix.get("dimensions") != [264, 264] or matrix.get("capability_id_range") != [1, 264]:
+        raise GovernanceValidationError("interaction_matrix_dimensions_invalid")
+    if matrix.get("default_relation") != "unknown" or matrix.get(
+        "unknown_relation_policy"
+    ) != "deny_or_require_human_review":
+        raise GovernanceValidationError("unknown_relation_policy_must_fail_closed")
+    entries = matrix.get("entries")
+    if not isinstance(entries, list):
+        raise GovernanceValidationError("interaction_matrix_entries_must_be_list")
+    seen: set[tuple[int, int]] = set()
+    dependents: dict[int, set[int]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise GovernanceValidationError("interaction_matrix_entry_invalid")
+        source, target, relation = entry.get("source"), entry.get("target"), entry.get("relation")
+        if type(source) is not int or type(target) is not int or not (
+            1 <= source <= 264 and 1 <= target <= 264
+        ):
+            raise GovernanceValidationError("interaction_matrix_pair_out_of_range")
+        pair = (source, target)
+        if pair in seen:
+            raise GovernanceValidationError("interaction_matrix_duplicate_pair")
+        seen.add(pair)
+        if relation not in RELATIONS:
+            raise GovernanceValidationError("interaction_matrix_relation_invalid")
+        if relation == "depends_on":
+            dependents.setdefault(target, set()).add(source)
+
+    impacted: set[int] = set()
+    frontier = [capability_id]
+    cycles: list[list[int]] = []
+    parent: dict[int, int] = {}
+    while frontier:
+        current = frontier.pop(0)
+        for dependent in sorted(dependents.get(current, set())):
+            if dependent == capability_id:
+                cycle = [capability_id]
+                node = current
+                chain = [node]
+                while node in parent and node != capability_id:
+                    node = parent[node]
+                    chain.append(node)
+                cycles.append(list(reversed(chain)) + [capability_id])
+                continue
+            if dependent not in impacted:
+                impacted.add(dependent)
+                parent.setdefault(dependent, current)
+                frontier.append(dependent)
+
+    return {
+        "capability_id": capability_id,
+        "declared_dependents": sorted(impacted),
+        "declared_dependent_count": len(impacted),
+        "cycles_detected": cycles,
+        "matrix_declared_pairs": len(seen),
+        "matrix_possible_pairs": 264 * 264,
+        "relationship_coverage_complete": len(seen) == 264 * 264,
+        "decision": "HUMAN_REVIEW_REQUIRED",
+        "unknown_relationships": "BLOCK_AND_ESCALATE",
+        "automatic_dependent_revocation": False,
+        "execution_enabled": False,
+        "note": (
+            "Only explicit directed depends_on edges are traversed. "
+            "Undeclared relationships remain unknown; this report is not proof "
+            "that the impact list is complete and does not revoke any capability."
+        ),
+    }
+
 def inspect_relation(source: int, target: int, matrix_path: Path = DEFAULT_MATRIX) -> dict[str, Any]:
     """Return one directed pair exactly as declared; never infer reverse edges."""
     if type(source) is not int or type(target) is not int or not (1 <= source <= 264 and 1 <= target <= 264):
