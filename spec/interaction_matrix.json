@@ -1,12 +1,12 @@
 {
   "schema_version": "1.1",
   "dimensions": [
-    215,
-    215
+    264,
+    264
   ],
   "capability_id_range": [
     1,
-    215
+    264
   ],
   "status": "unpopulated",
   "default_relation": "unknown",
@@ -25,5 +25,5 @@
     "all_other_capabilities"
   ],
   "entries": [],
-  "note": "No pairwise relation is inferred from numbering or family membership. Populate only from reviewed evidence; version and audit every change."
+  "note": "264x264 matrix schema only. No pairwise relation is inferred from numbering or family membership. Populate only from reviewed evidence; version and audit every change. Unknown relations remain denied or require human review."
 }
