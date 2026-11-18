@@ -70,6 +70,12 @@ def main(argv=None):
     evidence_sub.add_parser("verify")
     evidence_evaluate = evidence_sub.add_parser("evaluate", help="Report evidence readiness without changing lifecycle state")
     evidence_evaluate.add_argument("capability_id", type=int)
+    registry_transition = sub.add_parser("registry-transition", help="Apply an evidence-gated capability transition")
+    registry_transition.add_argument("capability_id", type=int)
+    registry_transition.add_argument("state", choices=("REGISTERED", "IMPLEMENTED", "TESTED", "SHADOWED", "APPROVED", "ENABLED"))
+    registry_transition.add_argument("--evidence", nargs="+", required=True)
+    registry_transition.add_argument("--approver-id")
+    registry_transition.add_argument("--approval-receipt", type=Path)
     source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
     source_status.add_argument("--catalog", type=Path)
     source_status.add_argument("--rules", type=Path)
@@ -488,6 +494,20 @@ def main(argv=None):
         valid = log.verify()
         print(json.dumps({"valid": valid, "entries": log.entries()}, indent=2))
         return 0 if valid else 2
+    if args.cmd == "registry-transition":
+        try:
+            receipt = None
+            if args.approval_receipt is not None:
+                receipt = json.loads(args.approval_receipt.read_text(encoding="utf-8"))
+            result = CapabilityRegistry(args.data_dir / "registry.sqlite3").transition(
+                args.capability_id, args.state, args.evidence,
+                approver_id=args.approver_id, approval_receipt=receipt,
+            )
+        except (OSError, ValueError, RegistryError) as exc:
+            print(json.dumps({"transitioned": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps({"transitioned": True, "capability": result}, ensure_ascii=False, indent=2))
+        return 0
     if args.cmd == "registry-init":
         database = args.data_dir / "registry.sqlite3"
         CapabilityRegistry(database)
