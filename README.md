@@ -110,7 +110,14 @@ nexora litertlm run --model model-name.litertlm \
 # Interactive local chat
 nexora litertlm chat --model model-name.litertlm --confirm-inference
 
-# Explicit CPU/GPU choice
+# Import from Hugging Face and run the requested Qwen3 reasoning model.
+# This downloads several GB; enable network_downloads_enabled in config first.
+nexora litertlm run \
+  --from-huggingface-repo=litert-community/Qwen3-4B-Thinking-2507 \
+  --prompt "Explain the NEXORA safety lifecycle" \
+  --confirm-download --confirm-inference
+
+# Explicit CPU/GPU choice for a local model
 nexora litertlm run --model model-name.litertlm \
   --backend cpu --prompt "Hello" --confirm-inference
 ```
