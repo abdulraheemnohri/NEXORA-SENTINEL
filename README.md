@@ -238,3 +238,6 @@ nexora update install --confirm \
 ```
 
 The updater requires the manifest commit to equal the current GitHub `main` SHA, a clean worktree, fast-forward ancestry, and successful CI for that exact commit. Missing, pending, failed, mismatched, or untrusted evidence blocks installation. The repository does not ship a publisher key: operators must verify and pin the public key independently. A locally generated key is not automatically a trusted publisher key.
+
+
+Capability evidence ledger: see `docs/CAPABILITY_EVIDENCE.md` for append-only evidence references, hash-chain verification, CLI usage, and security limits.
