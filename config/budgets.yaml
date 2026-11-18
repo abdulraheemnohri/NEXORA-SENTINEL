@@ -1,0 +1,7 @@
+version: 1
+defaults:
+  actions_per_hour: 30
+  job_wall_seconds: 60
+  staged_payload_bytes: 2000000
+  pending_tool_proposals: 100
+on_exhaustion: deny

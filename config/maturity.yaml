@@ -1,0 +1,11 @@
+version: 1
+lifecycle:
+  - SPECIFIED
+  - REGISTERED
+  - IMPLEMENTED
+  - TESTED
+  - SHADOWED
+  - APPROVED
+  - ENABLED
+automatic_promotion: false
+unknown_evidence: deny

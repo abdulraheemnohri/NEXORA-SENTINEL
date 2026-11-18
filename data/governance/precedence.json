@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "priority_order": ["SAFETY", "GOVERNANCE", "OPERATIONAL", "CONVENIENCE"],
+  "unknown_conflict": "BLOCK_AND_ESCALATE",
+  "equal_priority_conflict": "BLOCK_AND_ESCALATE",
+  "mutable_by_agent": false
+}

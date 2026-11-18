@@ -1,13 +1,24 @@
-# Architecture — STA-264
+# Architecture
 
-L0 Oversight: policy baseline, hash-chain audit, witness receipts and emergency stop.  
-L1 Interaction governance: fixed safety-first precedence resolver is implemented; the 264×264 interaction matrix remains unpopulated and unknown relations are escalated.  
-L2 Meta-orchestration: evidence-gated lifecycle transition validator is implemented as a non-executing primitive; scheduler, persistent registry, budgets and maturity controller remain planned.  
-L3 Capability families: 264 capabilities in 40 families A–AN; exact source catalogue required.  
-L4 Sandboxed substrate: models, memory, tool bus, executor and sandbox; planned.
+NEXORA Sentinel is organized as a local-first, layered Python system. The public package modules separate core planning, oversight, governance, capability metadata, runtime boundaries, intelligence contracts, memory, evolution gates, terminal validation, interfaces and storage.
 
-Lifecycle: SPECIFIED → REGISTERED → IMPLEMENTED → TESTED → SHADOWED → APPROVED → ENABLED. The validator enforces sequential transitions and required evidence; APPROVED and ENABLED require human authorization, and ENABLED also requires rollback and monitoring plans. This validator does not enable execution. Autonomy defaults to L0.
+## Trust and control flow
 
-Future self-modification pipeline: propose → static checks → sandbox → shadow → canary → promote, with human approval for sensitive changes and rollback at every boundary. Not implemented in v0.1.0.
+1. A user goal is converted to an inert proposal by the planner.
+2. The policy kernel evaluates a known action against the static allowlist and emergency stop.
+3. Governance checks use only explicit source-backed relations; unknown matrix cells block and escalate.
+4. Capability lifecycle transitions require sequential evidence. APPROVED and ENABLED additionally require a scoped Ed25519 receipt signed by an enrolled key.
+5. Runtime modules currently queue proposals or stage bytes only. They do not execute shell commands, tools or generated code.
+6. Audit events and SQLite records provide local observability. Local witness receipts are not independent hardware attestations.
 
-The original exact catalogue and 45 rules are authoritative. Never guess missing definitions.
+## Persistence
+
+SQLite databases use WAL and FULL synchronous mode where implemented. Registry backup uses SQLite's online backup API, then records a SHA-256 manifest. Restore verifies the manifest and SQLite integrity before atomically publishing to a destination that must not already exist.
+
+## Modularity
+
+Subpackages expose stable import surfaces. Existing implementation modules remain authoritative where facades delegate to them. The project must not fork policy logic across multiple packages.
+
+## Current limits
+
+There is no autonomous agent loop, model inference runtime, network listener, OS sandbox, or permission-granted tool executor. The TUI, web and API packages are namespace boundaries only. These limits are intentional, not implied capabilities.

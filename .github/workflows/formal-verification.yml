@@ -1,0 +1,21 @@
+name: Formal Verification
+on:
+  push:
+    branches: [main, feat/v0.1.0-safety-kernel]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tlc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Download TLC
+        run: curl --fail --location --retry 3 https://github.com/tlaplus/tlaplus/releases/latest/download/tla2tools.jar --output tla2tools.jar
+      - name: Model check lifecycle safety invariants
+        run: java -cp tla2tools.jar tlc2.TLC -config formal/model_check_config.cfg formal/state_machine.tla

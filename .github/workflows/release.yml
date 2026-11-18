@@ -1,0 +1,36 @@
+name: Manual Release Gate
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish a GitHub release (requires explicit operator intent)"
+        required: true
+        type: boolean
+        default: false
+permissions:
+  contents: write
+jobs:
+  build-and-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade build
+      - run: python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate
+          path: dist/*
+      - name: Require explicit release approval
+        if: ${{ inputs.publish_release != true }}
+        run: echo "Release not published. Set publish_release=true only after human review."
+      - name: Publish draft release
+        if: ${{ inputs.publish_release == true }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.2.0-build-${{ github.run_number }}
+          name: NEXORA Sentinel 0.2.0 build ${{ github.run_number }}
+          draft: true
+          files: dist/*

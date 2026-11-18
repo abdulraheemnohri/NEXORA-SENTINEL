@@ -1,37 +1,48 @@
-# NEXORA SENTINEL
+# NEXORA-SENTINEL
 
-Self-Terminal Autonomous Intelligence Platform · STA-264  
-Autonomy Through Verifiability · v0.1.0 Safety Kernel Foundation
+**Self-Terminal Autonomous Intelligence Platform · STA-264**  
+**Autonomy Through Verifiability · v0.2.0**
 
-NEXORA Sentinel is a local-first safety and governance foundation. It is **not yet a completed autonomous agent**.
+NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation. It is an evolving project, **not yet a completed autonomous agent**. Its governing invariant is:
 
-## Included
-- Python package and CLI with fail-closed policy decisions.
-- Persistent emergency stop and hash-chained local audit log.
-- Sequential evidence-gated capability lifecycle.
-- SQLite capability registry, terminal revocation and rollback decision records.
-- Ed25519 approval receipts with explicit public-key pinning, scope binding, expiry and replay protection.
-- Persistent action-budget ledger.
-- Persistent scheduler that queues and claims due review jobs but never executes them.
-- Tool proposal boundary; tools are recorded for review and never invoked.
-- Staging workspace with path-containment checks; submitted code is never executed.
-- Validated local configuration, read-only diagnostics, tests and CI.
+> Autonomy scales only as fast as verifiability does.
 
-## Important incomplete specifications
-The supplied source records currently cover capabilities 85–264 (180 entries) and meta-rules 16–45 (30 entries). Original definitions 1–84 and 1–15 have not been provided. The 264×264 interaction matrix remains empty by design. Do not infer missing relations or fabricate source records. Until these gaps are resolved, `catalog-check` intentionally reports incomplete.
+## Current working capabilities
 
-## Install (Debian / Android Debian)
+- Fail-closed policy kernel, persistent emergency stop and hash-chained audit log.
+- Sequential evidence-gated capability lifecycle and SQLite capability registry.
+- Ed25519 approval receipts for APPROVED/ENABLED transitions, pinned-key trust and replay prevention.
+- Persistent resource budget ledger and review-only scheduler.
+- Tool proposal queue; proposed tools are not invoked.
+- Staging workspace with path-containment checks; staged code is not executed.
+- Consistent SQLite online backup, manifest/hash verification and non-destructive restore.
+- Validated local settings, read-only diagnostics, CLI, tests and CI.
+
+## Repository map
+
+The package is organized by responsibility under `src/nexora/`: core orchestration, oversight, governance, capabilities, runtime boundaries, intelligence adapters, memory/provenance, evolution gates, terminal validation, interfaces and storage. Existing tested modules remain the source of truth; the new package submodules provide focused import surfaces without duplicating security logic.
+
+See [PROJECT_LAYOUT](docs/PROJECT_LAYOUT.md) for the module map and implementation status.
+
+## Specification completeness
+
+The supplied source records currently cover capabilities **85–264** (180 entries) and meta-rules **16–45** (30 entries). Original definitions **1–84** and **1–15** have not been supplied. The 264×264 interaction matrix remains empty by design. Missing source material is not fabricated. `nexora catalog-check` therefore continues to report incomplete.
+
+## Install — Linux / Android Debian
+
 ```bash
 bash scripts/install_android_debian.sh
 .venv/bin/nexora status
 ```
 
 ## Verify
+
 ```bash
-bash scripts/run_tests.sh
+bash scripts/verify.sh
 ```
 
 ## CLI
+
 ```bash
 nexora status
 nexora catalog-check
@@ -39,14 +50,29 @@ nexora check ACTION --risk low
 nexora audit
 nexora kill
 nexora resume
+nexora backup
+nexora verify-backup data/backups/registry.sqlite3
+nexora restore data/backups/registry.sqlite3 data/registry-restored.sqlite3
 ```
 
+The backup command expects the registry database at `data/registry.sqlite3`; choose a destination explicitly when using a different database path. Backups use SQLite's online backup API (including committed WAL data). A SHA-256 sidecar detects corruption but is **not an authenticated signature**. Restore refuses to overwrite an existing destination.
+
 ## Safety posture
-Autonomy defaults to L0. Scheduler, sandbox and network feature flags default off. A proposal is not a mutation. A scheduled job is not permission to execute. Tool proposals are review-only. The staging workspace does not execute code. The Ed25519 module proves possession of a pinned key, not the real-world identity of its holder. The registry has not yet been wired to require signed receipts for APPROVED/ENABLED transitions.
 
-## Planned, not yet delivered
-Full TUI and web dashboard, model runtime, memory system, real sandbox isolation, controlled tool execution, self-evolution pipeline, complete capability catalogue and interaction matrix. No production execution capability is enabled in this milestone.
+- Autonomy defaults to L0; scheduler, sandbox and network flags default off.
+- Proposal is not mutation; a due job is not permission to execute.
+- Tool proposals are review-only; staged code is never executed.
+- The staging workspace is not an OS-level sandbox.
+- Ed25519 receipts prove possession of a pinned key, not real-world identity.
+- Capability eligibility checks do not autonomously enable capabilities.
+- Rollback records document a decision; they do not execute rollback.
 
-See [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), [operations](docs/OPERATIONS.md), and [project status](docs/PROJECT_STATUS.md).
+## Not yet delivered
+
+Full TUI/web/API experiences, local model runtime, production memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
+
+## Development
+
+Read [CONTRIBUTING](CONTRIBUTING.md), [SECURITY](SECURITY.md), [architecture](docs/ARCHITECTURE.md), [threat model](docs/THREAT_MODEL.md), and [project status](docs/PROJECT_STATUS.md).
 
 License: Unlicense.

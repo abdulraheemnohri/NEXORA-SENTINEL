@@ -1,9 +1,11 @@
-"""Validated local-first settings."""
+"""Validated local-first settings with JSON/YAML input support."""
 from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
+
+import yaml
 
 
 @dataclass(frozen=True)
@@ -25,11 +27,18 @@ class Settings:
             raise ValueError("max_wall_seconds_per_job_out_of_range")
         if any(type(v) is not bool for v in (self.scheduler_enabled, self.sandbox_enabled, self.network_enabled)):
             raise ValueError("feature_flags_must_be_boolean")
+        if not isinstance(self.data_dir, str) or not self.data_dir.strip():
+            raise ValueError("data_dir_required")
         return self
 
     @classmethod
     def load(cls, path: Path) -> Settings:
-        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        source = Path(path)
+        raw_text = source.read_text(encoding="utf-8")
+        if source.suffix.lower() in {".yaml", ".yml"}:
+            raw = yaml.safe_load(raw_text)
+        else:
+            raw = json.loads(raw_text)
         if not isinstance(raw, dict) or set(raw) - set(asdict(cls()).keys()):
             raise ValueError("configuration_schema_invalid")
         return cls(**raw).validate()
@@ -38,4 +47,7 @@ class Settings:
         self.validate()
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(asdict(self), indent=2) + "\n", encoding="utf-8")
+        if target.suffix.lower() in {".yaml", ".yml"}:
+            target.write_text(yaml.safe_dump(asdict(self), sort_keys=True), encoding="utf-8")
+        else:
+            target.write_text(json.dumps(asdict(self), indent=2) + "\n", encoding="utf-8")

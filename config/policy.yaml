@@ -1,0 +1,10 @@
+version: 1
+default_decision: deny
+unknown_actions: deny
+proposal_is_mutation: false
+runtime_policy_mutation: false
+human_approval_required_for:
+  - high
+  - critical
+privilege_expansion_requires_signed_receipt: true
+safety_precedence: highest

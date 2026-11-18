@@ -3,50 +3,39 @@
 Last updated: 2026-11-18
 
 ## Current milestone
-Safety kernel and local platform foundations. The project is not complete.
 
-## Implemented
+Safety kernel, modular package layout and durable local platform foundations. The project is not complete.
+
+## Implemented and CI-covered
+
 - Fail-closed policy kernel, emergency stop and hash-chained audit log.
-- Capability lifecycle validator and safety-first precedence resolver.
-- SQLite capability registry, append-only lifecycle events, terminal revocation and rollback decision records.
-- Ed25519 receipt creation, explicit trust enrollment, key revocation, expiry and nonce replay protection.
-- Persistent resource budget ledger.
-- Persistent scheduler that only claims due jobs; it does not execute them.
-- Tool proposal queue; no tool implementation is invoked.
-- Safe staging workspace with path containment; no code execution.
-- Local config validation and read-only diagnostics.
-- Expanded test suite and project documentation/layout.
+- Evidence-gated sequential lifecycle validator and safety-first precedence resolver.
+- SQLite capability registry with append-only lifecycle, revocation and rollback-decision events.
+- Ed25519 approval receipts; APPROVED and ENABLED require scoped signed receipts. Receipt nonce consumption and lifecycle mutation share one SQLite transaction.
+- Persistent budget ledger, review-only scheduler and tool proposal queue.
+- Safe staging workspace with path containment; submitted code is not executed.
+- SQLite online backup, SHA-256 manifest verification and non-overwriting restore.
+- Local settings, read-only diagnostics, modular package import surfaces and CLI.
+- Tests, documentation and GitHub CI.
 
-## CI repair
-The newest Ed25519 commit failed Ruff because one local import block was not sorted. The import ordering has been corrected in the project-structure increment. The updated CI run must confirm Ruff, pytest and compileall before this increment is marked verified.
+## Explicitly incomplete
 
-## Specification blockers
-- Capabilities 1–84: original source definitions not supplied.
-- Meta-rules 1–15: original source definitions not supplied.
-- Interaction matrix: all relations remain unknown/unpopulated.
-- Expected totals: 264 capabilities, 40 canonical families, 45 meta-rules.
-
-## Security boundaries
-- No autonomous tool execution, model runtime or self-modification.
-- Scheduler is a durable review queue, not an executor.
-- Tool boundary stores proposals only.
-- Staging workspace does not execute code and is not an OS-level sandbox.
-- Signed receipts prove possession of a pinned key, not human identity.
-- Registry APPROVED/ENABLED transitions are not yet cryptographically receipt-gated.
-- Operator labels remain audit metadata.
-- PR #1 remains open; do not merge or release without explicit user approval.
+- Capability source records 1–84 and meta-rules 1–15 have not been supplied.
+- Interaction matrix dimensions are 264×264 but entries remain unknown/empty.
+- TUI, web dashboard and API are not implemented.
+- Model runtime, production memory retrieval and self-evolution execution are not implemented.
+- Staging is not an OS-level sandbox; no tool execution is enabled.
+- Operator labels are not cryptographic identity proof.
+- Local backup manifests are unsigned; SHA-256 alone is not authenticated provenance.
+- Android Debian/Pixel device testing has not been performed remotely.
 
 ## Next priorities
-1. Verify current CI and fix every reported failure.
-2. Integrate signed receipt verification atomically into registry APPROVED/ENABLED transitions.
-3. Add safe registry backup/export/restore and migration tests.
-4. Recover missing original specification ranges from the user; do not invent them.
-5. Continue reviewed sandbox, scheduler, budgets, TUI/web UI and model integration design.
-6. Perform Android Debian/Pixel testing; not yet performed by this remote GitHub work.
 
+1. Verify CI for the modular package and backup/restore milestone.
+2. Add backup signing and external witness verification.
+3. Complete read-only TUI and dashboard before any execution features.
+4. Add migration/version tests and formal state-machine checks.
+5. Recover missing original source specifications from the project owner.
+6. Conduct Android Debian installation and device verification locally.
 
-## Signed approval enforcement update
-- APPROVED and ENABLED transitions now require a valid Ed25519 receipt.
-- Receipt verification and nonce consumption use the same SQLite connection and transaction as the lifecycle state update.
-- A failed lifecycle transition rolls back receipt consumption; regression tests cover this atomicity.
-- Existing unsigned registry transition calls for APPROVED/ENABLED are intentionally rejected.
+PR #1 remains open and unmerged. Do not merge or release without explicit owner approval.

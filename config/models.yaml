@@ -1,0 +1,6 @@
+version: 1
+runtime_enabled: false
+network_downloads_enabled: false
+default_provider: null
+models: []
+# Model weights and runtime permissions must be explicitly configured by an operator.
