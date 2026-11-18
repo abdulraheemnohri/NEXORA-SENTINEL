@@ -5,7 +5,6 @@ only: this module never invokes capability implementations or rolls software bac
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import sqlite3
 from pathlib import Path
