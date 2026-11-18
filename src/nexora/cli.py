@@ -27,6 +27,20 @@ def main(argv=None):
     capabilities = sub.add_parser("capabilities", help="Inspect source-backed self-capability coverage")
     capabilities.add_argument("--family")
     capabilities.add_argument("--include-records", action="store_true")
+    evidence = sub.add_parser("evidence", help="Record and verify capability evidence references")
+    evidence_sub = evidence.add_subparsers(dest="evidence_cmd", required=True)
+    evidence_add = evidence_sub.add_parser("add")
+    evidence_add.add_argument("capability_id", type=int)
+    evidence_add.add_argument("--type", dest="evidence_type", required=True)
+    evidence_add.add_argument("--reference", required=True)
+    evidence_add.add_argument("--sha256", required=True)
+    evidence_add.add_argument("--operator", required=True)
+    evidence_add.add_argument("--note", default="")
+    evidence_add.add_argument("--confirm", action="store_true", required=True)
+    evidence_list = evidence_sub.add_parser("list")
+    evidence_list.add_argument("--capability-id", type=int)
+    evidence_list.add_argument("--limit", type=int, default=100)
+    evidence_sub.add_parser("verify")
     check = sub.add_parser("check")
     check.add_argument("action")
     check.add_argument("--risk", choices=("low", "medium", "high", "critical"), default="medium")
@@ -112,6 +126,26 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "evidence":
+        from nexora.evidence import EvidenceError, EvidenceLedger
+        ledger = EvidenceLedger(args.data_dir / "registry.sqlite3")
+        try:
+            if args.evidence_cmd == "add":
+                result = ledger.add(
+                    args.capability_id, args.evidence_type, args.reference,
+                    args.sha256, args.operator, args.note,
+                )
+                print(json.dumps({"recorded": True, **result}, indent=2))
+                return 0
+            if args.evidence_cmd == "list":
+                print(json.dumps(ledger.list(args.capability_id, args.limit), indent=2))
+                return 0
+            result = ledger.verify()
+            print(json.dumps(result, indent=2))
+            return 0 if result["valid"] else 2
+        except (EvidenceError, OSError, ValueError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+            return 2
     if args.cmd == "capabilities":
         from nexora.self_capability_report import build_report
         try:
