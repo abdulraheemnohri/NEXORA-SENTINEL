@@ -75,7 +75,7 @@ def build_family_evaluation(
     )
 
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for code in ( [selected_family] if selected_family else list(FAMILIES) ):
+    for code in ([selected_family] if selected_family else list(FAMILIES)):
         grouped[code]  # Keep canonical families visible even with no source records.
     for row in rows:
         grouped[row["family"]].append(row)
