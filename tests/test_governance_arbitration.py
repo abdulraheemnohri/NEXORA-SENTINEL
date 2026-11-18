@@ -32,10 +32,6 @@ def test_explicit_conflict_proposes_safety_winner_but_never_authorizes(tmp_path)
 
 
 def test_unknown_relationship_blocks(tmp_path):
-    report = arbitrate_conflict(
-        85, 86, left_priority="SAFETY", right_priority="CONVENIENCE",
-        matrix_path=_matrix(tmp_path, relation=None) if False else tmp_path / "empty.json",
-    ) if False else None
     path = tmp_path / "empty.json"
     path.write_text(json.dumps({"dimensions": [264, 264], "entries": []}), encoding="utf-8")
     report = arbitrate_conflict(
@@ -101,3 +97,37 @@ def test_wait_graph_loader_rejects_non_object(tmp_path):
     path.write_text("[]", encoding="utf-8")
     with pytest.raises(ArbitrationError, match="wait_graph_must_be_object"):
         load_wait_graph(path)
+
+
+
+def test_cli_exposes_proposal_only_arbitration(tmp_path, capsys):
+    from nexora import cli
+
+    matrix = _matrix(tmp_path)
+    result = cli.main([
+        "governance-arbitrate", "85", "86",
+        "--left-priority", "SAFETY",
+        "--right-priority", "OPERATIONAL",
+        "--matrix", str(matrix),
+    ])
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 0
+    assert payload["winner_proposal"] == 85
+    assert payload["proposal_authorized"] is False
+    assert payload["execution_enabled"] is False
+
+
+def test_cli_returns_nonzero_for_blocked_arbitration(tmp_path, capsys):
+    from nexora import cli
+
+    path = tmp_path / "empty.json"
+    path.write_text(json.dumps({"dimensions": [264, 264], "entries": []}), encoding="utf-8")
+    result = cli.main([
+        "governance-arbitrate", "85", "86",
+        "--left-priority", "SAFETY",
+        "--right-priority", "OPERATIONAL",
+        "--matrix", str(path),
+    ])
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 3
+    assert payload["decision"] == "BLOCK_AND_ESCALATE"
