@@ -1,0 +1,11 @@
+{
+  "backup_directory": "data/backups",
+  "trusted_public_key": "",
+  "retention_days": 30,
+  "keep_latest": 3,
+  "max_backup_age_hours": 168,
+  "min_verified_points": 1,
+  "require_simulation_confirmation": true,
+  "automatic_restore": false,
+  "automatic_deletion": false
+}
