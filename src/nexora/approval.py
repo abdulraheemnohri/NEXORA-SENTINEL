@@ -361,6 +361,56 @@ class ApprovalReceiptStore:
             if cursor.rowcount != 1:
                 raise ApprovalError("active_signing_key_not_found")
 
+    def verify_and_consume_many(
+        self,
+        receipts: list[dict[str, Any]],
+        *,
+        capability_id: int,
+        transition: str,
+        evidence: list[str] | tuple[str, ...] | set[str],
+        approver_ids: list[str],
+        now: int | None = None,
+        connection: sqlite3.Connection | None = None,
+        minimum_approvals: int = 2,
+        maximum_approvals: int = 5,
+    ) -> list[dict[str, Any]]:
+        """Verify distinct approvers and consume every receipt atomically."""
+        if not isinstance(receipts, list) or not isinstance(approver_ids, list):
+            raise ApprovalError("multi_approval_inputs_must_be_lists")
+        if not isinstance(minimum_approvals, int) or not 2 <= minimum_approvals <= maximum_approvals <= 5:
+            raise ApprovalError("multi_approval_threshold_invalid")
+        if not minimum_approvals <= len(receipts) <= maximum_approvals:
+            raise ApprovalError("multi_approval_threshold_not_met")
+        if len(receipts) != len(approver_ids):
+            raise ApprovalError("multi_approval_identity_count_mismatch")
+        if any(not isinstance(item, str) or not item.strip() for item in approver_ids):
+            raise ApprovalError("multi_approval_identity_required")
+        normalized_ids = [item.strip() for item in approver_ids]
+        if len(set(normalized_ids)) != len(normalized_ids):
+            raise ApprovalError("distinct_approvers_required")
+        manager = self._connect() if connection is None else nullcontext(connection)
+        with manager as db:
+            if connection is None:
+                db.execute("BEGIN IMMEDIATE")
+            payloads = []
+            fingerprints = set()
+            for receipt, approver_id in zip(receipts, normalized_ids):
+                payload = self.verify_and_consume(
+                    receipt,
+                    capability_id=capability_id,
+                    transition=transition,
+                    evidence=evidence,
+                    approver_id=approver_id,
+                    now=now,
+                    connection=db,
+                )
+                fingerprint = payload["key_fingerprint"]
+                if fingerprint in fingerprints:
+                    raise ApprovalError("independent_signing_keys_required")
+                fingerprints.add(fingerprint)
+                payloads.append(payload)
+        return payloads
+
     def verify_and_consume(
         self,
         receipt: dict[str, Any],
