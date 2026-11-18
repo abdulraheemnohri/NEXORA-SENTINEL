@@ -69,8 +69,8 @@ NEXORA includes Ed25519 manifest signing and verification primitives. A release 
 ~~~bash
 # Generate a dedicated update-signing key pair outside the repository.
 # The private file is created with mode 0600 on POSIX; neither output is overwritten.
-nexora update keygen \\
-  --private-key /secure/path/update-signing-key.pem \\
+nexora update keygen \
+  --private-key /secure/path/update-signing-key.pem \
   --public-key /secure/path/update-signing-key.pub.pem
 
 # Protect the private key and distribute the public key through a separate trusted channel.
