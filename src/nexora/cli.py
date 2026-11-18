@@ -75,13 +75,15 @@ def main(argv=None):
     recovery_plan.add_argument("--keep-latest", type=int, default=3)
     recovery_simulate = sub.add_parser("recovery-simulate", help="Simulate restore in temporary isolated storage")
     recovery_simulate.add_argument("backup", type=Path)
-    recovery_simulate.add_argument("--trusted-key", type=Path, required=True)
+    recovery_simulate.add_argument("--config", type=Path, default=Path("config/recovery.json"))
+    recovery_simulate.add_argument("--trusted-key", type=Path)
     recovery_simulate.add_argument("--confirm-simulation", action="store_true", required=True)
     recovery_simulate.add_argument("--witness-key", type=Path)
     recovery_simulate.add_argument("--witness-log", type=Path)
     recovery_simulate.add_argument("--history-log", type=Path)
     recovery_simulate.add_argument("--audit-log", type=Path)
     recovery_history = sub.add_parser("recovery-history", help="Verify and inspect witnessed recovery simulations")
+    recovery_history.add_argument("--config", type=Path, default=Path("config/recovery.json"))
     recovery_history.add_argument("--history-log", type=Path)
     recovery_history.add_argument("--witness-log", type=Path)
     recovery_history.add_argument("--trusted-witness-key", type=Path)
@@ -430,13 +432,18 @@ def main(argv=None):
         return 0
     if args.cmd == "recovery-simulate":
         from nexora.recovery_history import RecoveryHistoryError, record_recovery_simulation
+        from nexora.recovery_readiness import RecoverySettings
         try:
+            settings = RecoverySettings.load(args.config) if args.config.is_file() else RecoverySettings().validate()
+            backup_key = args.trusted_key or (Path(settings.trusted_public_key) if settings.trusted_public_key else None)
+            if backup_key is None:
+                raise RecoveryHistoryError("backup_trust_anchor_required")
             result = record_recovery_simulation(
-                args.backup, backup_trusted_key=args.trusted_key,
-                witness_private_key=args.witness_key or (args.data_dir / "recovery-witness-signing-key.pem"),
-                witness_receipt_log=args.witness_log or (args.data_dir / "recovery-witness" / "receipts.jsonl"),
-                history_log=args.history_log or (args.data_dir / "recovery" / "history.jsonl"),
-                audit_log=args.audit_log or (args.data_dir / "audit.jsonl"),
+                args.backup, backup_trusted_key=backup_key,
+                witness_private_key=args.witness_key or Path(settings.witness_private_key),
+                witness_receipt_log=args.witness_log or Path(settings.witness_receipt_log),
+                history_log=args.history_log or Path(settings.history_log),
+                audit_log=args.audit_log or Path(settings.audit_log),
             )
         except (RecoveryHistoryError, OSError, ValueError) as exc:
             print(json.dumps({"simulation": "FAILED", "recorded": False, "error": str(exc)}, indent=2))
@@ -445,11 +452,13 @@ def main(argv=None):
         return 0
     if args.cmd == "recovery-history":
         from nexora.recovery_history import RecoveryHistoryError, read_recovery_history
+        from nexora.recovery_readiness import RecoverySettings
         try:
+            settings = RecoverySettings.load(args.config) if args.config.is_file() else RecoverySettings().validate()
             result = read_recovery_history(
-                args.history_log or (args.data_dir / "recovery" / "history.jsonl"),
-                args.witness_log or (args.data_dir / "recovery-witness" / "receipts.jsonl"),
-                trusted_witness_public_key=args.trusted_witness_key or (args.data_dir / "recovery-witness-signing-key.pub.pem"),
+                args.history_log or Path(settings.history_log),
+                args.witness_log or Path(settings.witness_receipt_log),
+                trusted_witness_public_key=args.trusted_witness_key or Path(settings.witness_public_key),
                 limit=args.limit,
             )
         except (RecoveryHistoryError, OSError, ValueError) as exc:
