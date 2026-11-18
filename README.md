@@ -84,7 +84,7 @@ nexora update verify-manifest release.manifest.json \
   --trusted-key /secure/path/pinned-update-public-key.pem
 ~~~
 
-The signer private key must have restrictive file permissions (0600 on POSIX). Manifest creation refuses to overwrite an existing file. Verification rejects schema changes, repository/ref mismatches, fingerprint mismatches and invalid signatures. The GitHub updater now requires a verified manifest and an independently pinned public key before installation. No project publisher key is embedded or distributed by the repository; operators must enroll the public key through a separate trusted channel. Do not treat an unsigned commit as a signed release.
+The signer private key must have restrictive file permissions (0600 on POSIX). Manifest creation refuses to overwrite an existing file. Verification rejects schema changes, repository/ref mismatches, fingerprint mismatches and invalid signatures. The GitHub updater now requires a verified manifest and an independently pinned public key before installation. No project publisher key is embedded or distributed by the repository; operators must enroll the public key through a separate trusted channel. Do not treat an unsigned commit as a signed release. **Signing is an explicit operator attestation:** before signing, the operator must personally review the exact commit, its changes, dependencies and CI/build provenance and decide that they trust it. A green CI result is necessary for the updater gate but is not a substitute for security review; compromised CI or malicious code that passes tests remains a residual risk.
 
 ## Built-in LiteRT-LM local runtime
 
@@ -144,10 +144,10 @@ Memory is only written by an explicit operator command; inference cannot silentl
 ~~~bash
 nexora memory-add "A note to remember" --source operator-note
 nexora memory-search "note remember"
-nexora memory-delete 1 --reason "No longer relevant" --confirm
+nexora memory-tombstone 1 --reason "No longer relevant" --confirm
 ~~~
 
-Deletion hides a record from retrieval by appending a tombstone; the append-only audit record is retained. This is not secure physical erasure. The web dashboard only displays recent memory records and exposes no memory mutation endpoints.
+`memory-tombstone` (also available as the backward-compatible `memory-delete` and `memory-hide` aliases) hides a record from retrieval by appending a tombstone; the append-only record and audit history remain on disk. CLI output explicitly reports `physical_erasure: false`. This is not secure physical erasure from SQLite files, backups or filesystem storage. The web dashboard only displays recent memory records and exposes no memory mutation endpoints.
 
 ## Local read-only web dashboard
 
