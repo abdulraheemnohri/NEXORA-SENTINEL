@@ -1,6 +1,7 @@
 """Project workspace helpers with path containment checks."""
 from pathlib import Path
 
+
 class Workspace:
     def __init__(self, root: Path):
         self.root=Path(root).resolve(); self.root.mkdir(parents=True,exist_ok=True)

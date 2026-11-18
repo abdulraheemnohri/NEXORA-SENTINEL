@@ -1,10 +1,11 @@
 """Tool contracts and approval queue; no tool implementation is invoked."""
 from __future__ import annotations
-from dataclasses import dataclass
+
 import json
 import sqlite3
 import time
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 @dataclass(frozen=True)
@@ -25,7 +26,7 @@ class ToolBoundary:
         db=sqlite3.connect(self.path,timeout=10); db.execute("PRAGMA journal_mode=WAL"); db.execute("PRAGMA synchronous=FULL"); return db
     def propose(self, contract: ToolContract, arguments: dict) -> str:
         if contract.risk not in {"low","medium","high","critical"}: raise ValueError("unknown_risk_denied")
-        if not isinstance(arguments,dict): raise ValueError("arguments_must_be_object")
+        if not isinstance(arguments,dict): raise TypeError("arguments_must_be_object")
         proposal=uuid.uuid4().hex
         with self._db() as db:
             db.execute("INSERT INTO proposals VALUES(?,?,?,?,?,?)",
