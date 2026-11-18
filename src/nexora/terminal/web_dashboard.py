@@ -10,7 +10,7 @@ import sqlite3
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from nexora.terminal.dashboard import (
     render_audit,
@@ -120,6 +120,30 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     "</body></html>"
                 )
                 self._send(200, "text/html; charset=utf-8", page.encode("utf-8"))
+                return
+            if path == "/api/evidence-evaluation":
+                query = parse_qs(urlsplit(self.path).query)
+                values = query.get("capability_id", [])
+                if len(values) != 1 or not values[0].isdigit():
+                    self._send(400, "application/json; charset=utf-8",
+                               b'{"error":"one_capability_id_query_parameter_required"}')
+                    return
+                database = root / "registry.sqlite3"
+                if not database.is_file():
+                    self._send(404, "application/json; charset=utf-8",
+                               b'{"error":"evidence_ledger_not_found"}')
+                    return
+                try:
+                    from nexora.capability_evaluation import evaluate_from_ledger
+                    result = evaluate_from_ledger(database, int(values[0]))
+                    payload = json.dumps(
+                        {"read_only": True, "view": result},
+                        ensure_ascii=False, separators=(",", ":"),
+                    ).encode("utf-8")
+                    self._send(200, "application/json; charset=utf-8", payload)
+                except (OSError, ValueError, sqlite3.Error) as exc:
+                    self._send(500, "application/json; charset=utf-8",
+                               json.dumps({"error": type(exc).__name__}).encode("utf-8"))
                 return
             view = VIEWS.get(path)
             if view is None:
