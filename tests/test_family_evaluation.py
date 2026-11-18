@@ -31,7 +31,12 @@ def test_family_report_groups_catalogue_and_exposes_missing_source_records(tmp_p
     )
     assert result["catalogue"]["source_backed_capabilities"] == 3
     assert result["catalogue"]["missing_source_definition_count"] == 261
-    assert [item["family"] for item in result["families"]] == ["O", "P"]
+    assert len(result["families"]) == 40
+    assert [item["family"] for item in result["families"] if item["source_backed_capabilities"]] == ["O", "P"]
+    family_a = next(item for item in result["families"] if item["family"] == "A")
+    assert family_a["catalogue_coverage"] == "NO_SOURCE_BACKED_RECORDS"
+    assert family_a["evidence_assessment"] == "SOURCE_DEFINITIONS_NOT_PRESENT"
+    assert family_a["family_name"] is None
     assert result["families"][0]["source_backed_capabilities"] == 2
     assert result["families"][0]["evidence_assessment"] == "NOT_EVALUATED_NO_LEDGER"
     assert result["execution_enabled"] is False
@@ -90,3 +95,26 @@ def test_family_report_separates_evidence_presence_from_authorization(tmp_path):
         == "EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION"
     )
     assert result["capability_promotions_performed"] is False
+
+
+
+def test_family_filter_reports_known_family_with_no_source_records(tmp_path):
+    catalog = _catalogue(tmp_path / "catalog.json", [_row(85)])
+    result = build_family_evaluation(catalog_path=catalog, family="a")
+    assert result["filter"]["family"] == "A"
+    assert result["families"] == [{
+        "family": "A",
+        "family_name": None,
+        "catalogue_coverage": "NO_SOURCE_BACKED_RECORDS",
+        "source_backed_capabilities": 0,
+        "catalogue_status_counts": {},
+        "evidence_assessment": "SOURCE_DEFINITIONS_NOT_PRESENT",
+        "evidence_assessment_counts": {},
+        "capabilities": [],
+    }]
+
+
+def test_family_filter_rejects_noncanonical_family(tmp_path):
+    catalog = _catalogue(tmp_path / "catalog.json", [_row(85)])
+    with pytest.raises(FamilyEvaluationError, match="family_filter_unknown"):
+        build_family_evaluation(catalog_path=catalog, family="ZZ")
