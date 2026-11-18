@@ -73,7 +73,10 @@ def _simulation_evidence(
 ) -> dict[str, Any]:
     if history_log is None or witness_receipt_log is None:
         return {"recovery_simulation": "NOT_RECORDED", "simulation_count": 0}
-    if not Path(history_log).is_file() or not Path(witness_receipt_log).is_file():
+    history_path, receipt_path = Path(history_log), Path(witness_receipt_log)
+    if not history_path.is_file() or not receipt_path.is_file():
+        return {"recovery_simulation": "NOT_RECORDED", "simulation_count": 0}
+    if not history_path.with_name(history_path.name + ".lock").is_file() or not receipt_path.with_name(receipt_path.name + ".lock").is_file():
         return {"recovery_simulation": "NOT_RECORDED", "simulation_count": 0}
     if trusted_witness_public_key is None or not Path(trusted_witness_public_key).is_file():
         return {"recovery_simulation": "BLOCKED_TRUST_ANCHOR", "simulation_count": 0}
