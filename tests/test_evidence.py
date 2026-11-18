@@ -64,10 +64,6 @@ def test_evidence_v2_binds_timestamp_and_sequence(tmp_path):
     assert record["created_at"].endswith("Z")
     assert ledger.verify()["valid"] is True
     with sqlite3.connect(path) as db:
-        db.execute(
-            "UPDATE capability_evidence SET created_at='2000-01-01T00:00:00Z' "
-            "WHERE sequence=1"
-        ) if False else None
         db.execute("DROP TRIGGER capability_evidence_no_update")
         db.execute(
             "UPDATE capability_evidence SET created_at='2000-01-01T00:00:00Z' "
