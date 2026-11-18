@@ -77,6 +77,15 @@ def main(argv=None):
     recovery_simulate.add_argument("backup", type=Path)
     recovery_simulate.add_argument("--trusted-key", type=Path, required=True)
     recovery_simulate.add_argument("--confirm-simulation", action="store_true", required=True)
+    recovery_simulate.add_argument("--witness-key", type=Path)
+    recovery_simulate.add_argument("--witness-log", type=Path)
+    recovery_simulate.add_argument("--history-log", type=Path)
+    recovery_simulate.add_argument("--audit-log", type=Path)
+    recovery_history = sub.add_parser("recovery-history", help="Verify and inspect witnessed recovery simulations")
+    recovery_history.add_argument("--history-log", type=Path)
+    recovery_history.add_argument("--witness-log", type=Path)
+    recovery_history.add_argument("--trusted-witness-key", type=Path)
+    recovery_history.add_argument("--limit", type=int, default=50)
     recovery_readiness = sub.add_parser("recovery-readiness", help="Score verified backup readiness without changing data")
     recovery_readiness.add_argument("--config", type=Path, default=Path("config/recovery.json"))
     recovery_readiness.add_argument("--directory", type=Path)
@@ -420,14 +429,31 @@ def main(argv=None):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     if args.cmd == "recovery-simulate":
-        from nexora.recovery_planner import RecoveryPlanningError, simulate_recovery
+        from nexora.recovery_history import RecoveryHistoryError, record_recovery_simulation
         try:
-            result = simulate_recovery(
-                args.backup, trusted_public_key=args.trusted_key,
-                confirm=args.confirm_simulation,
+            result = record_recovery_simulation(
+                args.backup, backup_trusted_key=args.trusted_key,
+                witness_private_key=args.witness_key or (args.data_dir / "recovery-witness-signing-key.pem"),
+                witness_receipt_log=args.witness_log or (args.data_dir / "recovery-witness" / "receipts.jsonl"),
+                history_log=args.history_log or (args.data_dir / "recovery" / "history.jsonl"),
+                audit_log=args.audit_log or (args.data_dir / "audit.jsonl"),
             )
-        except (RecoveryPlanningError, OSError, ValueError) as exc:
-            print(json.dumps({"simulation": "FAILED", "error": str(exc)}, indent=2))
+        except (RecoveryHistoryError, OSError, ValueError) as exc:
+            print(json.dumps({"simulation": "FAILED", "recorded": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.cmd == "recovery-history":
+        from nexora.recovery_history import RecoveryHistoryError, read_recovery_history
+        try:
+            result = read_recovery_history(
+                args.history_log or (args.data_dir / "recovery" / "history.jsonl"),
+                args.witness_log or (args.data_dir / "recovery-witness" / "receipts.jsonl"),
+                trusted_witness_public_key=args.trusted_witness_key or (args.data_dir / "recovery-witness-signing-key.pub.pem"),
+                limit=args.limit,
+            )
+        except (RecoveryHistoryError, OSError, ValueError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
