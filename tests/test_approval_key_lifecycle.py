@@ -29,7 +29,7 @@ def test_keypair_permissions_and_no_overwrite(tmp_path):
 
 def test_key_enrollment_rotation_and_revocation_are_audited(tmp_path):
     _old_private, old_public = _keypair(tmp_path, "old")
-    new_private, new_public = _keypair(tmp_path, "new")
+    _new_private, new_public = _keypair(tmp_path, "new")
     store = ApprovalReceiptStore(tmp_path / "approvals.sqlite3")
     old_fingerprint = store.enroll_key(load_public_key(old_public), label="primary", now=10)
     new_fingerprint = store.rotate_key(
@@ -93,6 +93,5 @@ def test_key_history_is_append_only(tmp_path):
     database = tmp_path / "approvals.sqlite3"
     store = ApprovalReceiptStore(database)
     store.enroll_key(load_public_key(public), label="operator")
-    with sqlite3.connect(database) as db:
-        with pytest.raises(sqlite3.DatabaseError, match="append-only"):
-            db.execute("DELETE FROM signing_key_events")
+    with sqlite3.connect(database) as db, pytest.raises(sqlite3.DatabaseError, match="append-only"):
+        db.execute("DELETE FROM signing_key_events")
