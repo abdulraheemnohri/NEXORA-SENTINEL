@@ -131,8 +131,8 @@ def test_recovery_nonce_is_single_use(tmp_path):
 def test_invalid_second_authorization_rolls_back_consumption_of_first(tmp_path):
     database, _, recovery, _, old_fp, authorities, replacement = _setup(tmp_path)
     authorizations = _issue(authorities, old_fp, replacement)
-    authorizations[1]["signature"] = "invalid"
-    with pytest.raises(EmergencyRecoveryError, match="malformed"):
+    authorizations[1]["signature"] = "AAAA"
+    with pytest.raises(EmergencyRecoveryError, match="signature_invalid"):
         recovery.recover_approval_key(
             old_fingerprint=old_fp, new_public_key=replacement.public_key(),
             new_label="operator-recovered", reason="operator key compromised",
