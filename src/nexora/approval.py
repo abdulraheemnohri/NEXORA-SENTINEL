@@ -183,6 +183,7 @@ class ApprovalReceiptStore:
 
     def _connect(self):
         db = sqlite3.connect(self.database, timeout=10)
+        db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=FULL")
@@ -196,9 +197,16 @@ class ApprovalReceiptStore:
         fingerprint = public_key_fingerprint(public_key)
         with self._connect() as db:
             try:
+                timestamp = int(time.time()) if now is None else int(now)
                 db.execute(
                     "INSERT INTO trusted_signing_keys(fingerprint,public_key,label,active,enrolled_at) VALUES(?,?,?,1,?)",
-                    (fingerprint, public_key_bytes(public_key), label.strip()[:256], int(time.time()) if now is None else int(now)),
+                    (fingerprint, public_key_bytes(public_key), label.strip()[:256], timestamp),
+                )
+                db.execute(
+                    """INSERT INTO signing_key_events
+                       (event_type,fingerprint,related_fingerprint,reason,created_at)
+                       VALUES('ENROLLED',?,NULL,?,?)""",
+                    (fingerprint, "initial_trust_enrollment", timestamp),
                 )
             except sqlite3.IntegrityError as exc:
                 raise ApprovalError("signing_key_already_enrolled") from exc
