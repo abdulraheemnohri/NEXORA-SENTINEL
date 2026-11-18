@@ -14,13 +14,14 @@ from nexora.catalog import status
 from nexora.oversight import AuditLog, KillSwitch, PolicyKernel
 from nexora.oversight.witness import IndependentWitness, verify_witness_chain
 from nexora.registry import CapabilityRegistry
+from nexora.terminal.dashboard import run_read_only_tui
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="nexora")
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init"):
+    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui"):
         sub.add_parser(name)
     check = sub.add_parser("check")
     check.add_argument("action")
@@ -54,7 +55,7 @@ def main(argv=None):
     stop = KillSwitch(args.data_dir / "KILL")
     policy = PolicyKernel(stop)
 
-    if args.cmd == "status":
+    if args.cmd == "tui":\n        import sys\n        return run_read_only_tui(args.data_dir, output=sys.stdout)\n    if args.cmd == "status":
         valid = log.verify()
         print(json.dumps({
             "version": "0.2.0",

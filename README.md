@@ -19,7 +19,7 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Separate Ed25519 witness receipt chains with independent public-key verification.
 - Backup-first transactional SQLite migration and recovery-copy workflow.
 - Six provisional self-* domains: observation, diagnostics, repair planning, learning, governance assistance and evolution proposals. Only read-only observation/diagnostics are enabled by default; all self-family outputs are proposals, never execution.
-- Conservative YAML configuration profiles and validated settings loader.
+- Conservative YAML configuration profiles and validated settings loader.\n- Dependency-free read-only terminal dashboard for system status, audit history, self-family proposals and capability registry; it exposes no mutation or execution controls.
 
 ## Repository map
 

@@ -4,45 +4,36 @@ Last updated: 2026-11-18
 
 ## Current milestone
 
-Safety kernel, modular package structure, signed SQLite backups, independent witness receipts, backup-first SQLite migration/recovery, provisional self-* domains, and durable append-only self-family proposal review records. The project is not complete.
+Safety kernel, durable self-family proposal review, and a dependency-free read-only terminal dashboard. This is still a governance/runtime foundation, not a completed autonomous agent.
 
 ## Implemented
 
 - Fail-closed policy kernel, persistent emergency stop and hash-chained audit log.
-- Evidence-gated lifecycle validator and safety-first precedence resolver.
-- SQLite capability registry with append-only lifecycle, revocation and rollback-decision events.
-- Ed25519 approval receipts for capability APPROVED/ENABLED transitions; nonce consumption and state mutation share a transaction.
+- Evidence-gated lifecycle registry, signed Ed25519 approvals, append-only lifecycle/revocation/rollback records.
 - Persistent budget ledger, review-only scheduler and tool proposal queue.
-- Safe staging workspace with path containment; staged code is not executed.
-- WAL-safe SQLite online backup, signed canonical manifests and verification against an externally trusted public key.
-- Verified non-overwriting restore and distinct-key Ed25519 witness receipts.
-- Backup-first migration orchestration with all-or-nothing migration and separate recovery copy.
-- Six provisional self-* domains with typed L0/L1 settings; execution and self-enablement remain disabled.
-- SQLite self-family proposal storage with immutable proposal rows and append-only SUBMITTED/REVIEWED/REJECTED events.
-- Review records are explicitly not cryptographic approvals or execution authorization.
-- Conservative YAML settings profiles, modular package structure and TLA+ lifecycle model.
+- WAL-safe signed SQLite backups, external trust-key verification, non-overwriting restore, independent witness receipts.
+- Backup-first transactional migrations and recovery-copy workflow.
+- Six provisional self-* domains; typed L0/L1 settings, deterministic proposals and durable append-only review records.
+- Read-only terminal dashboard: overview, audit chain, proposals and capability registry. SQLite dashboard views open the database in read-only mode and do not initialize or mutate it.
+- Conservative YAML profiles, modular package structure and TLA+ lifecycle model.
 
 ## Explicitly incomplete
 
 - Canonical capability source records 1–84 and meta-rules 1–15 have not been supplied.
-- The 264×264 interaction matrix remains unpopulated/unknown; unknown relationships block.
-- TUI, web dashboard and API are not shipped as usable interfaces.
-- Model runtime/inference are disabled; local model inventory is read-only.
-- Memory retrieval and knowledge graph integration remain limited foundations.
-- Staging is not an OS-enforced sandbox; no tool or staged-code execution is enabled.
-- Self-* domains do not perform autonomous self-repair, self-learning or self-evolution.
-- Operator labels do not prove identity.
-- Witness receipts remain local unless independently hosted; no hardware/remote attestation is claimed.
-- Multi-process witness append locking is not implemented.
-- Android Debian/Pixel device verification has not been performed.
+- The 264×264 interaction matrix remains unknown/unpopulated.
+- Web dashboard and API are not shipped.
+- Model inference and trusted-memory retrieval remain disabled/limited.
+- Staging is not an OS-enforced sandbox; no tool or code execution is enabled.
+- Self-* domains do not autonomously repair, learn into trusted memory, or evolve.
+- Operator labels do not prove identity; local witness is not remote attestation.
+- Android Debian/Pixel verification has not been performed.
 
 ## Next priorities
 
-1. Read-only TUI and local dashboard before execution controls.
-2. Obtain the missing canonical capability and meta-rule source records.
-3. Populate interaction relationships only from reviewed source specifications.
-4. Design OS-enforced sandbox isolation before considering code execution.
-5. Verify installation and behavior on Android Debian/Pixel locally.
-6. Expand migration drills against supported release history.
+1. Test read-only dashboard behavior on supported Linux and Android Debian terminals.
+2. Add a local read-only web dashboard/API with explicit bind and access controls.
+3. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
+4. Design OS-enforced sandbox isolation before any execution feature.
+5. Verify installation and behavior on Pixel/Android Debian locally.
 
-PRs and releases remain subject to explicit owner approval.
+No merge or release is performed without owner approval.
