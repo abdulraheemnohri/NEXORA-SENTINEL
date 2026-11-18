@@ -269,6 +269,7 @@ def test_signed_receipt_verifies_once_and_blocks_replay(tmp_path):
 
 def test_signed_receipt_rejects_tampering_wrong_key_and_scope(tmp_path):
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     from nexora.approval import ApprovalError, create_receipt
 
     private, store = _approval_fixture(tmp_path)
