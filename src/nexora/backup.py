@@ -1,4 +1,4 @@
-"""Signed, consistent SQLite backup and non-destructive restore."""
+"""Consistent SQLite backup, verification and non-destructive restore."""
 from __future__ import annotations
 
 import base64
@@ -37,6 +37,11 @@ def _sha256(path: Path) -> str:
 def _fingerprint(key: Ed25519PublicKey) -> str:
     raw = key.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
     return hashlib.sha256(raw).hexdigest()
+
+
+def signing_key_fingerprint(signing_key: Ed25519PrivateKey | Path) -> str:
+    """Return the public fingerprint for a private signing key without exposing key material."""
+    return _fingerprint(_load_private(signing_key).public_key())
 
 
 def _manifest_path(backup: Path) -> Path:

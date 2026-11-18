@@ -173,6 +173,18 @@ def test_witness_refuses_to_extend_corrupt_chain(tmp_path):
     assert path.read_text() == "{}\n"
 
 
+def test_cli_rejects_reusing_backup_key_for_witness(tmp_path):
+    assert main(["--data-dir", str(tmp_path), "registry-init"]) == 0
+    assert main(["--data-dir", str(tmp_path), "backup-keygen"]) == 0
+    assert main(["--data-dir", str(tmp_path), "backup"]) == 0
+    backup = tmp_path / "backups" / "registry.sqlite3"
+    with pytest.raises(ValueError, match="independent_witness_key_must_differ"):
+        main([
+            "--data-dir", str(tmp_path), "witness-backup", str(backup),
+            "--signing-key", str(tmp_path / "backup-signing-key.pem"),
+        ])
+
+
 def test_cli_registry_signed_backup_verify_restore_and_witness(tmp_path, capsys):
     assert main(["--data-dir", str(tmp_path), "registry-init"]) == 0
     assert main(["--data-dir", str(tmp_path), "backup-keygen"]) == 0

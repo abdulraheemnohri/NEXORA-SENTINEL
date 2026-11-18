@@ -7,6 +7,7 @@ from nexora.backup import (
     create_backup,
     generate_backup_signing_key,
     restore_backup,
+    signing_key_fingerprint,
     verify_backup,
 )
 from nexora.catalog import status
@@ -41,6 +42,7 @@ def main(argv=None):
     witness = sub.add_parser("witness-backup")
     witness.add_argument("backup", type=Path)
     witness.add_argument("--signing-key", type=Path)
+    witness.add_argument("--trusted-key", type=Path, help="Trusted public key for the backup signature")
     witness.add_argument("--receipt-log", type=Path)
     witness_verify = sub.add_parser("verify-witness")
     witness_verify.add_argument("receipt_log", type=Path)
@@ -115,10 +117,14 @@ def main(argv=None):
         ))
         return 0
     if args.cmd == "witness-backup":
-        trusted_key = args.signing_key or (args.data_dir / "witness-signing-key.pem")
+        backup_trust_key = args.trusted_key or public_default
+        witness_private = args.signing_key or (args.data_dir / "witness-signing-key.pem")
+        witness_fingerprint = signing_key_fingerprint(witness_private)
+        backup_result = verify_backup(args.backup, trusted_public_key=backup_trust_key)
+        if witness_fingerprint == backup_result["signer_fingerprint"]:
+            raise ValueError("independent_witness_key_must_differ_from_backup_signing_key")
         receipt_log = args.receipt_log or (args.data_dir / "witness" / "receipts.jsonl")
-        backup_result = verify_backup(args.backup, trusted_public_key=public_default)
-        receipt = IndependentWitness(receipt_log, trusted_key).attest(
+        receipt = IndependentWitness(receipt_log, witness_private).attest(
             backup_result["sha256"], "sqlite_backup",
         )
         print(json.dumps({
