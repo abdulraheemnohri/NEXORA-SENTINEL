@@ -14,7 +14,7 @@ META_RULES = SOURCE_SPEC / "meta_rules.json"
 def _read_json(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("source_artifact_must_be_object")
+        raise TypeError("source_artifact_must_be_object")
     return payload
 
 
@@ -27,12 +27,12 @@ def build_source_status(
     capability_rows = catalog.get("capabilities", [])
     rule_rows = rules.get("rules", [])
     if not isinstance(capability_rows, list) or not isinstance(rule_rows, list):
-        raise ValueError("source_artifact_records_must_be_lists")
+        raise TypeError("source_artifact_records_must_be_lists")
     def validated_ids(rows: list[Any], expected: int, label: str) -> set[int]:
         identifiers: list[int] = []
         for row in rows:
             if not isinstance(row, dict):
-                raise ValueError(f"{label}_record_must_be_object")
+                raise TypeError(f"{label}_record_must_be_object")
             identifier = row.get("id")
             if type(identifier) is not int or not 1 <= identifier <= expected:
                 raise ValueError(f"{label}_id_invalid")
