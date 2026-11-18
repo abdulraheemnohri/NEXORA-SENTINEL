@@ -1,29 +1,49 @@
 # Threat model
 
+## Scope and security posture
+
+NEXORA-SENTINEL v0.2.0 is a local-first governance and runtime foundation, not an autonomous tool-execution agent. Autonomy defaults to L0. Tool execution, generated-code execution, automatic capability promotion and policy mutation are not implemented. The staging workspace performs path-contained file staging only; it is not an OS security boundary.
+
 ## Protected assets
 
-- Operator approval keys and their trust pins.
-- Capability registry and append-only lifecycle records.
-- Backup snapshots, manifests and restore destinations.
+- Operator approval, update, backup and witness private keys and their trust pins.
+- Capability registry, lifecycle state, revocation history and approval nonce records.
+- Backup snapshots, signed manifests and restore destinations.
 - Audit and witness evidence.
-- Emergency stop state and immutable safety policy.
+- Emergency-stop state and fixed safety policy.
+- Local memory records, provenance and tombstone history.
+- Runtime configuration, model files and staged proposal artifacts.
 
-## Controls
+## Implemented controls
 
-- Unknown actions are denied; runtime policy mutation is disabled.
+- Unknown actions and unknown governance relationships fail closed; runtime policy mutation is disabled.
 - Emergency stop blocks policy decisions.
 - Audit append refuses a broken local hash chain.
-- APPROVED/ENABLED lifecycle transitions require scoped Ed25519 receipts and one-time nonce consumption in the same SQLite transaction as the state change.
-- SQLite backups use the online backup API, signed canonical manifests, externally supplied trusted public keys, SQLite integrity checks and non-overwriting restore.
-- Independent witness receipts use a distinct Ed25519 key, signed sequence numbers and a previous-receipt hash chain.
-- No generated-code executor or unrestricted network tools exist in this release.
+- APPROVED and ENABLED lifecycle transitions require scoped Ed25519 receipts and one-time nonce consumption in the same SQLite transaction as the state change. ENABLED, revocation and rollback authorization use multiple distinct enrolled signing keys as documented in GOVERNANCE.md.
+- SQLite backups use the online backup API, signed canonical manifests, externally supplied trusted public keys, integrity checks and non-overwriting restore.
+- Witness receipts use a separate Ed25519 key, signed sequence numbers and a previous-receipt hash chain. The append API serializes cooperating processes with POSIX `flock` or Windows `msvcrt` sidecar locking.
+- Update manifests bind the repository, main ref, exact commit SHA, version, timestamp and signer fingerprint. Installation requires an independently pinned public key and successful CI for the exact commit.
+- The web dashboard binds to loopback, is GET-only and exposes no mutation or execution endpoints.
+- Memory records are explicitly written, provenance-fingerprinted and append-only. A delete request appends a tombstone; it does not physically erase stored content.
+- LiteRT-LM is optional and disabled by default. Download and inference require separate explicit opt-ins; model output is untrusted text and cannot authorize or invoke tools.
 
-## Limitations and residual risks
+## Critical limitations and residual risks
 
-- A signature proves possession of a private key, not the real-world identity of its holder. Key enrollment and public-key distribution require an out-of-band trust procedure.
-- A backup SHA-256 digest alone is not authentication; signed manifest verification requires a trusted public key that is obtained separately from the backup.
-- The witness implementation is a separate local receipt stream, not a remote or hardware trust anchor. Independence depends on the witness key and process being controlled separately.
-- Multi-process locking for witness appends is not implemented.
-- Local files can be modified by an attacker with sufficient filesystem privileges. Keep signing keys private, retain off-device copies of trusted public keys and export critical evidence to independently controlled storage.
-- No OS-enforced sandbox or permission-granted tool executor is implemented.
-- Formal model checking covers the documented lifecycle abstraction, not every Python runtime behavior.
+- **No OS-enforced sandbox or permission-granted tool executor exists.** The staging workspace is not a sandbox. No submitted or generated code may be executed. An OS-isolated execution backend, policy boundary, resource limits, filesystem/network restrictions and adversarial tests are prerequisites before any tool execution is introduced.
+- **The interaction matrix is unpopulated.** Unknown pairs block or require human review. Empty impact results do not prove that no dependencies exist.
+- **The canonical source catalogue is incomplete.** Capabilities 1–84 and meta-rules 1–15 were not supplied; missing source material is not fabricated. The six self-* domains are provisional operational domains, not canonical A–AN families.
+- **The local witness is not a remote independent witness.** Cross-process locking protects cooperating local writers; it does not provide remote attestation, hardware-backed identity or protection against a privileged attacker controlling the host and witness key.
+- **Local SQLite append-only triggers and local hash chains are not tamper-proof against an attacker with sufficient filesystem or database privileges.** Export critical evidence and keep trust anchors under separately controlled access.
+- **A signature proves possession of a private key, not the real-world identity of its holder.** Key enrollment and public-key distribution require out-of-band verification.
+- **A successful CI run is not a security review.** Signing a release manifest is an operator's explicit assertion that they personally reviewed and trust the exact commit and its build/test provenance. A compromised CI system or malicious change that passes tests remains a residual risk.
+- **Memory tombstones hide records from normal retrieval but do not securely erase content from SQLite files, backups or filesystem storage.**
+- **Formal model checking covers the documented lifecycle abstraction, not every Python runtime behavior, platform behavior or cryptographic implementation.**
+- **Android Debian / Pixel 6 installation, sandbox availability and on-device model inference have not been verified by remote repository CI.**
+
+## Required gates before expanding autonomy
+
+1. Keep execution disabled until an OS-isolated sandbox and a permission-scoped executor have been independently reviewed and adversarially tested.
+2. Populate interaction and dependency relationships only from reviewed, source-backed evidence; unknown relationships remain blocking.
+3. Require explicit per-capability maturity evidence, human authorization and signed approvals. No self-promotion.
+4. Treat remote witness deployment as a separate trust domain with independent operators, keys and retention.
+5. Re-run platform-specific tests on the actual target device; GitHub CI does not establish Android device compatibility.
