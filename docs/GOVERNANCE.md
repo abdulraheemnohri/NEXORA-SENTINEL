@@ -10,7 +10,7 @@ The matrix is 264×264. Its current entries are empty because the source relatio
 
 ## Approval
 
-APPROVED and ENABLED lifecycle transitions require a signed Ed25519 receipt from an explicitly enrolled key. Receipts bind capability ID, transition, evidence digest, approver label, expiry and nonce. A cryptographic signature proves possession of the enrolled key; it does not establish the holder's real-world identity.
+APPROVED lifecycle transitions require a signed Ed25519 receipt from an explicitly enrolled key. ENABLED transitions require at least two receipts from distinct enrolled signing keys and distinct approver IDs (maximum five). Every receipt binds the same capability ID, transition, evidence digest, its approver ID, expiry and nonce. All nonces are consumed in the same SQLite transaction as the lifecycle transition; a failure rolls back every receipt consumption. A cryptographic signature proves possession of the enrolled key; it does not establish the holder's real-world identity. The local trust store cannot independently prove that two keys are controlled by two different people.
 
 ## Autonomy
 
@@ -41,3 +41,31 @@ are never inferred.
 The loopback read-only dashboard exposes the same report at
 `/api/governance`. These diagnostics do not mutate governance files, lifecycle
 state, policy, or runtime configuration.
+
+
+## Two-person enablement approval
+
+Create a separate keypair for each operator and enroll both public keys after
+out-of-band fingerprint verification. Each operator issues their own receipt
+for the same capability, transition and evidence set:
+
+```bash
+nexora approval issue --private-key operator-1.pem --capability-id 42 \
+  --transition ENABLED --evidence human_approval rollback_plan monitoring_plan \
+  --approver-id operator-1 --output operator-1-approval.json
+
+nexora approval issue --private-key operator-2.pem --capability-id 42 \
+  --transition ENABLED --evidence human_approval rollback_plan monitoring_plan \
+  --approver-id operator-2 --output operator-2-approval.json
+
+nexora registry-transition 42 ENABLED \
+  --evidence human_approval rollback_plan monitoring_plan \
+  --approver-id operator-1 operator-2 \
+  --approval-receipt operator-1-approval.json operator-2-approval.json
+```
+
+The registry rejects one receipt, repeated approver IDs, repeated signing keys,
+scope/evidence mismatches, expired or revoked keys, and replayed receipts.
+Receipt consumption and state change are atomic. This is a two-key/two-label
+control, not proof of two distinct humans; independent identity verification
+and key custody remain operational requirements.
