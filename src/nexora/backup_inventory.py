@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
 from nexora.backup import MANIFEST_SUFFIX, BackupError, verify_backup
 
 class BackupInventoryError(ValueError):
