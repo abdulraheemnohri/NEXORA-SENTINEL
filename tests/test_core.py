@@ -1,6 +1,7 @@
 import json
-from nexora.oversight import AuditLog,KillSwitch,PolicyKernel
+
 from nexora.catalog import status
+from nexora.oversight import AuditLog, KillSwitch, PolicyKernel
 
 def test_audit_chain_and_tamper_detection(tmp_path):
     path=tmp_path/"audit.jsonl"; log=AuditLog(path); log.append("a",{"x":1}); log.append("b",{"x":2})
