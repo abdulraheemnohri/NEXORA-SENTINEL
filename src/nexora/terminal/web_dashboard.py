@@ -30,6 +30,7 @@ VIEWS = {
     "/api/family-evaluation": lambda root: _render_family_evaluation(root),
     "/api/recovery-readiness": lambda root: _render_recovery_readiness(root),
     "/api/recovery-history": lambda root: _render_recovery_history(root),
+    "/api/governance": lambda root: _render_governance(),
 }
 
 
@@ -74,6 +75,12 @@ def _render_family_evaluation(data_dir: Path, family: str | None = None) -> str:
         indent=2,
     )
 
+
+
+def _render_governance() -> str:
+    from nexora.governance.validation import build_governance_report
+
+    return json.dumps(build_governance_report(), ensure_ascii=False, indent=2)
 
 
 def _render_recovery_readiness(data_dir: Path) -> str:
@@ -161,6 +168,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Capability family evidence evaluation", "/api/family-evaluation"),
                     ("Recovery readiness (trust anchor required for verification)", "/api/recovery-readiness"),
                     ("Witnessed recovery simulation history", "/api/recovery-history"),
+                    ("Capability governance validation", "/api/governance"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
