@@ -5,8 +5,10 @@ import hashlib
 import os
 from pathlib import Path
 
+
 class SandboxError(RuntimeError):
     pass
+
 
 class StagingWorkspace:
     def __init__(self, root: Path):

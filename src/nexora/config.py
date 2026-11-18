@@ -5,6 +5,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+
 @dataclass(frozen=True)
 class Settings:
     data_dir: str = "data"

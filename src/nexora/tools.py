@@ -8,12 +8,14 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+
 @dataclass(frozen=True)
 class ToolContract:
     name: str
     risk: str
     description: str
     requires_approval: bool = True
+
 
 class ToolBoundary:
     def __init__(self, database: Path):

@@ -7,6 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
+
 def collect(data_dir: Path) -> dict:
     path=Path(data_dir)
     usage=shutil.disk_usage(path if path.exists() else path.parent)

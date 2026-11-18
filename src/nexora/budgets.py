@@ -5,8 +5,10 @@ import sqlite3
 import time
 from pathlib import Path
 
+
 class BudgetExceeded(RuntimeError):
     pass
+
 
 class BudgetLedger:
     def __init__(self, database: Path):
