@@ -87,8 +87,20 @@ def test_enabled_transition_requires_new_scoped_signed_receipt(tmp_path):
         private, capability_id=7, transition="ENABLED",
         evidence=enabled_evidence, approver_id="operator-1",
     )
+    second_private_path = tmp_path / "approval-private-2.pem"
+    second_public_path = tmp_path / "approval-public-2.pem"
+    generate_keypair(second_private_path, second_public_path)
+    registry.approvals.enroll_key(
+        load_public_key(second_public_path), label="second-operator",
+    )
+    second = create_receipt(
+        load_private_key(second_private_path), capability_id=7,
+        transition="ENABLED", evidence=enabled_evidence,
+        approver_id="operator-2",
+    )
     result = registry.transition(
-        7, "ENABLED", enabled_evidence, approver_id="operator-1",
-        approval_receipt=enabled,
+        7, "ENABLED", enabled_evidence,
+        approval_receipts=[enabled, second],
+        approver_ids=["operator-1", "operator-2"],
     )
     assert result["state"] == "ENABLED"
