@@ -75,6 +75,22 @@ def main(argv=None):
     update_verify.add_argument("manifest", type=Path)
     update_verify.add_argument("--trusted-key", type=Path, required=True)
 
+    litertlm = sub.add_parser("litertlm", help="Manage the optional local LiteRT-LM runtime")
+    litertlm_sub = litertlm.add_subparsers(dest="litertlm_cmd", required=True)
+    litertlm_sub.add_parser("doctor")
+    litertlm_sub.add_parser("models")
+    litertlm_install = litertlm_sub.add_parser("install")
+    litertlm_install.add_argument("--confirm", action="store_true", required=True)
+    for command_name in ("run", "chat"):
+        runtime_command = litertlm_sub.add_parser(command_name)
+        runtime_command.add_argument("--model", type=Path, required=True)
+        runtime_command.add_argument("--backend", choices=("cpu", "gpu"))
+        runtime_command.add_argument("--config", type=Path, default=Path("config/litertlm.yaml"))
+        runtime_command.add_argument("--timeout", type=int)
+        runtime_command.add_argument("--confirm-inference", action="store_true", required=True)
+        if command_name == "run":
+            runtime_command.add_argument("--prompt", required=True)
+
     settings = sub.add_parser("settings")
     settings_sub = settings.add_subparsers(dest="settings_cmd", required=True)
     settings_show = settings_sub.add_parser("show")
@@ -127,6 +143,41 @@ def main(argv=None):
             return 2
         print(json.dumps(result, indent=2))
         return 0
+    if args.cmd == "litertlm":
+        from nexora.intelligence.litertlm import (
+            LiteRTLMError, install_cli, load_settings, model_inventory,
+            run_local_model, runtime_status,
+        )
+        try:
+            if args.litertlm_cmd == "install":
+                result = install_cli(confirm=args.confirm)
+                print(json.dumps(result, indent=2))
+                return 0
+            if args.litertlm_cmd == "doctor":
+                result = runtime_status()
+                print(json.dumps(result, indent=2))
+                return 0 if result["installed"] else 2
+            if args.litertlm_cmd == "models":
+                settings = load_settings()
+                print(json.dumps(model_inventory(Path(settings["model_directory"])), indent=2))
+                return 0
+            settings = load_settings(args.config)
+            model_path = args.model
+            if not model_path.is_absolute():
+                model_path = Path(settings["model_directory"]) / model_path
+            return run_local_model(
+                model_path,
+                getattr(args, "prompt", None),
+                backend=args.backend or settings["default_backend"],
+                executable=settings["executable"],
+                timeout=args.timeout or settings["timeout_seconds"],
+                confirm_inference=args.confirm_inference,
+                runtime_enabled=settings["runtime_enabled"],
+                interactive=args.litertlm_cmd == "chat",
+            )
+        except (LiteRTLMError, OSError, ValueError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+            return 2
     if args.cmd == "settings":
         from nexora.settings_manager import render_settings
         try:
