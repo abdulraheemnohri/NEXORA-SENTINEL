@@ -129,3 +129,26 @@ nexora governance-impact 42
 The analyzer treats a directed `source depends_on target` entry as meaning that source is a dependent of target. It walks transitive dependents, reports detected cycles, and uses only exact directed `depends_on` entries. It does not infer relationships from capability IDs, family membership, names, or other relation types.
 
 The current interaction matrix has zero declared pairs. Consequently the current report will list no proven dependents while explicitly marking relationship coverage incomplete and unknown relationships as `BLOCK_AND_ESCALATE`. An empty result is not proof that a capability has no dependents. The report is read-only, requires human review, and never revokes or disables another capability automatically. Do not populate the matrix without source-backed evidence and governance review.
+
+
+## Conflict arbitration (proposal-only)
+
+Use the read-only arbitration command only when the exact directed matrix cell
+explicitly declares `conflicts`:
+
+```bash
+nexora governance-arbitrate 85 86 \
+  --left-priority SAFETY \
+  --right-priority OPERATIONAL
+```
+
+An optional `--wait-graph path.json` supplies a declared wait-for graph. Unknown
+matrix cells, non-conflict relations, unknown/equal priorities, unknown wait
+nodes, and detected cycles block and escalate. A strict precedence winner is
+only a review proposal; it never authorizes execution, cancels another proposal,
+or mutates lifecycle state. See `docs/CONFLICT_ARBITRATION.md`.
+
+The separate L0–L4 maturity scale remains unimplemented until its canonical
+definitions and evidence thresholds are supplied. Existing evidence-gated
+lifecycle evaluation remains authoritative; no lifecycle-to-L0–L4 mapping is
+assumed.
