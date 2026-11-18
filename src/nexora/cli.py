@@ -65,6 +65,9 @@ def main(argv=None):
     backup = sub.add_parser("backup")
     backup.add_argument("destination", nargs="?", type=Path)
     backup.add_argument("--signing-key", type=Path)
+    inventory = sub.add_parser("backup-inventory", help="Read-only inventory of a backup directory")
+    inventory.add_argument("--directory", type=Path, default=Path("data/backups"))
+    inventory.add_argument("--trusted-key", type=Path)
     verify = sub.add_parser("verify-backup")
     verify.add_argument("backup", type=Path)
     verify.add_argument("--trusted-key", type=Path)
@@ -389,6 +392,15 @@ def main(argv=None):
         return 0
     private_default = args.data_dir / "backup-signing-key.pem"
     public_default = args.data_dir / "backup-signing-key.pub.pem"
+    if args.cmd == "backup-inventory":
+        from nexora.backup_inventory import BackupInventoryError, build_backup_inventory
+        try:
+            result = build_backup_inventory(args.directory, trusted_public_key=args.trusted_key)
+        except (BackupInventoryError, OSError, ValueError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if not result["counts"].get("INVALID") and not result["counts"].get("UNSAFE_SYMLINK") else 2
     if args.cmd == "backup-keygen":
         private = args.private_key or private_default
         public = args.public_key or public_default
