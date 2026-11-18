@@ -90,3 +90,33 @@ def test_recovery_readiness_cli_fails_closed_without_trust_anchor(tmp_path, caps
     payload = json.loads(capsys.readouterr().out)
     assert result == 2
     assert payload["status"] == "BLOCKED_TRUST_ANCHOR"
+
+
+
+def test_readiness_reports_independently_witnessed_simulation(tmp_path):
+    from nexora.recovery_history import record_recovery_simulation
+
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    backup_private, backup_public = tmp_path / "backup-private.pem", tmp_path / "backup-public.pem"
+    witness_private, witness_public = tmp_path / "witness-private.pem", tmp_path / "witness-public.pem"
+    generate_backup_signing_key(backup_private, backup_public)
+    generate_backup_signing_key(witness_private, witness_public)
+    backup = directory / "verified.sqlite3"
+    manifest = create_backup(_make_db(tmp_path / "source.sqlite3"), backup, signing_key=backup_private)
+    record_recovery_simulation(
+        backup, backup_trusted_key=backup_public,
+        witness_private_key=witness_private,
+        witness_receipt_log=tmp_path / "witness" / "receipts.jsonl",
+        history_log=tmp_path / "recovery" / "history.jsonl",
+    )
+    report = build_recovery_readiness(
+        directory, trusted_public_key=backup_public,
+        now=datetime.fromisoformat(manifest["created_at"]) + timedelta(minutes=1),
+        history_log=tmp_path / "recovery" / "history.jsonl",
+        witness_receipt_log=tmp_path / "witness" / "receipts.jsonl",
+        trusted_witness_public_key=witness_public,
+    )
+    assert report["recovery_simulation"] == "PASSED"
+    assert report["simulation_count"] == 1
+    assert report["witness_chain_valid"] is True
