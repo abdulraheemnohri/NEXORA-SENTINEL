@@ -11,6 +11,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from nexora.approval import ApprovalError, ApprovalReceiptStore
@@ -409,7 +410,7 @@ class CapabilityRegistry:
                         signer_ids.append(payload["approver_id"])
                     if len(set(signer_ids)) != len(signer_ids) or event["approver_id"] != ",".join(signer_ids):
                         raise ValueError("signed_receipt_approver_history_mismatch")
-                except Exception as exc:
+                except (KeyError, TypeError, ValueError, sqlite3.Error, InvalidSignature) as exc:
                     errors.append(str(exc) or "signed_receipt_verification_failed")
                 reports.append({
                     "event_id": event["event_id"],
