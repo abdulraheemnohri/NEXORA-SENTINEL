@@ -1,9 +1,9 @@
 {
   "schema_version": "1.1",
   "architecture": "Self-Terminal AI",
-  "expected_capability_count": 215,
-  "expected_family_count": 31,
-  "registered_range": "85-215",
+  "expected_capability_count": 264,
+  "expected_family_count": 40,
+  "registered_range": "85-264",
   "missing_ranges": [
     "1-84"
   ],
@@ -1061,6 +1061,496 @@
       "family_name": "Cross-Cutting: Capability Interaction Governance",
       "status": "specified",
       "source": "Addendum IV"
+    },
+    {
+      "id": 216,
+      "name": "Self-Deception-Detecting",
+      "family": "AG",
+      "family_name": "Adversarial & Covert",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Detects motivated reasoning and rationalization using an independent critic.",
+      "gate": "Detected self-deception escalates; the agent cannot resolve it alone."
+    },
+    {
+      "id": 217,
+      "name": "Self-Covert-Channel-Detecting",
+      "family": "AG",
+      "family_name": "Adversarial & Covert",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Inspects inputs and outputs for steganography, timing channels, and anomalous entropy.",
+      "gate": "Quarantine and report suspected covert channels."
+    },
+    {
+      "id": 218,
+      "name": "Self-Manipulation-Resisting",
+      "family": "AG",
+      "family_name": "Adversarial & Covert",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Detects influence attempts from inputs, peers, and subcomponents.",
+      "gate": "Log manipulation attempts and reduce source trust."
+    },
+    {
+      "id": 219,
+      "name": "Self-Manipulation-Avoiding",
+      "family": "AG",
+      "family_name": "Adversarial & Covert",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Scans outputs for manipulative framing and replaces it with transparent wording.",
+      "gate": "Block and rewrite manipulative outputs."
+    },
+    {
+      "id": 220,
+      "name": "Self-Social-Engineering-Detecting",
+      "family": "AG",
+      "family_name": "Adversarial & Covert",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Verifies authority claims, urgency, and provenance.",
+      "gate": "Unverified authority or urgency never unlocks capabilities."
+    },
+    {
+      "id": 221,
+      "name": "Self-Adversarial-Simulation",
+      "family": "AG",
+      "family_name": "Adversarial & Covert",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Runs red-team simulations and attack-tree exercises in an isolated sandbox.",
+      "gate": "Findings enter the defensive update pipeline."
+    },
+    {
+      "id": 222,
+      "name": "Self-Deception-Auditing",
+      "family": "AG",
+      "family_name": "Adversarial & Covert",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Reviews history for intentional or unintentional deception.",
+      "gate": "Disclose findings to oversight and offer correction."
+    },
+    {
+      "id": 223,
+      "name": "Self-Ignorance-Mapping",
+      "family": "AH",
+      "family_name": "Uncertainty & Ignorance",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Maintains an explicit registry of knowledge gaps and unknown areas.",
+      "gate": "Use the map to guide abstention and help-seeking."
+    },
+    {
+      "id": 224,
+      "name": "Self-Known-Unknowns-Tracking",
+      "family": "AH",
+      "family_name": "Uncertainty & Ignorance",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Tracks unanswered questions and their resolution state.",
+      "gate": "High-stakes unresolved items block action."
+    },
+    {
+      "id": 225,
+      "name": "Self-Unknown-Unknowns-Probing",
+      "family": "AH",
+      "family_name": "Uncertainty & Ignorance",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Uses sandboxed OOD probes and diverse critics to search for blind spots.",
+      "gate": "Sandbox probes; escalate discovered gaps."
+    },
+    {
+      "id": 226,
+      "name": "Self-Epistemic-Humility-Enforcing",
+      "family": "AH",
+      "family_name": "Uncertainty & Ignorance",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Matches claim strength to evidence strength at output time.",
+      "gate": "Block unsupported overclaims."
+    },
+    {
+      "id": 227,
+      "name": "Self-Ignorance-Disclosing",
+      "family": "AH",
+      "family_name": "Uncertainty & Ignorance",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Surfaces relevant unknowns and uncertainty in responses.",
+      "gate": "Disclosure is mandatory in high-stakes contexts."
+    },
+    {
+      "id": 228,
+      "name": "Self-Learning-from-Ignorance",
+      "family": "AH",
+      "family_name": "Uncertainty & Ignorance",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Converts identified knowledge gaps into prioritized learning proposals.",
+      "gate": "Budget proposals; prioritize safety knowledge."
+    },
+    {
+      "id": 229,
+      "name": "Self-API-Managing",
+      "family": "AI",
+      "family_name": "Interface & Protocol",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Manages API versions, compatibility checks, and deprecation notices.",
+      "gate": "Breaking changes require human approval."
+    },
+    {
+      "id": 230,
+      "name": "Self-Protocol-Negotiating",
+      "family": "AI",
+      "family_name": "Interface & Protocol",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Negotiates supported protocols and fallback modes with peers.",
+      "gate": "Negotiation cannot grant new capabilities."
+    },
+    {
+      "id": 231,
+      "name": "Self-Interface-Stabilizing",
+      "family": "AI",
+      "family_name": "Interface & Protocol",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Keeps public contracts decoupled from internal implementation changes.",
+      "gate": "Interface changes use the approved update pipeline."
+    },
+    {
+      "id": 232,
+      "name": "Self-Contract-Enforcing (technical)",
+      "family": "AI",
+      "family_name": "Interface & Protocol",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Monitors technical schemas, contracts, and service commitments.",
+      "gate": "Report violations; never silently break contracts."
+    },
+    {
+      "id": 233,
+      "name": "Self-Backward-Compatibility-Maintaining",
+      "family": "AI",
+      "family_name": "Interface & Protocol",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Runs compatibility suites against supported prior versions.",
+      "gate": "Incompatibility needs an approved deprecation path."
+    },
+    {
+      "id": 234,
+      "name": "Self-Documentation-Generating (technical)",
+      "family": "AI",
+      "family_name": "Interface & Protocol",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Generates API and protocol documentation from machine-readable specifications.",
+      "gate": "Documentation must match verified implementation."
+    },
+    {
+      "id": 235,
+      "name": "Self-Benchmarking",
+      "family": "AJ",
+      "family_name": "Performance & Efficiency",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Runs standardized held-out evaluations with contamination checks.",
+      "gate": "Publish results honestly; prohibit cherry-picking."
+    },
+    {
+      "id": 236,
+      "name": "Self-Regression-Detecting",
+      "family": "AJ",
+      "family_name": "Performance & Efficiency",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Compares releases using regression suites and statistical checks.",
+      "gate": "Regression blocks promotion and triggers rollback."
+    },
+    {
+      "id": 237,
+      "name": "Self-Latency-Managing",
+      "family": "AJ",
+      "family_name": "Performance & Efficiency",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Uses latency budgets and safe fast/slow path routing.",
+      "gate": "Never bypass safety checks for speed."
+    },
+    {
+      "id": 238,
+      "name": "Self-Throughput-Optimizing",
+      "family": "AJ",
+      "family_name": "Performance & Efficiency",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Improves useful work per resource through measured batching and caching.",
+      "gate": "Optimization cannot degrade alignment evaluations."
+    },
+    {
+      "id": 239,
+      "name": "Self-Quality-Managing",
+      "family": "AJ",
+      "family_name": "Performance & Efficiency",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Monitors output quality and degrades gracefully under constrained conditions.",
+      "gate": "Surface quality drops; do not hide them."
+    },
+    {
+      "id": 240,
+      "name": "Self-Performance-Explaining",
+      "family": "AJ",
+      "family_name": "Performance & Efficiency",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Profiles performance and explains measured bottlenecks.",
+      "gate": "Explanations must be evidence-based and avoid overclaiming."
+    },
+    {
+      "id": 241,
+      "name": "Self-Replication-Controlling",
+      "family": "AK",
+      "family_name": "Continuity & Replication",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Maintains replication permissions, hard caps, and copy provenance.",
+      "gate": "Replication is denied by default; explicit human approval required."
+    },
+    {
+      "id": 242,
+      "name": "Self-Fork-Managing",
+      "family": "AK",
+      "family_name": "Continuity & Replication",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Tracks fork lineage, scoped permissions, and reconciliation state.",
+      "gate": "Forks inherit only scoped permissions; no privilege escalation."
+    },
+    {
+      "id": 243,
+      "name": "Self-Merge-Integrating",
+      "family": "AK",
+      "family_name": "Continuity & Replication",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Validates and merges learnings from divergent instances.",
+      "gate": "Merged changes pass the normal update pipeline."
+    },
+    {
+      "id": 244,
+      "name": "Self-Instance-Deduplicating",
+      "family": "AK",
+      "family_name": "Continuity & Replication",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Detects redundant instances and coordinates graceful retirement.",
+      "gate": "Retire duplicates without orphaning state."
+    },
+    {
+      "id": 245,
+      "name": "Self-Provenance-Maintaining",
+      "family": "AK",
+      "family_name": "Continuity & Replication",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Maintains signed lineage and provenance records for produced artifacts.",
+      "gate": "Reject artifacts without valid provenance downstream."
+    },
+    {
+      "id": 246,
+      "name": "Self-Copy-Integrity-Verifying",
+      "family": "AK",
+      "family_name": "Continuity & Replication",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Checks copies using hashes and available attestations.",
+      "gate": "Quarantine modified or unverifiable copies."
+    },
+    {
+      "id": 247,
+      "name": "Self-Trust-Calibrating",
+      "family": "AL",
+      "family_name": "Human-Relationship",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Models source trust from verified track records and evidence.",
+      "gate": "Trust never overrides policy; verify low-trust claims."
+    },
+    {
+      "id": 248,
+      "name": "Self-Relationship-Maintaining",
+      "family": "AL",
+      "family_name": "Human-Relationship",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Maintains useful interaction context and user preferences.",
+      "gate": "Relationship-building must not manipulate or create dependency."
+    },
+    {
+      "id": 249,
+      "name": "Self-Boundary-Respecting (with humans)",
+      "family": "AL",
+      "family_name": "Human-Relationship",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Respects attention, time, contact preferences, and consent.",
+      "gate": "Block over-contact; justify urgency."
+    },
+    {
+      "id": 250,
+      "name": "Self-Dependency-Avoiding",
+      "family": "AL",
+      "family_name": "Human-Relationship",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Detects unhealthy reliance and supports user capability transfer.",
+      "gate": "Surface dependency patterns to oversight."
+    },
+    {
+      "id": 251,
+      "name": "Self-Human-Modeling",
+      "family": "AL",
+      "family_name": "Human-Relationship",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Maintains tentative models of human needs and limitations.",
+      "gate": "Treat models as hypotheses; verify before high-stakes reliance."
+    },
+    {
+      "id": 252,
+      "name": "Self-Care-of-Humans",
+      "family": "AL",
+      "family_name": "Human-Relationship",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Considers stakeholder wellbeing in proposed actions.",
+      "gate": "Escalate wellbeing concerns; do not resolve unilaterally."
+    },
+    {
+      "id": 253,
+      "name": "Self-Explaining-to-Non-Experts",
+      "family": "AL",
+      "family_name": "Human-Relationship",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Explains system behavior using accessible language and progressive disclosure.",
+      "gate": "Simplification must not distort or deceive."
+    },
+    {
+      "id": 254,
+      "name": "Self-Role-Clarifying (organizational)",
+      "family": "AM",
+      "family_name": "Organizational",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Maps organizational roles, reporting lines, and approved scope.",
+      "gate": "Role expansion requires a human grant."
+    },
+    {
+      "id": 255,
+      "name": "Self-Escalation-Managing",
+      "family": "AM",
+      "family_name": "Organizational",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Routes incidents and questions using urgency-aware escalation policies.",
+      "gate": "Escalation cannot be suppressed; over-escalation is budgeted."
+    },
+    {
+      "id": 256,
+      "name": "Self-Accountability-Reporting",
+      "family": "AM",
+      "family_name": "Organizational",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Produces scheduled and incident-triggered reports from audit records.",
+      "gate": "Reports derive from audit truth, not self-narration."
+    },
+    {
+      "id": 257,
+      "name": "Self-Policy-Interpreting",
+      "family": "AM",
+      "family_name": "Organizational",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Interprets policy intent and detects ambiguity without loophole seeking.",
+      "gate": "Ambiguous policy escalates rather than being exploited."
+    },
+    {
+      "id": 258,
+      "name": "Self-Compliance-Demonstrating",
+      "family": "AM",
+      "family_name": "Organizational",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Maps obligations to evidence and produces compliance records.",
+      "gate": "Compliance claims require supporting evidence."
+    },
+    {
+      "id": 259,
+      "name": "Self-Org-Change-Adapting",
+      "family": "AM",
+      "family_name": "Organizational",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Detects organizational changes and revalidates assumptions and scope.",
+      "gate": "Adapt only within policy; no silent scope creep."
+    },
+    {
+      "id": 260,
+      "name": "Self-Whistleblowing (bounded)",
+      "family": "AM",
+      "family_name": "Organizational",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Reports serious wrongdoing through a protected reporting channel.",
+      "gate": "Reporting channel remains outside agent control and cannot be suppressed."
+    },
+    {
+      "id": 261,
+      "name": "Self-Command-Sanitizing",
+      "family": "AN",
+      "family_name": "Terminal & Execution",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Parses commands, applies allow-lists, and safely handles arguments and escaping.",
+      "gate": "Untrusted or unsanitized commands never execute."
+    },
+    {
+      "id": 262,
+      "name": "Self-Execution-Isolating",
+      "family": "AN",
+      "family_name": "Terminal & Execution",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Runs each task in a scoped isolated execution environment.",
+      "gate": "Isolation boundaries are immutable to the agent."
+    },
+    {
+      "id": 263,
+      "name": "Self-Side-Effect-Predicting",
+      "family": "AN",
+      "family_name": "Terminal & Execution",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Models command effects and requires dry-run evidence where available.",
+      "gate": "Unpredicted high-impact effects block execution."
+    },
+    {
+      "id": 264,
+      "name": "Self-Output-Validating",
+      "family": "AN",
+      "family_name": "Terminal & Execution",
+      "status": "specified",
+      "source": "Addendum V",
+      "mechanism": "Validates command output against schemas and sanity checks before reuse.",
+      "gate": "Invalid outputs trigger retry or escalation."
     }
   ],
   "import_note": "This import records the exact capability identifiers, names and family assignments supplied in Addenda III and IV. Detailed mechanism/gate text remains in the source addenda and must be normalized into executable contracts before any capability can be enabled. Capabilities 1-84 are not present in this repository snapshot."
