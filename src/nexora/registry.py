@@ -275,7 +275,7 @@ class CapabilityRegistry:
                 (capability_id, reason.strip()[:1000],
                  json.dumps(supplied, separators=(",", ":")), ",".join(normalized),
                  json.dumps([p["key_fingerprint"] for p in payloads], separators=(",", ":")),
-                 json.dumps(payloads, sort_keys=True, separators=(",", ":"))),
+                 json.dumps([{"payload": payload, "signature": receipt["signature"]} for payload, receipt in zip(payloads, approval_receipts)], sort_keys=True, separators=(",", ":"))),
             )
         return self.get(capability_id)
 
