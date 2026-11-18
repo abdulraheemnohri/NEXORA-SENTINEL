@@ -51,6 +51,17 @@ For Android Debian, use bash scripts/install_android_debian.sh.
 bash scripts/verify.sh
 ~~~
 
+## Settings inspection and validation
+
+Inspect the validated settings file (defaults are used only when the file is absent):
+
+~~~bash
+nexora settings show
+nexora settings validate --config config/settings.yaml
+~~~
+
+The settings commands are read-only. Unknown keys, invalid values, malformed files and non-file paths fail closed; an existing invalid file is never silently replaced with defaults. Current settings constrain autonomy to L0/L1 and keep scheduler, sandbox and network flags disabled by default. These commands do not enable execution, change policy or write configuration.
+
 ## Explicit local memory commands
 
 Memory is only written by an explicit operator command; inference cannot silently store trusted memories.
