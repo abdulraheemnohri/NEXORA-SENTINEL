@@ -79,3 +79,14 @@ def test_readiness_marks_stale_backup_degraded(tmp_path):
     )
     assert report["status"] == "DEGRADED"
     assert "newest_verified_backup_exceeds_maximum_age" in report["issues"]
+
+
+def test_recovery_readiness_cli_fails_closed_without_trust_anchor(tmp_path, capsys):
+    from nexora.cli import main
+
+    directory = tmp_path / "backups"
+    directory.mkdir()
+    result = main(["recovery-readiness", "--directory", str(directory)])
+    payload = json.loads(capsys.readouterr().out)
+    assert result == 2
+    assert payload["status"] == "BLOCKED_TRUST_ANCHOR"
