@@ -7,7 +7,7 @@ version = "0.1.0"
 description = "NEXORA Sentinel Self-Terminal Autonomous Intelligence Platform"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "Unlicense"}
+license = "Unlicense"
 dependencies = []
 [project.scripts]
 nexora = "nexora.cli:main"
