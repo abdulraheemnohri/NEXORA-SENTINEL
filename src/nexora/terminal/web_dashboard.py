@@ -27,6 +27,7 @@ VIEWS = {
     "/api/memory": lambda root: _render_memory(root),
     "/api/runtime": lambda root: _render_runtime(),
     "/api/self-capabilities": lambda root: _render_self_capabilities(),
+    "/api/family-evaluation": lambda root: _render_family_evaluation(root),
 }
 
 
@@ -60,6 +61,16 @@ def _render_self_capabilities() -> str:
     from nexora.self_capability_report import build_report
 
     return json.dumps(build_report(include_records=True), ensure_ascii=False, indent=2)
+
+
+def _render_family_evaluation(data_dir: Path, family: str | None = None) -> str:
+    from nexora.family_evaluation import build_family_evaluation
+
+    return json.dumps(
+        build_family_evaluation(Path(data_dir) / "registry.sqlite3", family=family),
+        ensure_ascii=False,
+        indent=2,
+    )
 
 
 def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPServer:
@@ -103,6 +114,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Local memory", "/api/memory"),
                     ("LiteRT-LM runtime and local models", "/api/runtime"),
                     ("Self-capability catalogue and source gaps", "/api/self-capabilities"),
+                    ("Capability family evidence evaluation", "/api/family-evaluation"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
@@ -120,6 +132,20 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     "</body></html>"
                 )
                 self._send(200, "text/html; charset=utf-8", page.encode("utf-8"))
+                return
+            if path == "/api/family-evaluation":
+                query = parse_qs(urlsplit(self.path).query)
+                values = query.get("family", [])
+                if len(values) > 1:
+                    self._send(400, "application/json; charset=utf-8",
+                               b'{"error":"at_most_one_family_query_parameter_allowed"}')
+                    return
+                try:
+                    content = _render_family_evaluation(root, values[0] if values else None)
+                    self._send(200, "application/json; charset=utf-8", content.encode("utf-8"))
+                except (OSError, ValueError, TypeError, sqlite3.Error) as exc:
+                    self._send(500, "application/json; charset=utf-8",
+                               json.dumps({"error": type(exc).__name__}).encode("utf-8"))
                 return
             if path == "/api/evidence-evaluation":
                 query = parse_qs(urlsplit(self.path).query)
