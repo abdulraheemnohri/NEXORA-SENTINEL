@@ -22,14 +22,27 @@ def evaluate_capability(
     *,
     ledger_valid: bool,
     human_approved: bool = False,
+    evidence_types: set[str] | None = None,
+    evidence_record_count: int | None = None,
 ) -> dict[str, Any]:
     """Evaluate evidence-token coverage for one capability, fail-closed."""
     if type(capability_id) is not int or not 1 <= capability_id <= 264:
         raise CapabilityEvaluationError("capability_id_out_of_range")
     if type(ledger_valid) is not bool or type(human_approved) is not bool:
         raise CapabilityEvaluationError("invalid_evaluation_flags")
-    selected = [row for row in records if row.get("capability_id") == capability_id]
-    supplied = {row.get("evidence_type") for row in selected}
+    if not isinstance(records, list):
+        raise CapabilityEvaluationError("records_must_be_a_list")
+    selected = [row for row in records if isinstance(row, dict)
+                and row.get("capability_id") == capability_id]
+    supplied = (
+        set(evidence_types) if evidence_types is not None
+        else {row.get("evidence_type") for row in selected}
+    )
+    if any(not isinstance(value, str) or value not in EVIDENCE_TYPES for value in supplied):
+        raise CapabilityEvaluationError("unsupported_evidence_type_in_evaluation")
+    record_count = len(selected) if evidence_record_count is None else evidence_record_count
+    if type(record_count) is not int or record_count < len(supplied):
+        raise CapabilityEvaluationError("invalid_evidence_record_count")
     stages = []
     for state in LIFECYCLE[1:]:
         required = EVIDENCE_FOR.get(state, set())
@@ -53,7 +66,7 @@ def evaluate_capability(
     return {
         "capability_id": capability_id,
         "ledger_valid": ledger_valid,
-        "evidence_records": len(selected),
+        "evidence_records": record_count,
         "evidence_types": sorted(value for value in supplied if isinstance(value, str)),
         "stages": stages,
         "first_blocked_gate": next_state,
@@ -78,7 +91,9 @@ def evaluate_from_ledger(
         return evaluate_capability(
             capability_id, [], ledger_valid=False, human_approved=False,
         ) | {"ledger_verification": verification}
-    records = ledger.list(capability_id=capability_id, limit=500)
+    summary = ledger.evidence_summary(capability_id)
     return evaluate_capability(
-        capability_id, records, ledger_valid=True, human_approved=human_approved,
+        capability_id, [], ledger_valid=True, human_approved=human_approved,
+        evidence_types=set(summary["evidence_types"]),
+        evidence_record_count=summary["record_count"],
     ) | {"ledger_verification": verification}
