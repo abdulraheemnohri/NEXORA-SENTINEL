@@ -35,3 +35,16 @@ def test_source_status_rejects_non_list_records(tmp_path):
     import pytest
     with pytest.raises(ValueError, match="source_artifact_records_must_be_lists"):
         build_source_status(catalog, rules)
+
+
+def test_source_status_rejects_duplicate_ids(tmp_path):
+    catalog = tmp_path / "catalog.json"
+    rules = tmp_path / "rules.json"
+    catalog.write_text(json.dumps({
+        "capabilities": [{"id": 85}, {"id": 85}],
+    }), encoding="utf-8")
+    rules.write_text(json.dumps({"rules": []}), encoding="utf-8")
+
+    import pytest
+    with pytest.raises(ValueError, match="capability_duplicate_id"):
+        build_source_status(catalog, rules)
