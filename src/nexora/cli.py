@@ -77,6 +77,12 @@ def main(argv=None):
     recovery_simulate.add_argument("backup", type=Path)
     recovery_simulate.add_argument("--trusted-key", type=Path, required=True)
     recovery_simulate.add_argument("--confirm-simulation", action="store_true", required=True)
+    recovery_readiness = sub.add_parser("recovery-readiness", help="Score verified backup readiness without changing data")
+    recovery_readiness.add_argument("--config", type=Path, default=Path("config/recovery.json"))
+    recovery_readiness.add_argument("--directory", type=Path)
+    recovery_readiness.add_argument("--trusted-key", type=Path)
+    recovery_readiness.add_argument("--max-backup-age-hours", type=int)
+    recovery_readiness.add_argument("--min-verified-points", type=int)
     verify = sub.add_parser("verify-backup")
     verify.add_argument("backup", type=Path)
     verify.add_argument("--trusted-key", type=Path)
@@ -425,6 +431,26 @@ def main(argv=None):
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
+    if args.cmd == "recovery-readiness":
+        from nexora.recovery_readiness import (
+            RecoveryReadinessError, RecoverySettings, build_recovery_readiness,
+        )
+        try:
+            settings = RecoverySettings.load(args.config) if args.config.is_file() else RecoverySettings().validate()
+            directory = args.directory or Path(settings.backup_directory)
+            key = args.trusted_key or (Path(settings.trusted_public_key) if settings.trusted_public_key else None)
+            result = build_recovery_readiness(
+                directory, trusted_public_key=key,
+                retention_days=settings.retention_days,
+                keep_latest=settings.keep_latest,
+                max_backup_age_hours=args.max_backup_age_hours or settings.max_backup_age_hours,
+                min_verified_points=args.min_verified_points or settings.min_verified_points,
+            )
+        except (RecoveryReadinessError, OSError, ValueError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "READY" else 2
     if args.cmd == "backup-inventory":
         from nexora.backup_inventory import BackupInventoryError, build_backup_inventory
         try:
