@@ -173,7 +173,7 @@ def test_registry_rejects_missing_approver_and_preserves_state(tmp_path):
         ("SHADOWED", {"shadow_report", "no_side_effects"}),
     ]:
         registry.transition(217, state, evidence)
-    with pytest.raises(RegistryError, match="human_authorization_required"):
+    with pytest.raises(RegistryError, match="explicit_operator_identity_required"):
         registry.transition(217, "APPROVED", {"human_approval"})
     assert registry.get(217)["state"] == "SHADOWED"
     assert len(registry.history(217)) == 5
@@ -188,3 +188,54 @@ def test_registry_rejects_unknown_capability_and_duplicate_id(tmp_path):
     registry.register(218, "Interface contracts", "AI", source_record=True)
     with pytest.raises(RegistryError, match="duplicate_or_invalid_capability"):
         registry.register(218, "Duplicate", "AI", source_record=True)
+
+
+
+def test_revocation_is_terminal_and_append_only(tmp_path):
+    from nexora.registry import CapabilityRegistry, RegistryError
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    registry.register(219, "Covert behavior detection", "AG", source_record=True)
+    registry.revoke(
+        219, "Operator withdrew authorization",
+        {"revocation_basis", "incident_record"},
+        approver_id="operator:local",
+    )
+    assert registry.get(219)["control_state"] == "REVOKED"
+    assert len(registry.revocation_history(219)) == 1
+    with pytest.raises(RegistryError, match="revoked_capability_is_terminal"):
+        registry.transition(219, "REGISTERED", {"source_record", "schema_validation"})
+    with pytest.raises(RegistryError, match="already_revoked"):
+        registry.revoke(
+            219, "duplicate", {"revocation_basis"}, approver_id="operator:local"
+        )
+
+
+def test_rollback_is_audited_but_never_executed_by_registry(tmp_path):
+    from nexora.registry import CapabilityRegistry, RegistryError
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    registry.register(220, "Uncertainty ledger", "AH", source_record=True)
+    with pytest.raises(RegistryError, match="rollback_evidence_incomplete"):
+        registry.record_rollback(
+            220, "v2", "v1", "Regression detected",
+            {"rollback_plan"}, approver_id="operator:local",
+        )
+    event = registry.record_rollback(
+        220, "v2", "v1", "Regression detected",
+        {"rollback_plan", "validation_report", "human_approval"},
+        approver_id="operator:local",
+    )
+    assert event["from_release"] == "v2"
+    assert event["target_release"] == "v1"
+    assert registry.get(220)["state"] == "SPECIFIED"
+    assert len(registry.rollback_history(220)) == 1
+
+
+def test_registry_rejects_string_as_evidence_collection(tmp_path):
+    from nexora.registry import CapabilityRegistry, RegistryError
+
+    registry = CapabilityRegistry(tmp_path / "registry.sqlite3")
+    registry.register(221, "Protocol validator", "AI", source_record=True)
+    with pytest.raises(RegistryError, match="evidence_must_be_a_collection"):
+        registry.transition(221, "REGISTERED", "source_record")
