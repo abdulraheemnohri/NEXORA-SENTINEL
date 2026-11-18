@@ -194,3 +194,28 @@ def test_web_dashboard_exposes_recovery_readiness_without_trust_anchor_or_storag
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+
+def test_web_dashboard_exposes_fail_closed_governance_report_without_storage(tmp_path):
+    data_dir = tmp_path / "no-data"
+    server = create_read_only_server(data_dir, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/governance")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["status"] == "UNPOPULATED_BLOCKING"
+        assert report["matrix"]["unknown_pairs"] == 264 * 264
+        assert report["controls"]["policy_mutation_enabled"] is False
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
