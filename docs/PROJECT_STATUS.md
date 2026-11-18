@@ -22,11 +22,19 @@ Safety kernel and governance foundation; implementation is incremental and the p
 
 ## Remaining blockers and work
 1. Validate the newest registry implementation in CI and fix any failures.
-2. Add cryptographically verifiable approval receipts and revocation/rollback lifecycle semantics.
+2. Add cryptographically verifiable approval receipts; current operator IDs are labels, not identity proofs. Revocation is terminal; rollback entries are audit records only and do not execute rollback.
 3. Recover the user's original capability definitions 1–84 and meta-rules 1–15; do not invent missing entries.
 4. Implement registry migration/export/restore and corruption recovery tests.
 5. Implement budgets, scheduler, sandbox and controlled tool boundaries after safety review.
 6. Finish CLI/TUI/web interface, Android Debian validation, docs, threat-model audit and release workflow.
 
+## Latest increment — 2026-11-18
+- Added terminal capability revocation with required reason, evidence basis and operator label.
+- Added append-only revocation and rollback event tables.
+- Rollback recording requires a plan, validation report and operator approval label; it deliberately does not execute software rollback.
+- Revoked capabilities cannot progress through the lifecycle again.
+- Added regression tests for revocation, rollback evidence and evidence-input validation.
+- Operator labels are audit metadata only, not cryptographic identity proof.
+
 ## Next task
-Implement durable approval/revocation evidence with explicit separation between an operator-supplied identity label and a verifiable signed authorization.
+Add signed approval receipts using a locally generated key, key fingerprint/pinning, replay protection and verification tests; do not claim signer identity without a trusted enrollment process.
