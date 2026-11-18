@@ -305,7 +305,9 @@ def main(argv=None):
         return 0
     if args.cmd in ("governance-check", "governance-relation"):
         from nexora.governance.validation import (
-            GovernanceValidationError, build_governance_report, inspect_relation,
+            GovernanceValidationError,
+            build_governance_report,
+            inspect_relation,
         )
         try:
             if args.cmd == "governance-check":
