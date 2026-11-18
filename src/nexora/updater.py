@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+from nexora.update_signing import UpdateSignatureError, verify_manifest
+
 OWNER = "abdulraheemnohri"
 REPOSITORY = "NEXORA-SENTINEL"
 REMOTE_URLS = {
@@ -144,7 +146,10 @@ def check_update(root: Path | None = None) -> dict[str, object]:
     return report
 
 
-def install_update(root: Path | None = None, *, confirm: bool = False) -> dict[str, object]:
+def install_update(
+    root: Path | None = None, *, confirm: bool = False,
+    manifest: Path | None = None, trusted_key: Path | None = None,
+) -> dict[str, object]:
     if confirm is not True:
         raise UpdateError("explicit_confirmation_required")
     root = Path.cwd() if root is None else Path(root)
@@ -155,9 +160,17 @@ def install_update(root: Path | None = None, *, confirm: bool = False) -> dict[s
     previous = str(state["local_sha"])
     if not state["update_available"]:
         return {"updated": False, "reason": "already_up_to_date", "sha": previous}
+    if manifest is None or trusted_key is None:
+        raise UpdateError("signed_manifest_and_external_trust_key_required")
+    try:
+        verified = verify_manifest(manifest, trusted_key)
+    except (UpdateSignatureError, OSError, ValueError) as exc:
+        raise UpdateError(f"signed_manifest_verification_failed: {exc}") from exc
+    if verified.get("commit_sha") != state["latest_sha"]:
+        raise UpdateError("signed_manifest_commit_does_not_match_latest_main")
     ci = state.get("ci", {})
-    if isinstance(ci, dict) and ci.get("state") == "failure":
-        raise UpdateError("latest_commit_ci_failed; update_install_blocked")
+    if not isinstance(ci, dict) or ci.get("state") != "success":
+        raise UpdateError("latest_commit_ci_not_verified_success; update_install_blocked")
     _git(root, "fetch", "--no-tags", "origin", "main")
     target = _git(root, "rev-parse", "FETCH_HEAD")
     if target != state["latest_sha"]:
@@ -181,12 +194,21 @@ def install_update(root: Path | None = None, *, confirm: bool = False) -> dict[s
             cwd=root, check=False, capture_output=True, text=True,
         )
         raise UpdateError("package_install_failed; source_checkout_rolled_back")
-    return {"updated": True, "previous_sha": previous, "installed_sha": target}
+    return {
+        "updated": True, "previous_sha": previous, "installed_sha": target,
+        "manifest_verified": True,
+        "signer_fingerprint": verified["signer_fingerprint"],
+    }
 
 
-def main_result(action: str, root: Path | None = None, confirm: bool = False) -> dict[str, object]:
+def main_result(
+    action: str, root: Path | None = None, confirm: bool = False,
+    manifest: Path | None = None, trusted_key: Path | None = None,
+) -> dict[str, object]:
     if action == "check":
         return check_update(root)
     if action == "install":
-        return install_update(root, confirm=confirm)
+        return install_update(
+            root, confirm=confirm, manifest=manifest, trusted_key=trusted_key,
+        )
     raise UpdateError("unknown_update_action")
