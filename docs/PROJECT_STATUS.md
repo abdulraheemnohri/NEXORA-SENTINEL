@@ -4,7 +4,7 @@ Last updated: 2026-11-18
 
 ## Current milestone
 
-Safety kernel, durable self-family proposal review, and a dependency-free read-only terminal dashboard. This is still a governance/runtime foundation, not a completed autonomous agent.
+Safety kernel, durable self-family proposal review, source-backed capability family evidence evaluation, and read-only terminal/web dashboards. This is still a governance/runtime foundation, not a completed autonomous agent.
 
 ## Implemented
 
@@ -14,7 +14,7 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 - WAL-safe signed SQLite backups, external trust-key verification, non-overwriting restore, independent witness receipts.
 - Backup-first transactional migrations and recovery-copy workflow.
 - Six provisional self-* domains; typed L0/L1 settings, deterministic proposals and durable append-only review records.
-- Read-only terminal dashboard: overview, audit chain, proposals and capability registry. SQLite dashboard views open the database in read-only mode and do not initialize or mutate it.
+- Read-only terminal dashboard: overview, audit chain, proposals and capability registry. SQLite dashboard views open the database in read-only mode and do not initialize or mutate it.\n- Read-only capability family evaluator: aggregates source-backed family membership, catalogue status, and verified evidence-ledger coverage; distinguishes missing evidence from evidence awaiting human authorization; exposes a CLI and GET-only dashboard endpoint without lifecycle promotion.
 - Loopback-only GET web dashboard and JSON diagnostic endpoints; Host header is checked, mutation methods are rejected, and the server binds only to 127.0.0.1.
 - Conservative YAML profiles, modular package structure and TLA+ lifecycle model.
 - Built-in GitHub updater: checks the official main-branch commit, previews changed paths, summarizes Actions runs for the exact target SHA, and blocks installation on a known failed CI run. Explicit installation still requires confirmation, official origin, main branch, clean worktree and fast-forward-only history. It reinstalls the local package and attempts source rollback if installation fails. Separate Ed25519 update-manifest signing and verification commands bind repository/ref/commit/version and require an externally supplied trusted public key; a dedicated update-key generator creates non-overwriting key files with restrictive private-key permissions.
