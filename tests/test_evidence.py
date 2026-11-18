@@ -118,3 +118,41 @@ def test_evidence_ledger_migrates_legacy_rows_without_rewriting_hashes(tmp_path)
     new = ledger.add(86, "test_report", "artifact://tests/86", "b" * 64, "operator")
     assert new["sequence"] == 2
     assert ledger.verify()["verified_records"] == 2
+
+
+def test_readonly_ledger_open_does_not_create_missing_database(tmp_path):
+    path = tmp_path / "absent.sqlite3"
+    with pytest.raises(EvidenceError, match="evidence_ledger_not_found"):
+        EvidenceLedger(path, readonly=True)
+    assert not path.exists()
+
+
+def test_readonly_ledger_rejects_schema_creation_and_writes(tmp_path):
+    path = tmp_path / "ledger.sqlite3"
+    EvidenceLedger(path)
+    readonly = EvidenceLedger(path, readonly=True)
+    with pytest.raises(sqlite3.OperationalError):
+        with readonly._connect() as db:
+            db.execute("CREATE TABLE forbidden (value TEXT)")
+    with sqlite3.connect(path) as db:
+        names = {
+            row[0] for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+    assert "forbidden" not in names
+
+
+def test_readonly_ledger_rejects_uninitialized_database_without_mutating_it(tmp_path):
+    path = tmp_path / "uninitialized.sqlite3"
+    with sqlite3.connect(path) as db:
+        db.execute("CREATE TABLE operator_marker (value TEXT)")
+    with pytest.raises(EvidenceError, match="evidence_ledger_schema_missing"):
+        EvidenceLedger(path, readonly=True)
+    with sqlite3.connect(path) as db:
+        names = {
+            row[0] for row in db.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+    assert names == {"operator_marker"}
