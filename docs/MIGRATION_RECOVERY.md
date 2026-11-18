@@ -10,6 +10,10 @@ The optional `config/recovery.json` file controls diagnostic thresholds. Missing
 - `max_backup_age_hours`: freshness threshold for readiness
 - `min_verified_points`: minimum verified recovery-point count
 - `require_simulation_confirmation`: remains true
+- `history_log`: append-only recovery simulation metadata log
+- `witness_receipt_log`: Ed25519 witness receipt chain
+- `witness_private_key` / `witness_public_key`: separate witness key pair paths
+- `audit_log`: hash-chained audit log receiving simulation events
 - `automatic_restore` and `automatic_deletion`: must remain false; true is rejected
 
 Example:
@@ -25,7 +29,7 @@ nexora recovery-readiness --directory data/backups \
 
 The score starts at 100 when at least one recovery point verifies. It loses 30 points when the newest verified point is older than the configured freshness threshold, 30 when the verified point count is below the configured minimum, and up to 20 for unusable artifacts (5 per artifact). No verified point yields 0. The status is `READY`, `DEGRADED`, `NOT_READY`, or `BLOCKED_TRUST_ANCHOR`.
 
-This is a deterministic operational indicator, not a guarantee of disaster recovery. A successful isolated simulation is not inferred from backup validity; until a separately recorded simulation-history feature exists, the report explicitly says `NOT_RECORDED`.
+This is a deterministic operational indicator, not a guarantee of disaster recovery. A successful isolated simulation is not inferred from backup validity. Readiness reports `PASSED` only when a matching event is present in the independently verified witness chain; otherwise it reports `NOT_RECORDED`, `BLOCKED_TRUST_ANCHOR`, or `INVALID`.
 
 ## Safety
 
