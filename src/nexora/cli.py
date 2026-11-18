@@ -24,6 +24,9 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web"):
         sub.add_parser(name)
+    capabilities = sub.add_parser("capabilities", help="Inspect source-backed self-capability coverage")
+    capabilities.add_argument("--family")
+    capabilities.add_argument("--include-records", action="store_true")
     check = sub.add_parser("check")
     check.add_argument("action")
     check.add_argument("--risk", choices=("low", "medium", "high", "critical"), default="medium")
@@ -109,6 +112,16 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "capabilities":
+        from nexora.self_capability_report import build_report
+        try:
+            print(json.dumps(build_report(
+                family=args.family, include_records=args.include_records,
+            ), ensure_ascii=False, indent=2))
+        except (OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        return 0
     if args.cmd == "update":
         from nexora.updater import UpdateError, main_result
         if args.update_cmd in ("keygen", "sign-manifest", "verify-manifest"):
