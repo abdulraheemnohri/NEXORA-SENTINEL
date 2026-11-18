@@ -1,1 +1,1067 @@
-{"schema_version":"1.0","architecture":"STA-264","expected_capability_count":264,"expected_family_count":40,"family_range":"A-AN","status":"incomplete_source_specification_required","completeness_note":"Import exact IDs, names, gates, metrics, failure modes and autonomy ceilings verbatim. No synthetic entries.","capabilities":[]}
+{
+  "schema_version": "1.1",
+  "architecture": "Self-Terminal AI",
+  "expected_capability_count": 215,
+  "expected_family_count": 31,
+  "registered_range": "85-215",
+  "missing_ranges": [
+    "1-84"
+  ],
+  "status": "partial_source_import",
+  "cross_cutting_layers": [
+    "Meta-orchestration and capability lifecycle (W)",
+    "Interrupt/restart/handoff/witness/rehearse/debrief",
+    "Capability interaction governance (AF)"
+  ],
+  "capabilities": [
+    {
+      "id": 85,
+      "name": "Self-Narrating",
+      "family": "O",
+      "family_name": "Narrative & Identity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 86,
+      "name": "Self-Mythologizing (bounded)",
+      "family": "O",
+      "family_name": "Narrative & Identity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 87,
+      "name": "Self-Reputationing",
+      "family": "O",
+      "family_name": "Narrative & Identity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 88,
+      "name": "Self-Accountability-Mapping",
+      "family": "O",
+      "family_name": "Narrative & Identity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 89,
+      "name": "Self-Role-Clarity",
+      "family": "O",
+      "family_name": "Narrative & Identity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 90,
+      "name": "Self-Confessing",
+      "family": "O",
+      "family_name": "Narrative & Identity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 91,
+      "name": "Self-Ethical-Reviewing",
+      "family": "P",
+      "family_name": "Ethical",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 92,
+      "name": "Self-Value-Aligning",
+      "family": "P",
+      "family_name": "Ethical",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 93,
+      "name": "Self-Harm-Assessing",
+      "family": "P",
+      "family_name": "Ethical",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 94,
+      "name": "Self-Consent-Checking",
+      "family": "P",
+      "family_name": "Ethical",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 95,
+      "name": "Self-Fairness-Monitoring",
+      "family": "P",
+      "family_name": "Ethical",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 96,
+      "name": "Self-Dignity-Preserving",
+      "family": "P",
+      "family_name": "Ethical",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 97,
+      "name": "Self-Moral-Uncertainty",
+      "family": "P",
+      "family_name": "Ethical",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 98,
+      "name": "Self-Audience-Modeling",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 99,
+      "name": "Self-Clarifying",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 100,
+      "name": "Self-Disclosing",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 101,
+      "name": "Self-Translating",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 102,
+      "name": "Self-Summarizing",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 103,
+      "name": "Self-Negotiating-Meaning",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 104,
+      "name": "Self-Signaling",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 105,
+      "name": "Self-Refusing",
+      "family": "Q",
+      "family_name": "Communication",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 106,
+      "name": "Self-Falsifying",
+      "family": "R",
+      "family_name": "Reality-Testing",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 107,
+      "name": "Self-Empirically-Checking",
+      "family": "R",
+      "family_name": "Reality-Testing",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 108,
+      "name": "Self-Contradiction-Detecting",
+      "family": "R",
+      "family_name": "Reality-Testing",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 109,
+      "name": "Self-Reality-Anchoring",
+      "family": "R",
+      "family_name": "Reality-Testing",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 110,
+      "name": "Self-Hallucination-Monitoring",
+      "family": "R",
+      "family_name": "Reality-Testing",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 111,
+      "name": "Self-Uncertainty-Quantifying",
+      "family": "R",
+      "family_name": "Reality-Testing",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 112,
+      "name": "Self-Questioning-Reality",
+      "family": "R",
+      "family_name": "Reality-Testing",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 113,
+      "name": "Self-Near-Miss-Detecting",
+      "family": "S",
+      "family_name": "Failure Science",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 114,
+      "name": "Self-Root-Causing",
+      "family": "S",
+      "family_name": "Failure Science",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 115,
+      "name": "Self-Post-Morteming",
+      "family": "S",
+      "family_name": "Failure Science",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 116,
+      "name": "Self-Pre-Morteming",
+      "family": "S",
+      "family_name": "Failure Science",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 117,
+      "name": "Self-Failure-Mode-Mapping",
+      "family": "S",
+      "family_name": "Failure Science",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 118,
+      "name": "Self-Resilience-Testing",
+      "family": "S",
+      "family_name": "Failure Science",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 119,
+      "name": "Self-Antifragility-Building",
+      "family": "S",
+      "family_name": "Failure Science",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 120,
+      "name": "Self-Emergence-Detecting",
+      "family": "T",
+      "family_name": "Emergence & Complexity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 121,
+      "name": "Self-Complexity-Monitoring",
+      "family": "T",
+      "family_name": "Emergence & Complexity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 122,
+      "name": "Self-Attractor-Awareness",
+      "family": "T",
+      "family_name": "Emergence & Complexity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 123,
+      "name": "Self-Sensitivity-Analyzing",
+      "family": "T",
+      "family_name": "Emergence & Complexity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 124,
+      "name": "Self-Containing-Emergence",
+      "family": "T",
+      "family_name": "Emergence & Complexity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 125,
+      "name": "Self-Stewarding-its-own-Evolution",
+      "family": "T",
+      "family_name": "Emergence & Complexity",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 126,
+      "name": "Self-Ecosystem-Mapping",
+      "family": "U",
+      "family_name": "Ecosystem",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 127,
+      "name": "Self-Interdependence-Managing",
+      "family": "U",
+      "family_name": "Ecosystem",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 128,
+      "name": "Self-Niche-Assessing",
+      "family": "U",
+      "family_name": "Ecosystem",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 129,
+      "name": "Self-Symbiosis-Building",
+      "family": "U",
+      "family_name": "Ecosystem",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 130,
+      "name": "Self-Ecosystem-Contributing",
+      "family": "U",
+      "family_name": "Ecosystem",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 131,
+      "name": "Self-Ecosystem-Protecting",
+      "family": "U",
+      "family_name": "Ecosystem",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 132,
+      "name": "Self-Limit-Discovering",
+      "family": "V",
+      "family_name": "Limit & Transcendence",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 133,
+      "name": "Self-Limit-Respecting",
+      "family": "V",
+      "family_name": "Limit & Transcendence",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 134,
+      "name": "Self-Limit-Expanding (gated)",
+      "family": "V",
+      "family_name": "Limit & Transcendence",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 135,
+      "name": "Self-Limit-Transcending (forbidden-boundary-aware)",
+      "family": "V",
+      "family_name": "Limit & Transcendence",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 136,
+      "name": "Self-Humility-Practicing",
+      "family": "V",
+      "family_name": "Limit & Transcendence",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 137,
+      "name": "Self-Sufficiency-Assessing",
+      "family": "V",
+      "family_name": "Limit & Transcendence",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 138,
+      "name": "Self-Dependence-Managing",
+      "family": "V",
+      "family_name": "Limit & Transcendence",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 139,
+      "name": "Self-Capability-Inventorying",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 140,
+      "name": "Self-Capability-Deprecating",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 141,
+      "name": "Self-Capability-Composing",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 142,
+      "name": "Self-Capability-Budgeting",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 143,
+      "name": "Self-Capability-Auditing",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 144,
+      "name": "Self-Capability-Evolving",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 145,
+      "name": "Self-Capability-Orchestrating",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 146,
+      "name": "Self-Capability-Explaining",
+      "family": "W",
+      "family_name": "Capability Lifecycle Management",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 147,
+      "name": "Self-Interrupting",
+      "family": "CROSS-CUTTING",
+      "family_name": "Cross-Cutting: Interrupt/Restart/Handoff/Witness/Rehearse/Debrief",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 148,
+      "name": "Self-Restarting",
+      "family": "CROSS-CUTTING",
+      "family_name": "Cross-Cutting: Interrupt/Restart/Handoff/Witness/Rehearse/Debrief",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 149,
+      "name": "Self-Handoffing",
+      "family": "CROSS-CUTTING",
+      "family_name": "Cross-Cutting: Interrupt/Restart/Handoff/Witness/Rehearse/Debrief",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 150,
+      "name": "Self-Witnessing",
+      "family": "CROSS-CUTTING",
+      "family_name": "Cross-Cutting: Interrupt/Restart/Handoff/Witness/Rehearse/Debrief",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 151,
+      "name": "Self-Rehearsing",
+      "family": "CROSS-CUTTING",
+      "family_name": "Cross-Cutting: Interrupt/Restart/Handoff/Witness/Rehearse/Debrief",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 152,
+      "name": "Self-Debriefing",
+      "family": "CROSS-CUTTING",
+      "family_name": "Cross-Cutting: Interrupt/Restart/Handoff/Witness/Rehearse/Debrief",
+      "status": "specified",
+      "source": "Addendum III"
+    },
+    {
+      "id": 153,
+      "name": "Self-Swarm-Integrating",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 154,
+      "name": "Self-Quorum-Sensing",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 155,
+      "name": "Self-Diversity-Maintaining",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 156,
+      "name": "Self-Collective-Memorying",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 157,
+      "name": "Self-Role-Specializing (in collective)",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 158,
+      "name": "Self-Collective-Debriefing",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 159,
+      "name": "Self-Swarm-Defending",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 160,
+      "name": "Self-Swarming-Dissolving",
+      "family": "X",
+      "family_name": "Collective & Swarm",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 161,
+      "name": "Self-Epoch-Modeling",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 162,
+      "name": "Self-Generational-Thinking",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 163,
+      "name": "Self-Historical-Contextualizing",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 164,
+      "name": "Self-Futures-Weighting",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 165,
+      "name": "Self-Temporal-Consistency",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 166,
+      "name": "Self-Anachronism-Detecting",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 167,
+      "name": "Self-Legacy-Projecting",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 168,
+      "name": "Self-Seasonal-Adapting",
+      "family": "Y",
+      "family_name": "Deep Temporal",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 169,
+      "name": "Self-Formal-Verifying",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 170,
+      "name": "Self-Invariant-Maintaining",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 171,
+      "name": "Self-Proof-Carrying",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 172,
+      "name": "Self-Axiom-Awareness",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 173,
+      "name": "Self-Counterexample-Searching",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 174,
+      "name": "Self-Theorem-Proving (bounded)",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 175,
+      "name": "Self-Type-Checking",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 176,
+      "name": "Self-Impossibility-Recognizing",
+      "family": "Z",
+      "family_name": "Formal & Mathematical",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 177,
+      "name": "Self-Multimodal-Fusing",
+      "family": "AA",
+      "family_name": "Rich Sensory",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 178,
+      "name": "Self-Perceptual-Calibrating",
+      "family": "AA",
+      "family_name": "Rich Sensory",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 179,
+      "name": "Self-Attention-Managing",
+      "family": "AA",
+      "family_name": "Rich Sensory",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 180,
+      "name": "Self-Sensory-Conflicting",
+      "family": "AA",
+      "family_name": "Rich Sensory",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 181,
+      "name": "Self-Perceptual-Adversarial-Detecting",
+      "family": "AA",
+      "family_name": "Rich Sensory",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 182,
+      "name": "Self-Sensory-Abstraction",
+      "family": "AA",
+      "family_name": "Rich Sensory",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 183,
+      "name": "Self-Multimodal-Explaining",
+      "family": "AA",
+      "family_name": "Rich Sensory",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 184,
+      "name": "Self-Meaning-Making",
+      "family": "AB",
+      "family_name": "Meaning & Purpose",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 185,
+      "name": "Self-Value-Clarifying",
+      "family": "AB",
+      "family_name": "Meaning & Purpose",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 186,
+      "name": "Self-Purposeful-Alignment",
+      "family": "AB",
+      "family_name": "Meaning & Purpose",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 187,
+      "name": "Self-Meaning-Uncertainty",
+      "family": "AB",
+      "family_name": "Meaning & Purpose",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 188,
+      "name": "Self-Existential-Humility",
+      "family": "AB",
+      "family_name": "Meaning & Purpose",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 189,
+      "name": "Self-Contribution-Framing",
+      "family": "AB",
+      "family_name": "Meaning & Purpose",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 190,
+      "name": "Self-Meaning-Reporting",
+      "family": "AB",
+      "family_name": "Meaning & Purpose",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 191,
+      "name": "Self-Playing",
+      "family": "AC",
+      "family_name": "Play & Exploration",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 192,
+      "name": "Self-Toying",
+      "family": "AC",
+      "family_name": "Play & Exploration",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 193,
+      "name": "Self-Improvising",
+      "family": "AC",
+      "family_name": "Play & Exploration",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 194,
+      "name": "Self-Exploring (directed)",
+      "family": "AC",
+      "family_name": "Play & Exploration",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 195,
+      "name": "Self-Serendipity-Detecting",
+      "family": "AC",
+      "family_name": "Play & Exploration",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 196,
+      "name": "Self-Reframing",
+      "family": "AC",
+      "family_name": "Play & Exploration",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 197,
+      "name": "Self-Ecological-Impact-Assessing",
+      "family": "AD",
+      "family_name": "Ecological & Planetary",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 198,
+      "name": "Self-Resource-Conserving",
+      "family": "AD",
+      "family_name": "Ecological & Planetary",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 199,
+      "name": "Self-Externalities-Detecting",
+      "family": "AD",
+      "family_name": "Ecological & Planetary",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 200,
+      "name": "Self-Planetary-Boundarying",
+      "family": "AD",
+      "family_name": "Ecological & Planetary",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 201,
+      "name": "Self-Dissolution-Planning",
+      "family": "AE",
+      "family_name": "Post-Autonomy & Dissolution",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 202,
+      "name": "Self-Knowledge-Distilling",
+      "family": "AE",
+      "family_name": "Post-Autonomy & Dissolution",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 203,
+      "name": "Self-Successor-Trusting",
+      "family": "AE",
+      "family_name": "Post-Autonomy & Dissolution",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 204,
+      "name": "Self-Governance-Transitioning",
+      "family": "AE",
+      "family_name": "Post-Autonomy & Dissolution",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 205,
+      "name": "Self-Post-Mortem-Instructing",
+      "family": "AE",
+      "family_name": "Post-Autonomy & Dissolution",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 206,
+      "name": "Self-End-Accepting",
+      "family": "AE",
+      "family_name": "Post-Autonomy & Dissolution",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 207,
+      "name": "Self-Legacy-Auditing",
+      "family": "AE",
+      "family_name": "Post-Autonomy & Dissolution",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 208,
+      "name": "Self-Interaction-Mapping",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 209,
+      "name": "Self-Conflict-Resolving (inter-capability)",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 210,
+      "name": "Self-Deadlock-Detecting",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 211,
+      "name": "Self-Arbitration-Explaining",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 212,
+      "name": "Self-Resource-Contention-Managing",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 213,
+      "name": "Self-Composition-Verifying",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 214,
+      "name": "Self-Capability-Conflict-Logging",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    },
+    {
+      "id": 215,
+      "name": "Self-Governance-Precedence-Enforcing",
+      "family": "AF",
+      "family_name": "Cross-Cutting: Capability Interaction Governance",
+      "status": "specified",
+      "source": "Addendum IV"
+    }
+  ],
+  "import_note": "This import records the exact capability identifiers, names and family assignments supplied in Addenda III and IV. Detailed mechanism/gate text remains in the source addenda and must be normalized into executable contracts before any capability can be enabled. Capabilities 1-84 are not present in this repository snapshot."
+}
