@@ -220,6 +220,7 @@ def test_registry_rejects_unknown_capability_and_duplicate_id(tmp_path):
 
 def test_revocation_is_terminal_and_append_only(tmp_path):
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     from nexora.approval import create_receipt
     from nexora.registry import CapabilityRegistry, RegistryError
 
