@@ -1,7 +1,6 @@
 import pytest
 
 from nexora.approval import (
-    ApprovalError,
     create_receipt,
     generate_keypair,
     load_private_key,
