@@ -23,3 +23,58 @@ Restore refuses to overwrite an existing destination. Verify backups before rest
 ## Scope
 
 This project is not a hardened OS sandbox, secure boot, remote witness, hardware-backed identity provider, or production autonomous agent. Report vulnerabilities privately to the repository maintainer.
+
+
+## Approval signing-key lifecycle
+
+Use a dedicated Ed25519 keypair for lifecycle approvals. Generate it locally:
+
+```bash
+nexora approval keygen \
+  --private-key /secure/nexora/approval-private.pem \
+  --public-key /secure/nexora/approval-public.pem
+```
+
+The private key is created with owner-only permissions and is never written to the repository. Enroll only after verifying the public-key fingerprint through a separate trusted channel:
+
+```bash
+nexora approval enroll --public-key /secure/nexora/approval-public.pem --label "primary-operator"
+nexora approval keys
+nexora approval history
+```
+
+For planned rotation, generate a replacement keypair first, verify its fingerprint independently, then atomically enroll the new public key and revoke the previous key:
+
+```bash
+nexora approval rotate \
+  --old-fingerprint OLD_FINGERPRINT \
+  --new-public-key /secure/nexora/approval-next-public.pem \
+  --new-label "operator-2027" \
+  --reason "scheduled rotation"
+```
+
+The registry transaction makes the replacement active and old key inactive together. If the transaction fails, the old key remains active. Revocation and rotation metadata are recorded in append-only `signing_key_events`; public trust metadata is queryable, but private key bytes are never stored in SQLite. Revocation immediately blocks future receipt consumption; it does not retroactively rewrite historical lifecycle events.
+
+Issue a short-lived receipt for one exact capability transition and evidence set:
+
+```bash
+nexora approval issue \
+  --private-key /secure/nexora/approval-private.pem \
+  --capability-id 42 --transition APPROVED \
+  --evidence human_approval \
+  --approver-id operator-1 \
+  --output /secure/approval-42.json
+```
+
+Apply it through the registry:
+
+```bash
+nexora registry-transition 42 APPROVED \
+  --evidence human_approval \
+  --approver-id operator-1 \
+  --approval-receipt /secure/approval-42.json
+```
+
+The receipt is bound to capability ID, transition, approver label and a digest of the sorted evidence set; it expires within at most 15 minutes and is single-use. Receipt nonce consumption and lifecycle-state update share the same SQLite transaction. Invalid, expired, replayed, revoked-key or scope-mismatched receipts do not advance state.
+
+A key signature is not proof of a person's legal identity. Key custody, fingerprint verification, operator identity checks and out-of-band approval remain organizational responsibilities. The local SQLite trust store is not remotely tamper-proof; back it up and protect the host. Do not rotate keys by copying private material into the repository.
