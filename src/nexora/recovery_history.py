@@ -70,6 +70,12 @@ def record_recovery_simulation(
         event_hash = _digest(event)
         history_path = Path(history_log)
         receipt_path = Path(witness_receipt_log)
+        lock_paths = (
+            history_path.with_name(history_path.name + ".lock"),
+            receipt_path.with_name(receipt_path.name + ".lock"),
+        )
+        if any(path.is_symlink() for path in (history_path, receipt_path, *lock_paths)):
+            raise RecoveryHistoryError("history_or_receipt_log_symlink_refused")
         # A single append write prevents interleaving. The witness chain is the
         # authority; unreceipted history rows are ignored by the reader.
         with _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")):
