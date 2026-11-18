@@ -37,7 +37,8 @@ def test_family_report_groups_catalogue_and_exposes_missing_source_records(tmp_p
     assert family_a["catalogue_coverage"] == "NO_SOURCE_BACKED_RECORDS"
     assert family_a["evidence_assessment"] == "SOURCE_DEFINITIONS_NOT_PRESENT"
     assert family_a["family_name"] is None
-    assert result["families"][0]["source_backed_capabilities"] == 2
+    family_o = next(item for item in result["families"] if item["family"] == "O")
+    assert family_o["source_backed_capabilities"] == 2
     assert result["families"][0]["evidence_assessment"] == "NOT_EVALUATED_NO_LEDGER"
     assert result["execution_enabled"] is False
     assert result["lifecycle_changed"] is False
@@ -68,7 +69,8 @@ def test_family_report_blocks_corrupt_ledger(tmp_path):
         connection.execute("UPDATE capability_evidence SET note='tampered'")
     result = build_family_evaluation(database, catalog_path=catalog)
     assert result["ledger"]["status"] == "INVALID"
-    assert result["families"][0]["evidence_assessment"] == "BLOCKED_LEDGER_INTEGRITY"
+    family_o = next(item for item in result["families"] if item["family"] == "O")
+    assert family_o["evidence_assessment"] == "BLOCKED_LEDGER_INTEGRITY"
 
 
 def test_family_report_rejects_unknown_family(tmp_path):
@@ -88,7 +90,7 @@ def test_family_report_separates_evidence_presence_from_authorization(tmp_path):
             f"{index % 16:x}" * 64, "operator",
         )
     result = build_family_evaluation(database, catalog_path=catalog)
-    family = result["families"][0]
+    family = next(item for item in result["families"] if item["family"] == "O")
     assert family["evidence_assessment"] == "EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION"
     assert (
         family["capabilities"][0]["evidence"]["assessment"]
