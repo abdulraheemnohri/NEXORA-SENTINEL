@@ -2,7 +2,7 @@
 
 ## Scope and security posture
 
-NEXORA-SENTINEL v0.2.0 is a local-first governance and runtime foundation, not an autonomous tool-execution agent. Autonomy defaults to L0. Tool execution, generated-code execution, automatic capability promotion and policy mutation are not implemented. The staging workspace performs path-contained file staging only; it is not an OS security boundary.
+NEXORA-SENTINEL v0.2.0 is a local-first governance and runtime foundation, not an autonomous tool-execution agent. Autonomy defaults to L0. Tool execution, generated-code execution, automatic capability promotion and policy mutation are not implemented. The staging workspace performs path-contained file staging only; it is not an OS security boundary. The new sandbox preflight is read-only and never launches Bubblewrap or payloads; it reports UNAVAILABLE or UNVERIFIED and never authorizes execution.
 
 ## Protected assets
 
