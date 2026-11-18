@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import nexora.backup as backup_module
 from nexora.backup import (
     BackupError,
     create_backup,
@@ -259,3 +260,89 @@ def test_witness_rejects_truncated_final_receipt(tmp_path):
         witness.attest("e" * 64, "restore")
     with pytest.raises(WitnessVerificationError, match="receipt_format_invalid:2"):
         verify_witness_chain(path, public)
+
+
+
+def test_backup_manifest_publish_failure_removes_unpaired_database(tmp_path, monkeypatch):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, _, _ = _keys(tmp_path)
+    original_publish = backup_module._publish_no_replace
+    calls = 0
+
+    def fail_manifest_publish(source_path, destination_path):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise BackupError("injected_manifest_publish_failure")
+        return original_publish(source_path, destination_path)
+
+    monkeypatch.setattr(backup_module, "_publish_no_replace", fail_manifest_publish)
+    with pytest.raises(BackupError, match="injected_manifest_publish_failure"):
+        create_backup(source, backup, signing_key=private)
+    assert not backup.exists()
+    assert not backup.with_name(backup.name + ".manifest.json").exists()
+    assert not list(tmp_path.glob(".nexora-backup-*"))
+
+
+def test_backup_publish_failure_leaves_no_partial_artifacts(tmp_path, monkeypatch):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, _, _ = _keys(tmp_path)
+
+    def fail_publish(_source, _destination):
+        raise BackupError("injected_storage_publish_failure")
+
+    monkeypatch.setattr(backup_module, "_publish_no_replace", fail_publish)
+    with pytest.raises(BackupError, match="injected_storage_publish_failure"):
+        create_backup(source, backup, signing_key=private)
+    assert not backup.exists()
+    assert not backup.with_name(backup.name + ".manifest.json").exists()
+    assert not list(tmp_path.glob(".nexora-backup-*"))
+
+
+def test_restore_validation_failure_removes_temporary_copy(tmp_path, monkeypatch):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, public, _ = _keys(tmp_path)
+    create_backup(source, backup, signing_key=private)
+    destination = tmp_path / "restored.sqlite3"
+    original_inspect = backup_module._inspect
+    calls = 0
+
+    def fail_restored_inspection(database):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise BackupError("injected_restore_validation_failure")
+        return original_inspect(database)
+
+    monkeypatch.setattr(backup_module, "_inspect", fail_restored_inspection)
+    with pytest.raises(BackupError, match="injected_restore_validation_failure"):
+        restore_backup(backup, destination, trusted_public_key=public)
+    assert not destination.exists()
+    assert not list(tmp_path.glob(".nexora-restore-*"))
+
+
+def test_backup_source_survives_snapshot_failure(tmp_path, monkeypatch):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, _, _ = _keys(tmp_path)
+    before = backup_module._sha256(source)
+    original_inspect = backup_module._inspect
+    calls = 0
+
+    def fail_snapshot_inspection(database):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise BackupError("injected_snapshot_validation_failure")
+        return original_inspect(database)
+
+    monkeypatch.setattr(backup_module, "_inspect", fail_snapshot_inspection)
+    with pytest.raises(BackupError, match="injected_snapshot_validation_failure"):
+        create_backup(source, backup, signing_key=private)
+    assert backup_module._sha256(source) == before
+    assert not backup.exists()
+    assert not backup.with_name(backup.name + ".manifest.json").exists()
+    assert not list(tmp_path.glob(".nexora-backup-*"))
