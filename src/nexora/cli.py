@@ -46,6 +46,12 @@ def main(argv=None):
     source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
     source_status.add_argument("--catalog", type=Path)
     source_status.add_argument("--rules", type=Path)
+    source_preview = sub.add_parser("source-import-preview", help="Validate exact-source import candidates without writing")
+    source_preview.add_argument("artifact", type=Path)
+    source_preview.add_argument("--kind", choices=("capability", "meta-rule"), required=True)
+    source_preview.add_argument("--source-ref", required=True)
+    source_preview.add_argument("--catalog", type=Path)
+    source_preview.add_argument("--rules", type=Path)
     family_eval = sub.add_parser("family-evaluation", help="Evaluate source-backed capability families")
     family_eval.add_argument("--family")
     family_eval.add_argument("--database", type=Path)
@@ -184,6 +190,22 @@ def main(argv=None):
                 kwargs["rules_path"] = args.rules
             result = build_source_status(**kwargs)
         except (OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    if args.cmd == "source-import-preview":
+        from nexora.source_import import SourceImportError, preview_source_import
+        try:
+            kwargs = {}
+            if args.catalog is not None:
+                kwargs["catalog_path"] = args.catalog
+            if args.rules is not None:
+                kwargs["rules_path"] = args.rules
+            result = preview_source_import(
+                args.artifact, kind=args.kind, source_ref=args.source_ref, **kwargs,
+            )
+        except (SourceImportError, OSError, ValueError, TypeError) as exc:
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
