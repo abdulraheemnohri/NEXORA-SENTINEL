@@ -54,3 +54,24 @@ Supported evidence types are the exact evidence tokens already declared by
 - No capability implementation is invoked by these commands.
 
 Treat the ledger as provenance metadata, not a security boundary.
+
+
+## Evidence readiness evaluation
+
+Generate a read-only gate report for one capability:
+
+```sh
+nexora evidence evaluate 85
+```
+
+The report compares the capability's recorded evidence tokens with the exact
+requirements in `nexora.lifecycle.EVIDENCE_FOR`. It reports the first gate
+that remains blocked, missing tokens, ledger integrity, and the evidence types
+present. A corrupt ledger blocks every gate.
+
+This is an evidence-presence assessment only. It does not inspect referenced
+artifacts, verify operator identity, accept a human approval assertion, change
+a capability's lifecycle state, or enable execution. In particular,
+`human_approval` evidence is not itself proof of an authorized approver; the
+approval gate remains blocked until a separate trusted authorization mechanism
+is implemented. No lifecycle promotion is performed by this command.
