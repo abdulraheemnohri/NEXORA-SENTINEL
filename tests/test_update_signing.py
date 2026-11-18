@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from nexora.update_signing import (
     UpdateSignatureError,
     create_manifest,
+    generate_update_signing_keypair,
     verify_manifest,
 )
 
