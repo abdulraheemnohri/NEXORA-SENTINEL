@@ -264,7 +264,7 @@ def main(argv=None):
     settings_validate = settings_sub.add_parser("validate")
     settings_validate.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
 
-    memory_delete = sub.add_parser("memory-delete")
+    memory_delete = sub.add_parser("memory-delete", aliases=["memory-tombstone", "memory-hide"])
     memory_delete.add_argument("memory_id", type=int)
     memory_delete.add_argument("--reason", required=True)
     memory_delete.add_argument("--confirm", action="store_true", required=True)
@@ -618,12 +618,16 @@ def main(argv=None):
         )
         print(json.dumps({"created": True, "memory_id": memory_id}, indent=2))
         return 0
-    if args.cmd == "memory-delete":
+    if args.cmd in {"memory-delete", "memory-tombstone", "memory-hide"}:
         from nexora.memory.long_term import MemoryStore
         MemoryStore(args.data_dir / "memory.sqlite3", create=False).delete(
             args.memory_id, reason=args.reason
         )
-        print(json.dumps({"tombstoned": True, "memory_id": args.memory_id}, indent=2))
+        print(json.dumps({
+            "tombstoned": True, "memory_id": args.memory_id,
+            "physical_erasure": False,
+            "note": "The record is hidden from retrieval; append-only content and audit history remain on disk.",
+        }, indent=2))
         return 0
     args.data_dir.mkdir(parents=True, exist_ok=True)
     log = AuditLog(args.data_dir / "audit.jsonl")
