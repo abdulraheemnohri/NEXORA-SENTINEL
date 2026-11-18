@@ -26,11 +26,11 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 - Canonical capability source records 1–84 and meta-rules 1–15 have not been supplied.
 - The 264×264 interaction matrix remains unknown/unpopulated.
 - Interactive API/control plane is not shipped; the local web dashboard is read-only diagnostics only, including the new Runtime & Models page.
-- LiteRT-LM integration is implemented as an optional managed CLI adapter with local `.litertlm` model inventory, explicit runtime/inference opt-in, CPU default, bounded subprocess execution, no shell, no model downloads and no Python presets. The broader autonomous agent inference/tool loop remains disabled. Trusted memory supports explicit local writes and deterministic provenance-verified lexical retrieval; no semantic/embedding retrieval or model-originated writes.
+- LiteRT-LM integration is implemented as an optional managed CLI adapter with local `.litertlm` inventory and a gated Hugging Face repository import path (including `litert-community/Qwen3-4B-Thinking-2507`). Network downloads require a settings opt-in plus per-command confirmation; inference requires separate opt-in/confirmation. CPU is default, subprocesses are bounded and shell-free, Python presets and model-provided tools remain disabled. The broader autonomous agent inference/tool loop remains disabled. Trusted memory supports explicit local writes and deterministic provenance-verified lexical retrieval; no semantic/embedding retrieval or model-originated writes.
 - Staging is not an OS-enforced sandbox; no tool or code execution is enabled.
 - Self-* domains do not autonomously repair, learn into trusted memory, or evolve.
 - Operator labels do not prove identity; local witness is not remote attestation.
-- Android Debian/Pixel LiteRT-LM package, model-load, CPU and GPU verification has not been performed.
+- Android Debian/Pixel LiteRT-LM package, Hugging Face model download, model-load, CPU and GPU verification has not been performed. The requested Qwen3 4B model bundle is roughly 2.5 GB; device memory/storage suitability must be measured on target hardware.
 
 ## Next priorities
 
@@ -40,6 +40,6 @@ Safety kernel, durable self-family proposal review, and a dependency-free read-o
 4. Validate the read-only web dashboard on Linux and Android Debian; retain loopback-only binding.
 5. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
 6. Design OS-enforced sandbox isolation before any execution feature.
-7. Verify the official LiteRT-LM CLI package and a small `.litertlm` model on Pixel/Android Debian; record CPU memory, load time and token throughput without making unmeasured performance claims.
+7. Verify the official LiteRT-LM CLI and a small `.litertlm` model on Pixel/Android Debian; only then test Qwen3-4B-Thinking-2507 with memory monitoring, recording CPU/GPU stability, load time and token throughput without making unmeasured performance claims.
 
 No merge or release is performed without owner approval.
