@@ -76,6 +76,13 @@ def main(argv=None):
     registry_transition.add_argument("--evidence", nargs="+", required=True)
     registry_transition.add_argument("--approver-id")
     registry_transition.add_argument("--approval-receipt", type=Path)
+    governance_check = sub.add_parser("governance-check", help="Validate governance artifacts without changing policy")
+    governance_check.add_argument("--matrix", type=Path)
+    governance_check.add_argument("--precedence", type=Path)
+    governance_relation = sub.add_parser("governance-relation", help="Inspect one directed capability relationship")
+    governance_relation.add_argument("source", type=int)
+    governance_relation.add_argument("target", type=int)
+    governance_relation.add_argument("--matrix", type=Path)
     source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
     source_status.add_argument("--catalog", type=Path)
     source_status.add_argument("--rules", type=Path)
@@ -296,6 +303,30 @@ def main(argv=None):
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
             return 2
         return 0
+    if args.cmd in ("governance-check", "governance-relation"):
+        from nexora.governance.validation import (
+            GovernanceValidationError, build_governance_report, inspect_relation,
+        )
+        try:
+            if args.cmd == "governance-check":
+                kwargs = {}
+                if args.matrix is not None:
+                    kwargs["matrix_path"] = args.matrix
+                if args.precedence is not None:
+                    kwargs["precedence_path"] = args.precedence
+                result = build_governance_report(**kwargs)
+            else:
+                from nexora.governance.validation import DEFAULT_MATRIX
+                result = inspect_relation(
+                    args.source, args.target, args.matrix or DEFAULT_MATRIX,
+                )
+        except (GovernanceValidationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        if args.cmd == "governance-check":
+            return 0 if result["valid"] else 2
+        return 0 if result["known"] else 3
     if args.cmd == "source-status":
         from nexora.source_status import build_source_status
         try:
