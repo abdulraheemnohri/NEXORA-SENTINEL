@@ -5,6 +5,7 @@ only: this module never invokes capability implementations or rolls software bac
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
@@ -64,6 +65,8 @@ class CapabilityRegistry:
                     reason TEXT NOT NULL,
                     evidence_json TEXT NOT NULL,
                     approver_id TEXT NOT NULL,
+                    signer_fingerprints_json TEXT NOT NULL DEFAULT '[]',
+                    receipt_payloads_json TEXT NOT NULL DEFAULT '[]',
                     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
                 );
                 CREATE TABLE IF NOT EXISTS rollback_events (
@@ -74,6 +77,8 @@ class CapabilityRegistry:
                     reason TEXT NOT NULL,
                     evidence_json TEXT NOT NULL,
                     approver_id TEXT NOT NULL,
+                    signer_fingerprints_json TEXT NOT NULL DEFAULT '[]',
+                    receipt_payloads_json TEXT NOT NULL DEFAULT '[]',
                     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
                 );
                 CREATE TRIGGER IF NOT EXISTS lifecycle_events_no_update
@@ -101,6 +106,11 @@ class CapabilityRegistry:
                     SELECT RAISE(ABORT, 'rollback history is append-only');
                 END;
             """)
+            for table in ("revocation_events", "rollback_events"):
+                event_columns = {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}
+                for name in ("signer_fingerprints_json", "receipt_payloads_json"):
+                    if name not in event_columns:
+                        db.execute(f"ALTER TABLE {table} ADD COLUMN {name} TEXT NOT NULL DEFAULT '[]'")
             columns = {row["name"] for row in db.execute("PRAGMA table_info(capabilities)")}
             if "control_state" not in columns:
                 db.execute(
@@ -221,13 +231,21 @@ class CapabilityRegistry:
             )
         return self.get(capability_id)
 
-    def revoke(self, capability_id: int, reason: str, evidence, *, approver_id: str):
-        operator = self._operator(approver_id)
+    def revoke(
+        self, capability_id: int, reason: str, evidence, *,
+        approval_receipts: list[dict], approver_ids: list[str],
+    ):
+        """Immediately disable a capability after two independent signed approvals."""
         supplied = self._evidence(evidence)
         if not isinstance(reason, str) or not reason.strip():
             raise RegistryError("revocation_reason_required")
-        if "revocation_basis" not in supplied:
-            raise RegistryError("revocation_basis_evidence_required")
+        if "revocation_basis" not in supplied or f"reason:{reason.strip()}" not in supplied:
+            raise RegistryError("revocation_reason_and_basis_must_be_signed")
+        if not isinstance(approval_receipts, list) or not isinstance(approver_ids, list):
+            raise RegistryError("signed_multi_approval_required")
+        normalized = [self._operator(item) for item in approver_ids]
+        if len(set(normalized)) != len(normalized):
+            raise RegistryError("distinct_approvers_required")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -237,31 +255,53 @@ class CapabilityRegistry:
                 raise RegistryError("unknown_capability_denied")
             if row["control_state"] == "REVOKED":
                 raise RegistryError("already_revoked")
+            try:
+                payloads = self.approvals.verify_and_consume_many(
+                    approval_receipts, capability_id=capability_id,
+                    transition="REVOKE", evidence=supplied,
+                    approver_ids=normalized, connection=db,
+                    minimum_approvals=2, maximum_approvals=5,
+                )
+            except ApprovalError as exc:
+                raise RegistryError(str(exc)) from exc
             db.execute(
-                "UPDATE capabilities SET control_state='REVOKED',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE capability_id=?",
+                "UPDATE capabilities SET control_state='REVOKED',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE capability_id=? AND control_state='ACTIVE'",
                 (capability_id,),
             )
             db.execute(
-                "INSERT INTO revocation_events(capability_id,reason,evidence_json,approver_id) VALUES(?,?,?,?)",
-                (capability_id, reason.strip(), json.dumps(supplied, separators=(",", ":")), operator),
+                """INSERT INTO revocation_events(
+                    capability_id,reason,evidence_json,approver_id,
+                    signer_fingerprints_json,receipt_payloads_json
+                ) VALUES(?,?,?,?,?,?)""",
+                (capability_id, reason.strip()[:1000],
+                 json.dumps(supplied, separators=(",", ":")), ",".join(normalized),
+                 json.dumps([p["key_fingerprint"] for p in payloads], separators=(",", ":")),
+                 json.dumps(payloads, sort_keys=True, separators=(",", ":"))),
             )
         return self.get(capability_id)
 
     def record_rollback(
         self, capability_id: int, from_release: str, target_release: str,
-        reason: str, evidence, *, approver_id: str,
+        reason: str, evidence, *, approval_receipts: list[dict],
+        approver_ids: list[str],
     ) -> dict:
-        """Record a human-authorized rollback decision; does not perform rollback."""
-        operator = self._operator(approver_id)
+        """Record a signed rollback authorization; never performs a software rollback."""
         supplied = self._evidence(evidence)
-        required = {"rollback_plan", "validation_report", "human_approval"}
+        required = {
+            "rollback_plan", "validation_report", "human_approval",
+            f"from_release:{from_release}", f"target_release:{target_release}",
+            f"reason:{reason}",
+        }
         if not required.issubset(supplied):
-            raise RegistryError("rollback_evidence_incomplete")
+            raise RegistryError("rollback_metadata_must_be_signed")
         values = (from_release, target_release, reason)
         if any(not isinstance(value, str) or not value.strip() for value in values):
             raise RegistryError("rollback_metadata_required")
         if from_release == target_release:
             raise RegistryError("rollback_target_must_differ")
+        normalized = [self._operator(item) for item in approver_ids]
+        if len(set(normalized)) != len(normalized):
+            raise RegistryError("distinct_approvers_required")
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
@@ -271,12 +311,24 @@ class CapabilityRegistry:
                 raise RegistryError("unknown_capability_denied")
             if row["control_state"] != "ACTIVE":
                 raise RegistryError("revoked_capability_is_terminal")
+            try:
+                payloads = self.approvals.verify_and_consume_many(
+                    approval_receipts, capability_id=capability_id,
+                    transition="ROLLBACK", evidence=supplied,
+                    approver_ids=normalized, connection=db,
+                    minimum_approvals=2, maximum_approvals=5,
+                )
+            except ApprovalError as exc:
+                raise RegistryError(str(exc)) from exc
             cursor = db.execute(
                 """INSERT INTO rollback_events(
-                    capability_id,from_release,target_release,reason,evidence_json,approver_id
-                ) VALUES(?,?,?,?,?,?)""",
+                    capability_id,from_release,target_release,reason,evidence_json,approver_id,
+                    signer_fingerprints_json,receipt_payloads_json
+                ) VALUES(?,?,?,?,?,?,?,?)""",
                 (capability_id, from_release.strip(), target_release.strip(), reason.strip(),
-                 json.dumps(supplied, separators=(",", ":")), operator),
+                 json.dumps(supplied, separators=(",", ":")), ",".join(normalized),
+                 json.dumps([p["key_fingerprint"] for p in payloads], separators=(",", ":")),
+                 json.dumps(payloads, sort_keys=True, separators=(",", ":"))),
             )
             row = db.execute(
                 "SELECT * FROM rollback_events WHERE event_id=?", (cursor.lastrowid,)
