@@ -1,7 +1,7 @@
 """Exact-source capability registry validation; missing source entries remain explicit."""
 import json
-from pathlib import Path
 import sysconfig
+from pathlib import Path
 
 PACKAGE_SPEC = Path(sysconfig.get_path("data")) / "share" / "nexora" / "spec"
 SOURCE_SPEC = Path(__file__).resolve().parents[2] / "spec"
