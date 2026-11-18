@@ -1,3 +1,4 @@
+import json
 from http.client import HTTPConnection
 from threading import Thread
 
@@ -91,8 +92,10 @@ def test_web_dashboard_exposes_read_only_runtime_page(tmp_path):
         response = connection.getresponse()
         body = response.read().decode()
         assert response.status == 200
-        assert '"provider":"LiteRT-LM"' in body
-        assert '"network_downloads_enabled":false' in body
+        payload = json.loads(body)
+        runtime = json.loads(payload["view"])
+        assert runtime["provider"] == "LiteRT-LM"
+        assert runtime["network_downloads_enabled"] is False
         assert not (tmp_path / "no-data").exists()
         connection.close()
     finally:
