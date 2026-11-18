@@ -1,5 +1,7 @@
 import json
+import multiprocessing
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -202,3 +204,58 @@ def test_cli_registry_signed_backup_verify_restore_and_witness(tmp_path, capsys)
     assert main(["--data-dir", str(tmp_path), "witness-backup", str(backup)]) == 0
     receipt_log = tmp_path / "witness" / "receipts.jsonl"
     assert main(["--data-dir", str(tmp_path), "verify-witness", str(receipt_log)]) == 0
+
+
+
+def _append_witness_receipts(path, key_path, worker_id, count):
+    witness = IndependentWitness(Path(path), Path(key_path))
+    for index in range(count):
+        event_hash = f"{worker_id * count + index + 1:064x}"
+        witness.attest(event_hash, "multiprocess-test")
+
+
+def test_witness_serializes_multiprocess_appends(tmp_path):
+    if "fork" not in multiprocessing.get_all_start_methods():
+        pytest.skip("multiprocess fork test requires a POSIX fork context")
+    private, public, _ = _keys(tmp_path, "parallel-witness")
+    path = tmp_path / "parallel-receipts.jsonl"
+    process_count = 4
+    receipts_per_process = 5
+    context = multiprocessing.get_context("fork")
+    processes = [
+        context.Process(
+            target=_append_witness_receipts,
+            args=(str(path), str(private), worker_id, receipts_per_process),
+        )
+        for worker_id in range(process_count)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=30)
+    for process in processes:
+        if process.is_alive():
+            process.terminate()
+            process.join()
+            pytest.fail("witness_append_process_timeout")
+        assert process.exitcode == 0
+    result = verify_witness_chain(path, public)
+    assert result["valid"] is True
+    assert result["count"] == process_count * receipts_per_process
+    receipts = [json.loads(line) for line in path.read_text().splitlines()]
+    assert [row["payload"]["sequence"] for row in receipts] == list(
+        range(1, process_count * receipts_per_process + 1)
+    )
+
+
+def test_witness_rejects_truncated_final_receipt(tmp_path):
+    private, public, _ = _keys(tmp_path, "truncated-witness")
+    path = tmp_path / "truncated-receipts.jsonl"
+    witness = IndependentWitness(path, private)
+    witness.attest("f" * 64, "backup")
+    with path.open("a", encoding="utf-8") as stream:
+        stream.write('{"payload":')
+    with pytest.raises(WitnessVerificationError, match="receipt_format_invalid:2"):
+        witness.attest("e" * 64, "restore")
+    with pytest.raises(WitnessVerificationError, match="receipt_format_invalid:2"):
+        verify_witness_chain(path, public)
