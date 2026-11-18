@@ -482,6 +482,9 @@ def main(argv=None):
                 keep_latest=settings.keep_latest,
                 max_backup_age_hours=args.max_backup_age_hours or settings.max_backup_age_hours,
                 min_verified_points=args.min_verified_points or settings.min_verified_points,
+                history_log=Path(settings.history_log),
+                witness_receipt_log=Path(settings.witness_receipt_log),
+                trusted_witness_public_key=Path(settings.witness_public_key),
             )
         except (RecoveryReadinessError, OSError, ValueError) as exc:
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
