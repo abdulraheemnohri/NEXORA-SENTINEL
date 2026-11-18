@@ -81,6 +81,10 @@ class EvidenceLedger:
                     "ALTER TABLE capability_evidence ADD COLUMN "
                     "schema_version INTEGER NOT NULL DEFAULT 1"
                 )
+            db.execute(
+                "CREATE INDEX IF NOT EXISTS capability_evidence_capability_idx "
+                "ON capability_evidence(capability_id, evidence_type)"
+            )
             db.executescript("""
                 CREATE TRIGGER IF NOT EXISTS capability_evidence_no_update
                 BEFORE UPDATE ON capability_evidence BEGIN
@@ -176,15 +180,13 @@ class EvidenceLedger:
         if type(capability_id) is not int or not 1 <= capability_id <= 264:
             raise EvidenceError("capability_id_out_of_range")
         with self._connect() as db:
-            row = db.execute(
-                """SELECT COUNT(*) AS record_count,
-                          COALESCE(json_group_array(evidence_type), '[]') AS evidence_types
-                   FROM (
-                       SELECT DISTINCT evidence_type FROM capability_evidence
-                       WHERE capability_id=? ORDER BY evidence_type
-                   )""",
-                (capability_id,),
-            ).fetchone()
+            evidence_types = [
+                row["evidence_type"] for row in db.execute(
+                    """SELECT DISTINCT evidence_type FROM capability_evidence
+                       WHERE capability_id=? ORDER BY evidence_type""",
+                    (capability_id,),
+                ).fetchall()
+            ]
             count = db.execute(
                 "SELECT COUNT(*) FROM capability_evidence WHERE capability_id=?",
                 (capability_id,),
@@ -192,7 +194,7 @@ class EvidenceLedger:
         return {
             "capability_id": capability_id,
             "record_count": count,
-            "evidence_types": json.loads(row["evidence_types"]),
+            "evidence_types": evidence_types,
         }
 
     def verify(self) -> dict[str, Any]:
