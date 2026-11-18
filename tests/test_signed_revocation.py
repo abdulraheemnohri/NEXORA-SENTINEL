@@ -46,6 +46,7 @@ def test_signed_revocation_is_immediate_and_auditable(tmp_path):
     assert len(envelopes) == 2
     assert all(set(item) == {"payload", "signature"} for item in envelopes)
     assert all(item["signature"] for item in envelopes)
+    assert registry.verify_signed_history(17)["valid"] is True
     with pytest.raises(RegistryError, match="revoked_capability_is_terminal"):
         registry.transition(17, "REGISTERED", ["schema_validation"])
 
@@ -127,6 +128,7 @@ def test_signed_rollback_is_record_only_and_replay_protected(tmp_path):
     )
     assert result["from_release"] == "v2"
     assert len(json.loads(result["signer_fingerprints_json"])) == 2
+    assert registry.verify_signed_history(17, kind="rollback")["valid"] is True
     with pytest.raises(RegistryError, match="receipt_replay_denied"):
         registry.record_rollback(
             17, "v2", "v1", "regression", evidence,
