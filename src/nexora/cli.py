@@ -58,6 +58,12 @@ def main(argv=None):
     memory_search = sub.add_parser("memory-search")
     memory_search.add_argument("query")
     memory_search.add_argument("--limit", type=int, default=10)
+    update = sub.add_parser("update")
+    update_sub = update.add_subparsers(dest="update_cmd", required=True)
+    update_sub.add_parser("check")
+    update_install = update_sub.add_parser("install")
+    update_install.add_argument("--confirm", action="store_true", required=True)
+
     settings = sub.add_parser("settings")
     settings_sub = settings.add_subparsers(dest="settings_cmd", required=True)
     settings_show = settings_sub.add_parser("show")
@@ -71,6 +77,15 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "update":
+        from nexora.updater import UpdateError, main_result
+        try:
+            result = main_result(args.update_cmd, Path.cwd(), getattr(args, "confirm", False))
+        except (UpdateError, OSError) as exc:
+            print(json.dumps({"updated": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, indent=2))
+        return 0
     if args.cmd == "settings":
         from nexora.settings_manager import render_settings
         try:
