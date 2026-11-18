@@ -55,8 +55,26 @@ def _record_body(row: sqlite3.Row) -> dict[str, Any]:
 class EvidenceLedger:
     """Store externally verifiable evidence references in an append-only chain."""
 
-    def __init__(self, database: Path):
+    def __init__(self, database: Path, *, readonly: bool = False):
         self.database = Path(database)
+        self.readonly = readonly
+        if readonly:
+            if not self.database.is_file():
+                raise EvidenceError("evidence_ledger_not_found")
+            with self._connect() as db:
+                columns = {row["name"] for row in db.execute(
+                    "PRAGMA table_info(capability_evidence)"
+                )}
+                required = {
+                    "sequence", "capability_id", "evidence_type", "reference",
+                    "artifact_sha256", "operator", "note", "created_at",
+                    "previous_hash", "record_hash", "schema_version",
+                }
+                if not columns:
+                    raise EvidenceError("evidence_ledger_schema_missing")
+                if not required.issubset(columns):
+                    raise EvidenceError("evidence_ledger_schema_incomplete")
+            return
         self.database.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as db:
             db.executescript("""
@@ -97,10 +115,16 @@ class EvidenceLedger:
             """)
 
     def _connect(self) -> sqlite3.Connection:
-        db = sqlite3.connect(self.database, timeout=10)
+        if self.readonly:
+            db = sqlite3.connect(
+                self.database.resolve().as_uri() + "?mode=ro", uri=True, timeout=10
+            )
+            db.execute("PRAGMA query_only=ON")
+        else:
+            db = sqlite3.connect(self.database, timeout=10)
+            db.execute("PRAGMA journal_mode=WAL")
+            db.execute("PRAGMA synchronous=FULL")
         db.row_factory = sqlite3.Row
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=FULL")
         return db
 
     def add(self, capability_id: int, evidence_type: str, reference: str,
