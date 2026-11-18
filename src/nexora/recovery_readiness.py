@@ -66,6 +66,37 @@ class RecoverySettings:
             raise RecoveryReadinessError("recovery_settings_schema_invalid") from exc
 
 
+def _simulation_evidence(
+    history_log: Path | None,
+    witness_receipt_log: Path | None,
+    trusted_witness_public_key: Path | None,
+) -> dict[str, Any]:
+    if history_log is None or witness_receipt_log is None:
+        return {"recovery_simulation": "NOT_RECORDED", "simulation_count": 0}
+    if not Path(history_log).is_file() or not Path(witness_receipt_log).is_file():
+        return {"recovery_simulation": "NOT_RECORDED", "simulation_count": 0}
+    if trusted_witness_public_key is None or not Path(trusted_witness_public_key).is_file():
+        return {"recovery_simulation": "BLOCKED_TRUST_ANCHOR", "simulation_count": 0}
+    from nexora.recovery_history import RecoveryHistoryError, read_recovery_history
+
+    try:
+        history = read_recovery_history(
+            history_log, witness_receipt_log,
+            trusted_witness_public_key=trusted_witness_public_key, limit=500,
+        )
+    except (RecoveryHistoryError, OSError, ValueError):
+        return {"recovery_simulation": "INVALID", "simulation_count": 0}
+    events = history["events"]
+    latest = events[0] if events else None
+    return {
+        "recovery_simulation": latest["status"] if latest else "NOT_RECORDED",
+        "simulation_count": history["record_count"],
+        "latest_simulation_id": latest.get("simulation_id") if latest else None,
+        "latest_simulation_at": latest.get("timestamp") if latest else None,
+        "witness_chain_valid": history["trusted_receipt_chain"]["valid"],
+    }
+
+
 def build_recovery_readiness(
     directory: Path,
     *,
@@ -74,6 +105,9 @@ def build_recovery_readiness(
     keep_latest: int = 3,
     max_backup_age_hours: int = 168,
     min_verified_points: int = 1,
+    history_log: Path | None = None,
+    witness_receipt_log: Path | None = None,
+    trusted_witness_public_key: Path | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Score verified recovery readiness; never restore, delete, or mutate artifacts."""
@@ -155,7 +189,7 @@ def build_recovery_readiness(
         "unusable_artifact_count": len(plan["unusable_artifacts"]),
         "retention_proposals": plan["retention"]["proposals"],
         "issues": issues,
-        "recovery_simulation": "NOT_RECORDED",
+        **_simulation_evidence(history_log, witness_receipt_log, trusted_witness_public_key),
         "read_only": True,
         "automatic_restore": False,
         "automatic_deletion": False,
