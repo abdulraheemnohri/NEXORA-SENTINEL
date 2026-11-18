@@ -33,7 +33,7 @@ def test_source_status_rejects_non_list_records(tmp_path):
     rules.write_text(json.dumps({"rules": []}), encoding="utf-8")
 
     import pytest
-    with pytest.raises(ValueError, match="source_artifact_records_must_be_lists"):
+    with pytest.raises(TypeError, match="source_artifact_records_must_be_lists"):
         build_source_status(catalog, rules)
 
 
