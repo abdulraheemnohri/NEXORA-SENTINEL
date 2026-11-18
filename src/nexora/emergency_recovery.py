@@ -253,7 +253,7 @@ class EmergencyRecoveryStore:
                 issued, expires = payload["issued_at"], payload["expires_at"]
                 if type(issued) is not int or type(expires) is not int or expires <= issued:
                     raise EmergencyRecoveryError("recovery_authorization_time_invalid")
-                if issued > timestamp + RECOVERY_CLOCK_SKEW_SECONDS or expires < timestamp:
+                if issued > timestamp + RECOVERY_CLOCK_SKEW_SECONDS or expires <= timestamp:
                     raise EmergencyRecoveryError("recovery_authorization_expired_or_future")
                 if expires - issued > RECOVERY_TTL_SECONDS:
                     raise EmergencyRecoveryError("recovery_authorization_ttl_exceeded")
