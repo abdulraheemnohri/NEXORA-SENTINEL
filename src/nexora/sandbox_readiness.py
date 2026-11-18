@@ -7,11 +7,14 @@ import sys
 from pathlib import Path
 
 
+_AUTO_DETECT = object()
+
+
 def inspect_sandbox_readiness(
     *,
     system: str | None = None,
     release: str | None = None,
-    bubblewrap_path: str | None = None,
+    bubblewrap_path: str | None | object = _AUTO_DETECT,
 ) -> dict:
     """Report prerequisites without attempting namespace creation or execution.
 
@@ -25,7 +28,7 @@ def inspect_sandbox_readiness(
         "android" in detected_release.lower()
         or hasattr(sys, "getandroidapilevel")
     )
-    backend = bubblewrap_path if bubblewrap_path is not None else shutil.which("bwrap")
+    backend = shutil.which("bwrap") if bubblewrap_path is _AUTO_DETECT else bubblewrap_path
 
     checks = {
         "linux_host": {
