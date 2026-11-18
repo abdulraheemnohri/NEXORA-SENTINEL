@@ -20,6 +20,7 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Backup-first transactional SQLite migration and recovery-copy workflow.
 - Six provisional self-* domains: observation, diagnostics, repair planning, learning, governance assistance and evolution proposals. Only read-only observation/diagnostics are enabled by default; all self-family outputs are proposals, never execution.
 - Conservative YAML configuration profiles and validated settings loader.\n- Dependency-free read-only terminal dashboard for system status, audit history, self-family proposals and capability registry; it exposes no mutation or execution controls.
+- Loopback-only, GET-only local web dashboard with JSON diagnostic endpoints, Host-header validation and no control or execution endpoints.
 
 ## Repository map
 
@@ -47,6 +48,16 @@ For Android Debian, use bash scripts/install_android_debian.sh.
 ~~~bash
 bash scripts/verify.sh
 ~~~
+
+## Local read-only web dashboard
+
+Start the dashboard on loopback only (default port 8765):
+
+~~~bash
+nexora web
+~~~
+
+Open http://127.0.0.1:8765 on the same device. Choose another local port with `nexora web --port 9000`. The server refuses non-local Host headers, binds only to `127.0.0.1`, serves GET-only diagnostics and rejects mutation methods. It does not create the data directory, initialize databases or expose tools. It is not a remote administration interface.
 
 ## Signed backup and restore
 
@@ -95,7 +106,7 @@ The witness key must be different from the backup signing key. Distribute the wi
 
 ## Not yet delivered
 
-Full TUI/web/API experiences, local model inference runtime, production memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
+Full interactive API/control plane, local model inference runtime, production memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
 
 Read CONTRIBUTING.md, SECURITY.md, docs/ARCHITECTURE.md, docs/THREAT_MODEL.md, docs/PROJECT_STATUS.md and docs/SELF_FAMILIES.md.
 

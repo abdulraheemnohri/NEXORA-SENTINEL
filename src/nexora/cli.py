@@ -15,13 +15,14 @@ from nexora.oversight import AuditLog, KillSwitch, PolicyKernel
 from nexora.oversight.witness import IndependentWitness, verify_witness_chain
 from nexora.registry import CapabilityRegistry
 from nexora.terminal.dashboard import run_read_only_tui
+from nexora.terminal.web_dashboard import run_read_only_web_dashboard
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="nexora")
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui"):
+    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web"):
         sub.add_parser(name)
     check = sub.add_parser("check")
     check.add_argument("action")
@@ -49,7 +50,12 @@ def main(argv=None):
     witness_verify.add_argument("receipt_log", type=Path)
     witness_verify.add_argument("--trusted-key", type=Path)
 
+    web = sub.choices["web"]
+    web.add_argument("--port", type=int, default=8765)
+
     args = parser.parse_args(argv)
+    if args.cmd == "web":
+        return run_read_only_web_dashboard(args.data_dir, port=args.port)
     if args.cmd == "tui":
         import sys
         return run_read_only_tui(args.data_dir, output=sys.stdout)
