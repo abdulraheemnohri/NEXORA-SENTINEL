@@ -28,7 +28,7 @@ def test_keypair_permissions_and_no_overwrite(tmp_path):
 
 
 def test_key_enrollment_rotation_and_revocation_are_audited(tmp_path):
-    old_private, old_public = _keypair(tmp_path, "old")
+    _old_private, old_public = _keypair(tmp_path, "old")
     new_private, new_public = _keypair(tmp_path, "new")
     store = ApprovalReceiptStore(tmp_path / "approvals.sqlite3")
     old_fingerprint = store.enroll_key(load_public_key(old_public), label="primary", now=10)
