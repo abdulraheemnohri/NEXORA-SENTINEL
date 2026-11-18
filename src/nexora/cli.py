@@ -145,8 +145,12 @@ def main(argv=None):
         return 0
     if args.cmd == "litertlm":
         from nexora.intelligence.litertlm import (
-            LiteRTLMError, install_cli, load_settings, model_inventory,
-            run_local_model, runtime_status,
+            LiteRTLMError,
+            install_cli,
+            load_settings,
+            model_inventory,
+            run_local_model,
+            runtime_status,
         )
         try:
             if args.litertlm_cmd == "install":
