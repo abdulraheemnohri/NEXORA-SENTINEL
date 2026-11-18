@@ -12,7 +12,7 @@ class InteractionMatrix:
         self._entries = {}
         for entry in self.data.get("entries", []):
             if not isinstance(entry, dict):
-                raise ValueError("interaction_matrix_entry_invalid")
+                raise TypeError("interaction_matrix_entry_invalid")
             pair = (entry.get("source"), entry.get("target"))
             if pair[0] not in range(1, 265) or pair[1] not in range(1, 265) or pair in self._entries:
                 raise ValueError("interaction_matrix_pair_invalid_or_duplicate")

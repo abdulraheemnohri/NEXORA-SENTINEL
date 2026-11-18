@@ -10,7 +10,7 @@ import json
 import os
 import sqlite3
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -80,7 +80,7 @@ def create_backup(source: Path, destination: Path) -> dict[str, Any]:
         inspected = _inspect(temporary)
         manifest = {
             "format_version": FORMAT_VERSION,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "sha256": _sha256(temporary),
             "bytes": temporary.stat().st_size,
             **inspected,

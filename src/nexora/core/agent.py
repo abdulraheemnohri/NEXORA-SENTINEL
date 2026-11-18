@@ -1,5 +1,6 @@
 """Minimal agent kernel that turns goals into reviewable plans only."""
 from dataclasses import dataclass
+
 from nexora.core.planner import Plan, Planner
 from nexora.oversight.policy_kernel import PolicyKernel
 

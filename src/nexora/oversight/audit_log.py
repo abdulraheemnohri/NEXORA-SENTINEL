@@ -1,4 +1,4 @@
 """Hash-chained audit log facade."""
-from nexora._oversight_impl import AuditLog, GENESIS, canonical
+from nexora._oversight_impl import GENESIS, AuditLog, canonical
 
-__all__ = ["AuditLog", "GENESIS", "canonical"]
+__all__ = ["GENESIS", "AuditLog", "canonical"]

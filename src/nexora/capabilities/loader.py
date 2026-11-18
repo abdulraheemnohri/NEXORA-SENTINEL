@@ -9,7 +9,7 @@ def load_records(path: Path) -> list[CapabilityRecord]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     rows = data.get("capabilities")
     if not isinstance(rows, list):
-        raise ValueError("capability_catalog_invalid")
+        raise TypeError("capability_catalog_invalid")
     records = [CapabilityRecord(row["id"], row["name"], row["family"], row["source"]).validate() for row in rows]
     ids = [record.capability_id for record in records]
     if len(ids) != len(set(ids)):
