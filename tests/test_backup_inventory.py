@@ -7,6 +7,7 @@ import pytest
 from nexora.backup import create_backup, generate_backup_signing_key
 from nexora.backup_inventory import BackupInventoryError, build_backup_inventory
 
+
 def _source(path: Path) -> Path:
     with sqlite3.connect(path) as db:
         db.execute("CREATE TABLE sample(value TEXT)")
