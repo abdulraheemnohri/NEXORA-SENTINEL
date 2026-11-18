@@ -23,10 +23,12 @@ The loopback-only GET endpoint is:
 - NOT_EVALUATED_NO_LEDGER: no local evidence database was found.
 - BLOCKED_LEDGER_INTEGRITY: the evidence ledger failed verification.
 - EVIDENCE_GAPS: at least one source-backed capability has a missing evidence
-  gate or still requires the existing separate human-authorization gate.
-- EVIDENCE_COMPLETE: every capability represented in that family passed the
-  current evidence-presence evaluator. This is not artifact validation,
-  human authorization, or permission to execute.
+  token.
+- EVIDENCE_PRESENT_AWAITING_HUMAN_AUTHORIZATION: all required evidence tokens
+  are present for every capability in the family, but the existing separate
+  human-authorization gate remains closed.
+- EVIDENCE_COMPLETE: reserved for a future trusted authorization-aware
+  evaluator; this report does not supply human approval.
 
 Catalogue status counts (such as specified) are reported separately from
 evidence assessment. Missing definitions 1–84 remain explicit source gaps.
