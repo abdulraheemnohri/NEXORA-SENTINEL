@@ -1,0 +1,53 @@
+"""Validated local-first settings with JSON/YAML input support."""
+from __future__ import annotations
+
+import json
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+import yaml
+
+
+@dataclass(frozen=True)
+class Settings:
+    data_dir: str = "data"
+    autonomy_level: str = "L0"
+    max_actions_per_hour: int = 30
+    max_wall_seconds_per_job: int = 60
+    scheduler_enabled: bool = False
+    sandbox_enabled: bool = False
+    network_enabled: bool = False
+
+    def validate(self) -> Settings:
+        if self.autonomy_level not in {"L0", "L1"}:
+            raise ValueError("autonomy_level_must_be_L0_or_L1")
+        if type(self.max_actions_per_hour) is not int or not 1 <= self.max_actions_per_hour <= 1000:
+            raise ValueError("max_actions_per_hour_out_of_range")
+        if type(self.max_wall_seconds_per_job) is not int or not 1 <= self.max_wall_seconds_per_job <= 3600:
+            raise ValueError("max_wall_seconds_per_job_out_of_range")
+        if any(type(v) is not bool for v in (self.scheduler_enabled, self.sandbox_enabled, self.network_enabled)):
+            raise ValueError("feature_flags_must_be_boolean")
+        if not isinstance(self.data_dir, str) or not self.data_dir.strip():
+            raise ValueError("data_dir_required")
+        return self
+
+    @classmethod
+    def load(cls, path: Path) -> Settings:
+        source = Path(path)
+        raw_text = source.read_text(encoding="utf-8")
+        if source.suffix.lower() in {".yaml", ".yml"}:
+            raw = yaml.safe_load(raw_text)
+        else:
+            raw = json.loads(raw_text)
+        if not isinstance(raw, dict) or set(raw) - set(asdict(cls()).keys()):
+            raise ValueError("configuration_schema_invalid")
+        return cls(**raw).validate()
+
+    def save(self, path: Path) -> None:
+        self.validate()
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.suffix.lower() in {".yaml", ".yml"}:
+            target.write_text(yaml.safe_dump(asdict(self), sort_keys=True), encoding="utf-8")
+        else:
+            target.write_text(json.dumps(asdict(self), indent=2) + "\n", encoding="utf-8")

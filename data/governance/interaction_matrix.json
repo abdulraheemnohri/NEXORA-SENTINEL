@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "source_of_truth": "../../spec/interaction_matrix.json",
+  "dimensions": [264, 264],
+  "status": "UNPOPULATED",
+  "entries": [],
+  "unknown_relation_policy": "BLOCK_AND_ESCALATE"
+}

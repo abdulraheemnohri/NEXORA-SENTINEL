@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "source_of_truth": "../../spec/capability_catalog.json",
+  "expected_capability_count": 264,
+  "imported_capability_count": 180,
+  "imported_id_range": "85-264",
+  "missing_source_range": "1-84",
+  "status": "INCOMPLETE_SOURCE_IMPORT",
+  "note": "This file is a status manifest. Capability definitions are not duplicated or fabricated here."
+}

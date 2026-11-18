@@ -1,0 +1,11 @@
+version: 1
+default: deny
+tool_execution: false
+shell_execution: false
+filesystem_write: false
+network_access: false
+model_code_execution: false
+requires_human_review:
+  - permission_expansion
+  - new_tool_registration
+  - model_runtime_enablement

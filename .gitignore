@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.env
+# Runtime databases and mutable state are not source-controlled.
+data/*.sqlite3
+data/*.sqlite3-*
+data/audit.jsonl
+data/KILL
+data/backups/
+data/runtime/
+*.pem
+*.jks

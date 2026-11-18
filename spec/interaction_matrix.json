@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.1",
+  "dimensions": [
+    264,
+    264
+  ],
+  "capability_id_range": [
+    1,
+    264
+  ],
+  "status": "unpopulated",
+  "default_relation": "unknown",
+  "unknown_relation_policy": "deny_or_require_human_review",
+  "allowed_relations": [
+    "reinforces",
+    "conflicts",
+    "subsumes",
+    "depends_on",
+    "composes_with",
+    "preempts"
+  ],
+  "precedence": [
+    "safety",
+    "governance",
+    "all_other_capabilities"
+  ],
+  "entries": [],
+  "note": "264x264 matrix schema only. No pairwise relation is inferred from numbering or family membership. Populate only from reviewed evidence; version and audit every change. Unknown relations remain denied or require human review."
+}

@@ -1,0 +1,9 @@
+{
+  "data_dir": "data",
+  "autonomy_level": "L0",
+  "max_actions_per_hour": 30,
+  "max_wall_seconds_per_job": 60,
+  "scheduler_enabled": false,
+  "sandbox_enabled": false,
+  "network_enabled": false
+}
