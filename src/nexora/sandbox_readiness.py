@@ -3,7 +3,6 @@ import platform
 import shutil
 import sys
 
-
 _AUTO_DETECT = object()
 
 
