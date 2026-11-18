@@ -62,6 +62,7 @@ Generate a read-only gate report for one capability:
 
 ```sh
 nexora evidence evaluate 85
+# Dashboard API: GET /api/evidence-evaluation?capability_id=85
 ```
 
 The report compares the capability's recorded evidence tokens with the exact
