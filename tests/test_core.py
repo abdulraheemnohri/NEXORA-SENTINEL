@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 from nexora.catalog import status
 from nexora.oversight import AuditLog, KillSwitch, PolicyKernel
@@ -31,4 +32,34 @@ def test_runtime_registration_locked(tmp_path):
     else: assert False
 
 def test_catalog_incomplete_is_explicit():
-    result=status(); assert result["expected_capabilities"]==264 and not result["complete"]
+    result = status()
+    assert result["expected_capabilities"] == 264
+    assert result["expected_families"] == 40
+    assert result["registered_capabilities"] == 180
+    assert not result["complete"]
+
+
+def test_addendum_v_capabilities_are_registered():
+    catalog_path = Path(__file__).resolve().parents[1] / "spec" / "capability_catalog.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    rows = {item["id"]: item for item in catalog["capabilities"]}
+    assert set(range(216, 265)).issubset(rows)
+    assert rows[216]["family"] == "AG"
+    assert rows[264]["family"] == "AN"
+    assert all(rows[i].get("mechanism") and rows[i].get("gate") for i in range(216, 265))
+
+
+def test_addendum_v_meta_rules_are_registered():
+    rules_path = Path(__file__).resolve().parents[1] / "spec" / "meta_rules.json"
+    rules = json.loads(rules_path.read_text(encoding="utf-8"))
+    by_id = {item["id"]: item for item in rules["rules"]}
+    assert set(range(36, 46)).issubset(by_id)
+    assert all(by_id[i]["mutable_by_agent"] is False for i in range(36, 46))
+
+
+def test_interaction_matrix_targets_264():
+    matrix_path = Path(__file__).resolve().parents[1] / "spec" / "interaction_matrix.json"
+    matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+    assert matrix["dimensions"] == [264, 264]
+    assert matrix["capability_id_range"] == [1, 264]
+    assert matrix["entries"] == []
