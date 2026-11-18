@@ -42,6 +42,10 @@ def test_signed_revocation_is_immediate_and_auditable(tmp_path):
     assert result["control_state"] == "REVOKED"
     assert registry.revocation_history(17)[0]["approver_id"] == "operator-0,operator-1"
     assert len(json.loads(registry.revocation_history(17)[0]["signer_fingerprints_json"])) == 2
+    envelopes = json.loads(registry.revocation_history(17)[0]["receipt_payloads_json"])
+    assert len(envelopes) == 2
+    assert all(set(item) == {"payload", "signature"} for item in envelopes)
+    assert all(item["signature"] for item in envelopes)
     with pytest.raises(RegistryError, match="revoked_capability_is_terminal"):
         registry.transition(17, "REGISTERED", ["schema_validation"])
 
