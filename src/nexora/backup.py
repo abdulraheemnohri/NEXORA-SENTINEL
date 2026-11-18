@@ -65,6 +65,7 @@ def create_backup(source: Path, destination: Path) -> dict[str, Any]:
     source, destination = Path(source), Path(destination)
     if not source.is_file():
         raise BackupError("source_database_not_found")
+    _inspect(source)
     manifest_path = _manifest_path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.exists() or manifest_path.exists():
