@@ -1,4 +1,4 @@
-""""Cryptographically signed independent witness receipts.
+"""Cryptographically signed independent witness receipts.
 
 Use a separately enrolled key and retain its public key outside the backup location.
 This remains a local witness process unless the signing key is held by an independent host.
