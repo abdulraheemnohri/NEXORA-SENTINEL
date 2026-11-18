@@ -91,7 +91,7 @@ nexora registry-revoke 42 --reason unsafe_behavior \
   --approval-receipt operator-1-revoke.json operator-2-revoke.json
 ```
 
-A revoked capability cannot be restored by ordinary `APPROVED` or `ENABLED` receipts. Revocation is terminal in this release; no revocation-undo command exists. Revoke events retain the approver IDs, signer fingerprints and complete signed receipt envelopes in append-only history.
+A revoked capability cannot be restored by ordinary `APPROVED` or `ENABLED` receipts. Revocation is terminal in this release; no revocation-undo command exists. Revoke events retain the approver IDs, signer fingerprints and complete signed receipt envelopes in append-only history. Verify the retained signatures, evidence digest and nonce-consumption records with `nexora registry-revocation-verify 42`.
 
 ## Signed rollback authorization
 
@@ -115,4 +115,4 @@ nexora rollback-record 42 --from-release v2 --target-release v1 --reason regress
   --approval-receipt operator-1-rollback.json operator-2-rollback.json
 ```
 
-The rollback record consumes both nonces atomically and is append-only. Replays, expired or revoked keys, duplicate approver IDs, duplicate signing keys, scope mismatches and invalid signatures are rejected. This is an authorization record, not a deployment rollback engine.
+The rollback record consumes both nonces atomically and is append-only. Replays, expired or revoked keys, duplicate approver IDs, duplicate signing keys, scope mismatches and invalid signatures are rejected. This is an authorization record, not a deployment rollback engine. Verify its stored signatures and nonce-consumption records with `nexora rollback-verify 42`.
