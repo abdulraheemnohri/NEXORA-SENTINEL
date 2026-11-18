@@ -28,6 +28,7 @@ VIEWS = {
     "/api/runtime": lambda root: _render_runtime(),
     "/api/self-capabilities": lambda root: _render_self_capabilities(),
     "/api/family-evaluation": lambda root: _render_family_evaluation(root),
+    "/api/recovery-readiness": lambda root: _render_recovery_readiness(root),
 }
 
 
@@ -73,6 +74,16 @@ def _render_family_evaluation(data_dir: Path, family: str | None = None) -> str:
     )
 
 
+
+def _render_recovery_readiness(data_dir: Path) -> str:
+    from nexora.recovery_readiness import build_recovery_readiness
+
+    report = build_recovery_readiness(
+        Path(data_dir) / "backups", trusted_public_key=None,
+    )
+    return json.dumps(report, ensure_ascii=False, indent=2)
+
+
 def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPServer:
     """Create a loopback-only server; callers may use port 0 for ephemeral tests."""
     if type(port) is not int or not 0 <= port <= 65535:
@@ -115,6 +126,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("LiteRT-LM runtime and local models", "/api/runtime"),
                     ("Self-capability catalogue and source gaps", "/api/self-capabilities"),
                     ("Capability family evidence evaluation", "/api/family-evaluation"),
+                    ("Recovery readiness (trust anchor required for verification)", "/api/recovery-readiness"),
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
