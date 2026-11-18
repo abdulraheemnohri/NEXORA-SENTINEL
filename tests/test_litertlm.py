@@ -121,6 +121,7 @@ def test_run_uses_argument_vector_and_never_shell(tmp_path, monkeypatch):
     command, kwargs = calls[0]
     assert command[0] == "/usr/bin/litert-lm"
     assert command[1] == "run"
+    assert "--backend=cpu" not in command
     assert "--prompt=hello; do not split me" in command
     assert kwargs["check"] is False
     assert kwargs["capture_output"] is True
