@@ -11,6 +11,10 @@ lifecycle transitions.
     nexora family-evaluation --family O
     nexora family-evaluation --database data/registry.sqlite3
 
+The family filter accepts only canonical family codes A–AN (40 families),
+or CROSS-CUTTING when present in the source catalogue. Unknown family filters
+fail with an explicit error rather than returning an empty, misleading report.
+
 ## Dashboard
 
 The loopback-only GET endpoint is:
@@ -29,11 +33,18 @@ The loopback-only GET endpoint is:
   human-authorization gate remains closed.
 - EVIDENCE_COMPLETE: reserved for a future trusted authorization-aware
   evaluator; this report does not supply human approval.
+- SOURCE_DEFINITIONS_NOT_PRESENT: the canonical family is displayed, but no
+  source-backed capability records for it exist in the current catalogue.
+
+All 40 canonical family codes are displayed, including families without
+source-backed records. A missing family name is reported as null rather than
+invented. The global catalogue summary separately reports missing capability
+IDs; it does not guess which family owns a missing ID.
 
 Catalogue status counts (such as specified) are reported separately from
 evidence assessment. Missing definitions 1–84 remain explicit source gaps.
-Families absent from the source catalogue are not fabricated. The evaluator
-does not infer dependencies or interactions from family membership or IDs.
+The evaluator does not infer dependencies or interactions from family
+membership or IDs.
 
 All output is diagnostic only: lifecycle changes, promotions, policy mutation,
 and execution are disabled.
