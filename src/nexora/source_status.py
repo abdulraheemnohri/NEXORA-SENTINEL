@@ -2,13 +2,17 @@
 from __future__ import annotations
 
 import json
+import sysconfig
 from pathlib import Path
 from typing import Any
 
 from nexora.catalog import CATALOG
 
 SOURCE_SPEC = Path(__file__).resolve().parents[2] / "spec"
-META_RULES = SOURCE_SPEC / "meta_rules.json"
+PACKAGE_SPEC = Path(sysconfig.get_path("data")) / "share" / "nexora" / "spec"
+META_RULES = (PACKAGE_SPEC / "meta_rules.json"
+              if (PACKAGE_SPEC / "meta_rules.json").is_file()
+              else SOURCE_SPEC / "meta_rules.json")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
