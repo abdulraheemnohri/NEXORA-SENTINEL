@@ -73,8 +73,23 @@ def build_recovery_readiness(
         raise RecoveryReadinessError("recovery_clock_must_be_timezone_aware")
     if max_backup_age_hours < 1 or min_verified_points < 1:
         raise RecoveryReadinessError("readiness_thresholds_must_be_positive")
+    backup_directory = Path(directory)
+    if backup_directory.is_symlink():
+        raise RecoveryReadinessError("backup_inventory_directory_not_found_or_unsafe")
+    if not backup_directory.is_dir():
+        return {
+            "status": "NO_BACKUP_DIRECTORY",
+            "score": 0,
+            "verified_recovery_points": 0,
+            "inventory_counts": {},
+            "issues": ["configured_backup_directory_does_not_exist"],
+            "recovery_simulation": "NOT_RECORDED",
+            "read_only": True,
+            "automatic_restore": False,
+            "automatic_deletion": False,
+        }
     if trusted_public_key is None:
-        inventory = build_backup_inventory(directory, now=instant)
+        inventory = build_backup_inventory(backup_directory, now=instant)
         return {
             "status": "BLOCKED_TRUST_ANCHOR",
             "score": 0,
