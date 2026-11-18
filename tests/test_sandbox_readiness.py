@@ -38,3 +38,21 @@ def test_non_linux_host_is_unavailable():
     )
     assert report["status"] == "UNAVAILABLE"
     assert report["execution_enabled"] is False
+
+
+
+def test_cli_sandbox_check_reports_readiness_without_authorizing_execution(monkeypatch, capsys):
+    from nexora import cli
+
+    monkeypatch.setattr(
+        "nexora.sandbox_readiness.inspect_sandbox_readiness",
+        lambda: {
+            "status": "UNVERIFIED",
+            "execution_enabled": False,
+            "execution_authorized": False,
+        },
+    )
+    assert cli.main(["sandbox-check"]) == 3
+    output = capsys.readouterr().out
+    assert '"status": "UNVERIFIED"' in output
+    assert '"execution_enabled": false' in output
