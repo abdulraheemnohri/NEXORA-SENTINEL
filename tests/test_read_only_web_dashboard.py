@@ -219,3 +219,29 @@ def test_web_dashboard_exposes_fail_closed_governance_report_without_storage(tmp
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+
+def test_web_dashboard_exposes_sandbox_readiness_without_creating_storage(tmp_path):
+    data_dir = tmp_path / "no-data"
+    server = create_read_only_server(data_dir, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/sandbox-readiness")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["execution_enabled"] is False
+        assert report["execution_authorized"] is False
+        assert report["fallback_to_unsandboxed_execution"] is False
+        assert report["status"] in {"UNAVAILABLE", "UNVERIFIED"}
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
