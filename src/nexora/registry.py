@@ -178,7 +178,7 @@ class CapabilityRegistry:
             current = row["state"]
             decision = validate_transition(
                 current, requested_state, supplied,
-                human_approved=bool(operator),
+                human_approved=bool(operator or normalized_approvers),
             )
             if not decision.allowed:
                 raise RegistryError(decision.reason)
