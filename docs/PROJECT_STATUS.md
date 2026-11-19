@@ -89,8 +89,18 @@ Exact-SHA workflow status must be checked before treating this milestone as veri
 - Added regression tests for successful replacement/round-trip, replacement failure preserving the old file, temporary-file cleanup, symlink refusal, directory refusal, and POSIX mode 0600.
 - Added `docs/SETTINGS_PERSISTENCE_SAFETY.md`. This does not add a settings editor or policy mutation surface; settings inspection remains read-only, L0 remains default, and scheduler/sandbox/network remain disabled by default.
 - Commits: implementation `0fc0f71236af98eb0ed5585eca4aa86607f81051`; tests `173b2fb25362e27f7038453f83b85c71d7ce78ab`; documentation `c9e0b68b47700403527ab0501f579285e6864752`.
-- Validation on the exact final commit is pending GitHub Actions. No local test result is claimed.
+- Persistence-only verification at commit `f1d2649b2e41c9b0678a339fc3ffcfa43c6a11e9`: all five workflows passed (CI, Tests, Security, Build and Formal Verification). GitHub-hosted Linux executed Ruff, pytest, compileall, pip check, wheel build and TLC. This does not validate the later settings-diff preview changes below.
 
 ### Next task
 
 After all exact-SHA workflows pass, define the reviewed per-setting authorization and rollback requirements before implementing a controlled settings-change workflow. Do not expose settings mutation until those governance rules are approved.
+
+## Settings change preview and path hardening — 2026-11-19
+
+- Added `nexora settings diff --config CURRENT --candidate PROPOSED`, a read-only comparison of validated settings files.
+- Changed settings return `REVIEW_REQUIRED`, `authorization=NOT_EVALUATED`, and `apply_supported=false`; identical settings return `NO_CHANGES`. The CLI returns exit code 3 for a non-empty diff and never writes either file.
+- No per-setting authorization matrix is assumed or fabricated. There is no settings apply command, policy mutation, feature enablement or autonomy increase.
+- Settings inspection now uses `lstat()` and rejects symlink paths, including dangling symlinks, instead of treating an uninspectable/dangling path as absent defaults. Candidate settings use the same strict loader.
+- Added tests for diff output, no-change behavior, invalid/missing candidate files, CLI non-mutation, and symlink rejection.
+- README and `docs/SETTINGS_PERSISTENCE_SAFETY.md` document the preview-only contract.
+- Current branch-head verification is pending after these additions; do not infer it from the earlier persistence-only run.
