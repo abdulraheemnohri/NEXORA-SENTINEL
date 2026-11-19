@@ -152,3 +152,47 @@ The separate L0–L4 maturity scale remains unimplemented until its canonical
 definitions and evidence thresholds are supplied. Existing evidence-gated
 lifecycle evaluation remains authoritative; no lifecycle-to-L0–L4 mapping is
 assumed.
+
+
+
+## Signed proposal review attestations
+
+Proposal-review attestations use a dedicated Ed25519 domain, separate from
+capability lifecycle approval receipts. Each receipt binds the proposal's
+stored immutable fields, review decision, exact evidence set, reviewer ID,
+expiry, nonce and enrolled signer-key fingerprint.
+
+A quorum requires two to five distinct enrolled signing keys and distinct
+reviewer IDs. Every reviewer must sign the same proposal, decision and evidence
+set. Receipt nonces and the immutable review row are recorded in one SQLite
+transaction. A review can be recorded once per proposal.
+
+Create and enroll separate reviewer keys using the existing approval key
+commands. Each reviewer creates a receipt:
+
+    nexora proposals review-sign PROPOSAL_ID \
+      --database data/registry.sqlite3 \
+      --private-key reviewer-1-private.pem \
+      --decision REVIEWED \
+      --evidence review:source-check review:safety-check \
+      --approver-id reviewer-1 \
+      --output reviewer-1-review.json \
+      --confirm
+
+A second reviewer must use another enrolled key and reviewer ID, with the
+same decision and evidence. Record the quorum:
+
+    nexora proposals review-record PROPOSAL_ID \
+      --database data/registry.sqlite3 \
+      --receipt reviewer-1-review.json reviewer-2-review.json \
+      --confirm
+
+Inspect and re-verify the record with nexora proposals show PROPOSAL_ID or
+the read-only GET /api/proposal-records endpoint. Revoking a key after a
+review does not erase a historically valid signature; a key revoked before
+the review's verified-at time fails historical verification.
+
+This attestation is review evidence only. It does not approve a lifecycle
+transition, change settings or policy, activate a capability, or authorize
+execution. A signature proves possession of an enrolled key, not the
+real-world identity or independence of its holder.
