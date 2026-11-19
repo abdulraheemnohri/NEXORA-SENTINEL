@@ -24,6 +24,14 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check", "doctor", "kill-switch-test"):
         sub.add_parser(name)
+    audit_search = sub.add_parser(
+        "audit-search", help="Search the verified audit chain without mutation"
+    )
+    audit_search.add_argument("--event")
+    audit_search.add_argument("--contains")
+    audit_search.add_argument("--from-sequence", type=int)
+    audit_search.add_argument("--to-sequence", type=int)
+    audit_search.add_argument("--limit", type=int, default=100)
     lifecycle_history = sub.add_parser(
         "lifecycle-history", help="Replay existing lifecycle events read-only"
     )
@@ -353,6 +361,27 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "audit-search":
+        from nexora.audit_search import AuditSearchError, search_audit_log
+        try:
+            report = search_audit_log(
+                args.data_dir / "audit.jsonl",
+                event=args.event,
+                contains=args.contains,
+                from_sequence=args.from_sequence,
+                to_sequence=args.to_sequence,
+                limit=args.limit,
+            )
+        except (AuditSearchError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["status"] == "VALID" else 3
     if args.cmd == "kill-switch-test":
         from nexora.self_tests import run_kill_switch_self_test
         result = run_kill_switch_self_test()
