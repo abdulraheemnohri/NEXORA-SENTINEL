@@ -67,3 +67,17 @@ Implemented in the current development line:
 - No automatic evidence invalidation, deletion, lifecycle transition, authorization or execution.
 
 Verification status is determined by the exact-SHA GitHub Actions runs. See [EVIDENCE_FRESHNESS.md](EVIDENCE_FRESHNESS.md) for operator usage and limitations.
+
+
+## Evidence Provenance Intelligence v2
+
+Implemented in the current development line:
+
+- Evidence ledger schema v4 stores optional source URI, source revision and collection timestamp fields in the record hash.
+- Legacy evidence versions retain their original hash representation; missing provenance remains UNDECLARED.
+- Read-only provenance inventory distinguishes DECLARED_COMPLETE, DECLARED_PARTIAL, UNDECLARED and UNVERIFIED.
+- CLI, loopback web dashboard API and terminal dashboard expose the report.
+- Operator declarations are not independent source authentication; remote revision resolution and change detection are not implemented.
+- No evidence mutation, lifecycle transition, authorization or execution is performed by the report.
+
+Exact-SHA workflow status must be checked before treating this milestone as verified. See [EVIDENCE_FRESHNESS.md](EVIDENCE_FRESHNESS.md).
