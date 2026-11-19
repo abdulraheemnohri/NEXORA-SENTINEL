@@ -634,6 +634,25 @@ def main(argv=None):
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
+    if args.cmd == "governance-dependencies":
+        from nexora.governance.validation import (
+            DEFAULT_MATRIX,
+            GovernanceValidationError,
+            build_dependency_graph,
+        )
+        try:
+            result = build_dependency_graph(args.matrix or DEFAULT_MATRIX)
+        except (GovernanceValidationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "valid": False,
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] != "UNPOPULATED_BLOCKING" else 3
     if args.cmd in ("governance-check", "governance-relation"):
         from nexora.governance.validation import (
             GovernanceValidationError,
