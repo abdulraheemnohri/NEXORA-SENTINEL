@@ -13,11 +13,26 @@ jobs:
   build-and-gate:
     runs-on: ubuntu-latest
     steps:
+      - name: Require main branch for release candidates
+        run: |
+          test "${GITHUB_REF}" = "refs/heads/main" || {
+            echo "Release candidates may only be built from main."
+            exit 1
+          }
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade build
+      - run: python -m pip install --upgrade pip build
+      - run: python -m pip install -e ".[dev]"
+      - name: Dependency consistency
+        run: python -m pip check
+      - name: Lint
+        run: ruff check src tests
+      - name: Full test suite
+        run: pytest
+      - name: Python compilation
+        run: python -m compileall -q src
       - run: python -m build
       - uses: actions/upload-artifact@v7
         with:
