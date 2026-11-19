@@ -55,3 +55,23 @@ def test_audit_search_api_rejects_duplicate_filter_parameters(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def test_audit_search_dashboard_card_is_rendered(tmp_path):
+    server = create_read_only_server(tmp_path / "missing-data", 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        body = response.read().decode("utf-8")
+
+        assert response.status == 200
+        assert "Verified audit search" in body
+        assert "/api/audit-search" in body
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
