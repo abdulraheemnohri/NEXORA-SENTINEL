@@ -251,6 +251,19 @@ class EvidenceLedger:
             "evidence_types": evidence_types,
         }
 
+    def get_record(self, sequence: int, capability_id: int) -> dict[str, Any] | None:
+        """Return one exact evidence row without a display-list limit."""
+        if type(sequence) is not int or sequence < 1:
+            raise EvidenceError("sequence_out_of_range")
+        if type(capability_id) is not int or not 1 <= capability_id <= 264:
+            raise EvidenceError("capability_id_out_of_range")
+        with self._connect() as db:
+            row = db.execute(
+                "SELECT * FROM capability_evidence WHERE sequence=? AND capability_id=?",
+                (sequence, capability_id),
+            ).fetchone()
+        return dict(row) if row is not None else None
+
     def verify(self) -> dict[str, Any]:
         with self._connect() as db:
             rows = db.execute("SELECT * FROM capability_evidence ORDER BY sequence").fetchall()
