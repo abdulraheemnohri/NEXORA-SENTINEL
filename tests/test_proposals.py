@@ -423,3 +423,29 @@ def test_receipt_reader_rejects_duplicate_json_keys(tmp_path):
     )
     with pytest.raises(ProposalReviewError, match="duplicate_json_key"):
         read_receipt_file(receipt)
+
+
+
+def test_proposals_read_fails_closed_on_partial_signed_review_schema(tmp_path):
+    import sqlite3
+
+    from nexora.proposals import ProposalReadError
+
+    database, proposal, reviewers = _signed_review_fixture(tmp_path)
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            """
+            CREATE TABLE self_family_signed_review_nonces (
+                nonce TEXT PRIMARY KEY,
+                proposal_id TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                consumed_at INTEGER NOT NULL
+            )
+            """
+        )
+
+    with pytest.raises(
+        ProposalReadError,
+        match="proposal_review_verification_store_incomplete",
+    ):
+        read_proposals(database, proposal_id=proposal["proposal_id"])
