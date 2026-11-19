@@ -3,8 +3,8 @@ import json
 import pytest
 from litestar.testing import TestClient
 
-from nexora.litestar_api import ControlPlaneError, create_litestar_app
 from nexora.cli import main
+from nexora.litestar_api import ControlPlaneError, create_litestar_app
 
 
 def test_health_endpoint_returns_explicit_read_only_controls(tmp_path):
