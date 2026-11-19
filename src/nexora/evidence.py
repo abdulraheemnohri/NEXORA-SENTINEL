@@ -18,7 +18,7 @@ from nexora.lifecycle import EVIDENCE_FOR
 GENESIS = "0" * 64
 EVIDENCE_TYPES = frozenset().union(*EVIDENCE_FOR.values())
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_CURRENT_SCHEMA_VERSION = 3
+_CURRENT_SCHEMA_VERSION = 4
 
 
 class EvidenceError(RuntimeError):
@@ -41,14 +41,18 @@ def _record_body(row: sqlite3.Row) -> dict[str, Any]:
         "previous_hash": row["previous_hash"],
     }
     version = row["schema_version"]
-    if version in (2, 3):
+    if version in (2, 3, 4):
         body.update({
             "schema_version": version,
             "sequence": row["sequence"],
             "created_at": row["created_at"],
         })
-        if version == 3:
+        if version >= 3:
             body["expires_at"] = row["expires_at"]
+        if version == 4:
+            body["source_uri"] = row["source_uri"]
+            body["source_revision"] = row["source_revision"]
+            body["collected_at"] = row["collected_at"]
     elif version != 1:
         raise EvidenceError("unsupported_evidence_schema_version")
     return body
@@ -128,6 +132,11 @@ class EvidenceLedger:
                 db.execute(
                     "ALTER TABLE capability_evidence ADD COLUMN expires_at TEXT"
                 )
+            for column in ("source_uri", "source_revision", "collected_at"):
+                if column not in columns:
+                    db.execute(
+                        f"ALTER TABLE capability_evidence ADD COLUMN {column} TEXT"
+                    )
             db.execute(
                 "CREATE INDEX IF NOT EXISTS capability_evidence_capability_idx "
                 "ON capability_evidence(capability_id, evidence_type)"
@@ -158,7 +167,9 @@ class EvidenceLedger:
 
     def add(self, capability_id: int, evidence_type: str, reference: str,
             artifact_sha256: str, operator: str, note: str = "",
-            expires_at: str | None = None) -> dict[str, Any]:
+            expires_at: str | None = None, source_uri: str | None = None,
+            source_revision: str | None = None,
+            collected_at: str | None = None) -> dict[str, Any]:
         if type(capability_id) is not int or not 1 <= capability_id <= 264:
             raise EvidenceError("capability_id_out_of_range")
         if evidence_type not in EVIDENCE_TYPES:
@@ -182,6 +193,29 @@ class EvidenceLedger:
                 ).replace("+00:00", "Z")
             except ValueError as exc:
                 raise EvidenceError("expires_at_must_be_timezone_aware_iso8601") from exc
+        for field, value, maximum in (
+            ("source_uri", source_uri, 2048),
+            ("source_revision", source_revision, 512),
+        ):
+            if value is not None and (
+                not isinstance(value, str) or not value.strip() or len(value) > maximum
+            ):
+                raise EvidenceError(field + "_invalid")
+            if value is not None:
+                if any(ord(char) < 32 for char in value):
+                    raise EvidenceError(field + "_contains_control_character")
+        if collected_at is not None:
+            if not isinstance(collected_at, str) or not collected_at.strip():
+                raise EvidenceError("collected_at_invalid")
+            try:
+                parsed_collected = datetime.fromisoformat(collected_at)
+                if parsed_collected.tzinfo is None or parsed_collected.utcoffset() is None:
+                    raise ValueError("timezone_required")
+                collected_at = parsed_collected.astimezone(UTC).isoformat(
+                    timespec="microseconds"
+                ).replace("+00:00", "Z")
+            except ValueError as exc:
+                raise EvidenceError("collected_at_must_be_timezone_aware_iso8601") from exc
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             existing_rows = db.execute(
@@ -215,16 +249,20 @@ class EvidenceLedger:
                 "sequence": sequence,
                 "created_at": created_at,
                 "expires_at": expires_at,
+                "source_uri": source_uri.strip() if source_uri is not None else None,
+                "source_revision": source_revision.strip() if source_revision is not None else None,
+                "collected_at": collected_at,
             }
             digest = hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
             db.execute(
                 """INSERT INTO capability_evidence
                    (sequence,capability_id,evidence_type,reference,artifact_sha256,operator,note,
-                    created_at,previous_hash,record_hash,schema_version,expires_at)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    created_at,previous_hash,record_hash,schema_version,expires_at,
+                    source_uri,source_revision,collected_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (sequence, capability_id, evidence_type, reference.strip(), artifact_sha256,
                  operator.strip(), note, created_at, previous, digest, _CURRENT_SCHEMA_VERSION,
-                 expires_at),
+                 expires_at, body["source_uri"], body["source_revision"], collected_at),
             )
         return {"sequence": sequence, **body, "record_hash": digest}
 
