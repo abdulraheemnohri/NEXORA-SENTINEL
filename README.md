@@ -36,6 +36,8 @@ See docs/SELF_FAMILIES.md. These six operational domains are provisional interfa
 
 The supplied source records cover capabilities 85–264 (180 entries) and meta-rules 16–45 (30 entries). Original definitions 1–84 and 1–15 have not been supplied. The 264×264 interaction matrix remains empty by design. Missing source material is not fabricated. The catalog-check command therefore continues to report incomplete.
 
+Run `nexora spec-status` for the aggregate specification, matrix and settings-governance readiness report, or `nexora settings policy-status` to inspect missing per-setting authorization and rollback controls. These reports are read-only; a populated policy file is not accepted as approval.
+
 ## Install — Linux / Android Debian
 
 ~~~bash
