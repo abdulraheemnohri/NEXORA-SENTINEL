@@ -56,13 +56,16 @@ def test_evidence_ledger_rejects_bad_limit(tmp_path):
         ledger.list(limit=0)
 
 
-def test_evidence_v3_binds_timestamp_sequence_and_expiry(tmp_path):
+def test_evidence_v4_binds_timestamp_expiry_and_provenance(tmp_path):
     path = tmp_path / "ledger.sqlite3"
     ledger = EvidenceLedger(path)
     record = ledger.add(86, "test_report", "artifact://tests/86", HASH, "operator")
-    assert record["schema_version"] == 3
+    assert record["schema_version"] == 4
     assert record["created_at"].endswith("Z")
     assert record["expires_at"] is None
+    assert record["source_uri"] is None
+    assert record["source_revision"] is None
+    assert record["collected_at"] is None
     assert ledger.verify()["valid"] is True
     with sqlite3.connect(path) as db:
         db.execute("DROP TRIGGER capability_evidence_no_update")
