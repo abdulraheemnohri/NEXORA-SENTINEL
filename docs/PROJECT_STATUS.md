@@ -94,3 +94,15 @@ Exact-SHA workflow status must be checked before treating this milestone as veri
 ### Next task
 
 Qualify real off-device witness custody and recovery on supported Linux/Android Debian environments when the required independent device, storage and operator trust-key provisioning are available. Until then, document the device test as blocked; do not infer it from CI.
+## Lifecycle witness tamper rejection — 2026-11-19
+
+- Added `tests/test_lifecycle_witness_tampering.py` with three negative-path regressions: modified Ed25519 receipt signature, an untrusted witness public key, and a malformed trailing receipt.
+- Each case must raise `WitnessVerificationError`; the recovery anchor must not be accepted when the witness stream cannot be fully verified.
+- Recovered-source search was repeated across the available prior conversation context. Exact definitions, names, family groupings and wording for capability IDs 1–84 and meta-rules 1–15 were not present. Existing context confirms 180 source-backed capability records (85–264) and 30 source-backed meta-rules; the missing originals remain blocked pending the user's source document.
+- The previous PR #13 exact head `ae0d46c0ad0b001988fdeeddd2ce9a751ddaa4a9` completed all five workflows successfully: CI, Tests, Security, Build and Formal Verification. The CI/Tests/Security logs each report 336 pytest tests passed; Ruff passed; compileall passed; Security pip check passed; wheel build passed; TLC model check passed.
+- New tamper-regression tests are committed after that verified head; their exact-SHA checks are pending and must pass before this increment is considered validated.
+- No policy, lifecycle state, capability authorization, autonomy level, execution permission or trust key was changed.
+
+### Next task
+
+After exact-SHA CI passes, continue the safety review of witness and backup restore failure handling. Cross-device witness custody and Android Debian/Pixel execution remain blocked until an actual second device and operator-provisioned independent trust storage are available. Do not infer device verification from hosted CI.
