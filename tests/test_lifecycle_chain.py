@@ -205,3 +205,40 @@ def test_registry_event_and_chain_append_rollback_together(tmp_path):
         assert db.execute(
             "SELECT COUNT(*) FROM lifecycle_events WHERE capability_id=9"
         ).fetchone()[0] == 0
+
+
+
+def test_cli_external_lifecycle_checkpoint_round_trip_and_staleness(tmp_path, capsys):
+    from nexora.backup import generate_backup_signing_key
+    from nexora.cli import main
+    from nexora.registry import CapabilityRegistry
+
+    data_dir = tmp_path / "data"
+    registry = CapabilityRegistry(data_dir / "registry.sqlite3")
+    registry.register(7, "CLI checkpoint test", "A", source_record=True)
+    private_key = tmp_path / "witness-private.pem"
+    public_key = tmp_path / "witness-public.pem"
+    generate_backup_signing_key(private_key, public_key)
+    witness_log = tmp_path / "separate-witness" / "lifecycle.jsonl"
+
+    assert main([
+        "--data-dir", str(data_dir), "lifecycle-chain-attest",
+        "--witness-key", str(private_key),
+        "--witness-log", str(witness_log), "--confirm",
+    ]) == 0
+    assert '"attested": true' in capsys.readouterr().out.lower()
+
+    assert main([
+        "--data-dir", str(data_dir), "lifecycle-chain-verify",
+        "--witness-log", str(witness_log),
+        "--trusted-witness-key", str(public_key),
+    ]) == 0
+    assert '"status": "ANCHORED"' in capsys.readouterr().out
+
+    registry.register(8, "CLI checkpoint stale", "A", source_record=True)
+    assert main([
+        "--data-dir", str(data_dir), "lifecycle-chain-verify",
+        "--witness-log", str(witness_log),
+        "--trusted-witness-key", str(public_key),
+    ]) == 2
+    assert '"status": "ANCHOR_MISMATCH"' in capsys.readouterr().out
