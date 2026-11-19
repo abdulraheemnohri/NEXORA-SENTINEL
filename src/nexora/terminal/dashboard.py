@@ -153,7 +153,7 @@ def render_evidence_freshness(data_dir: Path) -> str:
     ]
     lines.extend(f"{name}: {count}" for name, count in counts.items())
     lines.append("UNKNOWN does not mean valid; expiry is operator-declared only.")
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def run_read_only_tui(
