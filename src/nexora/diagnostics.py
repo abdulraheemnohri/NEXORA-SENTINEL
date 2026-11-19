@@ -61,7 +61,8 @@ def _audit_report(path: Path) -> dict[str, Any]:
                         "entries": count,
                         "invalid_line": number,
                     }
-                if item.get("sequence") != count + 1:
+                sequence = item.get("sequence")
+                if type(sequence) is not int or sequence != count + 1:
                     return {
                         "status": "INVALID",
                         "valid": False,
