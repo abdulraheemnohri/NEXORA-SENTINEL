@@ -245,3 +245,46 @@ def test_web_dashboard_exposes_sandbox_readiness_without_creating_storage(tmp_pa
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+
+def test_web_dashboard_exposes_maturity_report_without_creating_storage(tmp_path):
+    data_dir = tmp_path / "no-data"
+    server = create_read_only_server(data_dir, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/maturity-report")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["maturity_scale"]["status"] == "UNDEFINED_SOURCE_GAP"
+        assert report["maturity_scale"]["levels_assigned"] is False
+        assert report["lifecycle_changed"] is False
+        assert report["execution_enabled"] is False
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_web_dashboard_maturity_filter_rejects_invalid_id(tmp_path):
+    server = create_read_only_server(tmp_path, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/maturity-report?capability_id=0")
+        response = connection.getresponse()
+        assert response.status == 500
+        assert b"MaturityReportError" in response.read()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
