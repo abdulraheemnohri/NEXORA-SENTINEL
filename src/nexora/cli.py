@@ -179,6 +179,11 @@ def main(argv=None):
     )
     governance_impact.add_argument("capability_id", type=int)
     governance_impact.add_argument("--matrix", type=Path)
+    governance_dependencies = sub.add_parser(
+        "governance-dependencies",
+        help="Show explicit capability dependency edges and cycles read-only",
+    )
+    governance_dependencies.add_argument("--matrix", type=Path)
     governance_relation = sub.add_parser("governance-relation", help="Inspect one directed capability relationship")
     governance_relation.add_argument("source", type=int)
     governance_relation.add_argument("target", type=int)
