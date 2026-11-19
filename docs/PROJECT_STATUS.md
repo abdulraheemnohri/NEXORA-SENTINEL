@@ -282,3 +282,24 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   interface was added.
 - Exact-head CI and cross-platform qualification are required before this
   increment is considered verified.
+
+
+
+## Signed proposal-review attestations — 2026-11-19
+
+- Added a separate Ed25519 proposal-review domain binding the stored immutable
+  proposal fields, decision, exact evidence set, reviewer ID, expiry, nonce
+  and enrolled key fingerprint.
+- Added receipt-creation and quorum-recording CLI commands. Recording requires
+  two to five distinct enrolled signer keys and distinct reviewer IDs to
+  attest the same decision and evidence.
+- Receipt nonce consumption and the immutable signed-review row share one
+  SQLite transaction. Duplicate/replayed receipts and multiple signed-review
+  records for one proposal are rejected.
+- Proposal list/show, the structured proposal API and the terminal proposal
+  view re-verify stored signatures, proposal digest and nonce ledger.
+- A signed review remains review evidence only. It does not grant lifecycle
+  approval, authorize settings/policy changes, activate capabilities or
+  execute tools.
+- Exact-head CI, security checks and cross-platform qualification remain
+  required before this increment is considered verified.
