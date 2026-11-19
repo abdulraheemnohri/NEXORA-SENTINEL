@@ -29,3 +29,5 @@ A future settings-change workflow still requires a reviewed per-setting authoriz
 ## Read-only change preview
 
 `nexora settings diff --config CURRENT --candidate PROPOSED` compares two validated configurations and reports changed fields. A non-empty diff is marked `REVIEW_REQUIRED`; authorization remains `NOT_EVALUATED` because a reviewed per-setting authorization matrix has not been approved. The command has no apply mode and cannot mutate configuration or enable any feature. A matching candidate reports `NO_CHANGES`. Missing/invalid candidates fail closed.
+
+Settings inspection also uses `lstat()` and rejects symlink configuration paths, including dangling symlinks. A genuinely missing path may use built-in defaults; permission and other I/O failures are not converted into defaults.
