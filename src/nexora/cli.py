@@ -34,6 +34,19 @@ def main(argv=None):
     )
     regression.add_argument("--capability-id", type=int)
     regression.add_argument("--database", type=Path)
+    chain_attest = sub.add_parser(
+        "lifecycle-chain-attest", help="Sign and append an external lifecycle-chain checkpoint"
+    )
+    chain_attest.add_argument("--database", type=Path)
+    chain_attest.add_argument("--witness-key", type=Path, required=True)
+    chain_attest.add_argument("--witness-log", type=Path, required=True)
+    chain_attest.add_argument("--confirm", action="store_true", required=True)
+    chain_verify = sub.add_parser(
+        "lifecycle-chain-verify", help="Verify local lifecycle chain against an external witness"
+    )
+    chain_verify.add_argument("--database", type=Path)
+    chain_verify.add_argument("--witness-log", type=Path, required=True)
+    chain_verify.add_argument("--trusted-witness-key", type=Path, required=True)
     maturity = sub.add_parser("maturity-report", help="Report lifecycle evidence and explicit L0-L4 source gaps")
     maturity.add_argument("--capability-id", type=int)
     maturity.add_argument("--database", type=Path)
@@ -470,6 +483,41 @@ def main(argv=None):
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["regression_count"] == 0 else 2
+
+    if args.cmd == "lifecycle-chain-attest":
+        from nexora.lifecycle_chain import LifecycleChainError, verify_lifecycle_chain_file
+        database = args.database or (args.data_dir / "registry.sqlite3")
+        try:
+            chain = verify_lifecycle_chain_file(database)
+            if not chain.get("valid"):
+                raise LifecycleChainError("lifecycle_chain_not_valid")
+            if chain.get("event_count", 0) < 1:
+                raise LifecycleChainError("lifecycle_chain_has_no_events")
+            receipt = IndependentWitness(args.witness_log, args.witness_key).attest(
+                chain["head_hash"], "lifecycle_chain_head",
+            )
+        except (LifecycleChainError, OSError, ValueError) as exc:
+            print(json.dumps({"attested": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps({
+            "attested": True, "event_count": chain["event_count"],
+            "head_hash": chain["head_hash"], "witness_log": str(args.witness_log),
+            "signer_fingerprint": receipt["payload"]["signer_fingerprint"],
+            "warning": "Store the witness log and trusted public key independently from the registry database.",
+        }, indent=2))
+        return 0
+    if args.cmd == "lifecycle-chain-verify":
+        from nexora.lifecycle_chain import LifecycleChainError, verify_lifecycle_chain_anchor
+        database = args.database or (args.data_dir / "registry.sqlite3")
+        try:
+            result = verify_lifecycle_chain_anchor(
+                database, args.witness_log, args.trusted_witness_key,
+            )
+        except (LifecycleChainError, OSError, ValueError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["valid"] else 2
 
     if args.cmd == "maturity-report":
         from nexora.maturity_report import MaturityReportError, build_maturity_report
