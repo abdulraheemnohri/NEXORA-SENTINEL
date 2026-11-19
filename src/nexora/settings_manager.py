@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import stat
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -18,9 +19,13 @@ def load_settings(path: Path | None = None) -> tuple[Settings, bool]:
     if path is None:
         return Settings().validate(), False
     source = Path(path)
-    if not source.exists():
+    try:
+        metadata = source.lstat()
+    except FileNotFoundError:
         return Settings().validate(), False
-    if not source.is_file():
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ValueError("settings_path_is_symlink")
+    if not stat.S_ISREG(metadata.st_mode):
         raise ValueError("settings_path_not_a_file")
     return Settings.load(source), True
 
