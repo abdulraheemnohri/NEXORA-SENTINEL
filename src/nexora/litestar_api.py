@@ -126,6 +126,18 @@ def create_litestar_app(
             }
         return _response(report)
 
+    @get(path="/api/v1/providers", sync_to_thread=True)
+    def providers() -> dict[str, Any]:
+        from nexora.intelligence.provider_registry import build_provider_report
+
+        return _response(build_provider_report())
+
+    @get(path="/api/v1/models", sync_to_thread=True)
+    def models() -> dict[str, Any]:
+        from nexora.intelligence.model_catalog import build_model_catalog_report
+
+        return _response(build_model_catalog_report())
+
     @get(path="/api/v1/proposals", sync_to_thread=True)
     def proposals() -> dict[str, Any]:
         from nexora.proposals import ProposalReadError, read_proposals
@@ -167,6 +179,8 @@ def create_litestar_app(
             specification,
             specification_validation,
             capabilities,
+            providers,
+            models,
             proposals,
             proposal_detail,
         ],
