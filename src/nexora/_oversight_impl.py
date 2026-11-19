@@ -21,7 +21,19 @@ class KillSwitch:
         self.marker = Path(marker)
 
     def is_engaged(self) -> bool:
-        return self.marker.exists()
+        """Treat every marker-inspection failure except a missing path as engaged.
+
+        Path.exists() follows symlinks and can report a dangling kill-marker
+        symlink as absent. lstat() observes the marker itself, and errors other
+        than FileNotFoundError fail closed rather than authorizing work.
+        """
+        try:
+            self.marker.lstat()
+        except FileNotFoundError:
+            return False
+        except (OSError, ValueError):
+            return True
+        return True
 
     def engage(self, reason: str = "operator") -> None:
         self.marker.parent.mkdir(parents=True, exist_ok=True)

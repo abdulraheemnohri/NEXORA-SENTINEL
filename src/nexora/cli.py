@@ -324,6 +324,9 @@ def main(argv=None):
     settings_show.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
     settings_validate = settings_sub.add_parser("validate")
     settings_validate.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
+    settings_diff = settings_sub.add_parser("diff", help="Preview settings changes without applying them")
+    settings_diff.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
+    settings_diff.add_argument("--candidate", type=Path, required=True)
 
     memory_delete = sub.add_parser("memory-delete", aliases=["memory-tombstone", "memory-hide"])
     memory_delete.add_argument("memory_id", type=int)
@@ -771,8 +774,12 @@ def main(argv=None):
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
     if args.cmd == "settings":
-        from nexora.settings_manager import render_settings
+        from nexora.settings_manager import render_settings, settings_diff_report
         try:
+            if args.settings_cmd == "diff":
+                result = settings_diff_report(args.config, args.candidate)
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                return 0 if result["status"] == "NO_CHANGES" else 3
             print(render_settings(args.config))
         except (OSError, ValueError, TypeError) as exc:
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
