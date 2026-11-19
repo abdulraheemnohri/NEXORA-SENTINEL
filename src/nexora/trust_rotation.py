@@ -180,8 +180,21 @@ def verify_rotation_statement(
         r"[0-9a-f]{32}", payload["transition_id"]
     ):
         raise TrustRotationError("trust_rotation_id_invalid")
-    if not isinstance(payload.get("reason"), str) or not payload["reason"].strip():
+    if (
+        not isinstance(payload.get("reason"), str)
+        or not payload["reason"].strip()
+        or len(payload["reason"]) > 1024
+    ):
         raise TrustRotationError("trust_rotation_reason_invalid")
+    created_at = payload.get("created_at")
+    if not isinstance(created_at, str):
+        raise TrustRotationError("trust_rotation_timestamp_invalid")
+    try:
+        parsed_created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise TrustRotationError("trust_rotation_timestamp_invalid") from exc
+    if parsed_created_at.tzinfo is None:
+        raise TrustRotationError("trust_rotation_timestamp_must_be_timezone_aware")
     old_fingerprint = payload.get("old_fingerprint")
     new_fingerprint = payload.get("new_fingerprint")
     if (
