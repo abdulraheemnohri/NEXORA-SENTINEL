@@ -111,6 +111,20 @@ def build_spec_status(
             "missing_count": len(missing_capabilities),
             "missing_ranges": _ranges(missing_capabilities),
         })
+    if not catalogue["entries_valid"] or not catalogue["unique_ids"]:
+        blockers.append({
+            "id": "capability_catalogue_integrity",
+            "status": "BLOCKED",
+            "entries_valid": catalogue["entries_valid"],
+            "unique_ids": catalogue["unique_ids"],
+        })
+    if not catalogue["exact_family_coverage"]:
+        blockers.append({
+            "id": "capability_family_coverage",
+            "status": "BLOCKED",
+            "expected_families": catalogue["expected_families"],
+            "represented_families": catalogue["represented_families"],
+        })
     if missing_rules:
         blockers.append({
             "id": "missing_meta_rule_source",
