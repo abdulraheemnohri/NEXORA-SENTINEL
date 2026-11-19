@@ -118,3 +118,11 @@ The first workflow run for the settings-diff increment caught four Ruff F821 err
 - Added `docs/TESTING_AND_QUALIFICATION.md` with Windows 10/11, Linux, Android Debian, backup/witness, settings non-mutation and manual device qualification checklists. Linked it from README.
 - Hosted Windows CI is a current Windows runner, not exact Windows 10 hardware certification. Android Debian and physical independent witness custody still require the operator's devices.
 - New platform matrix workflows have been added; exact results are pending. No final release readiness claim is made until they pass and manual blockers are resolved.
+
+
+## Cross-platform test findings and fixes — 2026-11-19
+
+- Initial Platform Qualification run exposed Windows-only failures: SQLite database connections were not explicitly closed before temporary backup/restore files were deleted (Windows `WinError 32`), and a signing-key test incorrectly treated POSIX permission bits as meaningful on Windows.
+- Fixed backup SQLite connection lifetime through a helper that preserves transaction commit/rollback semantics and always closes the connection in `finally`; applied to inspection, backup and restore paths.
+- Updated the update-signing key test to assert POSIX mode 0600 only on POSIX. On Windows, it checks key usability and documents inherited NTFS ACL requirements; no claim of automated Windows ACL verification is made.
+- The first failing matrix run is retained as evidence. A corrected cross-platform matrix run is pending; do not count Windows as qualified until both Python versions and all CLI smoke steps pass.
