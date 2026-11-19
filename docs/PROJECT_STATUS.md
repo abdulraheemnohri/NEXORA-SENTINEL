@@ -100,7 +100,7 @@ Qualify real off-device witness custody and recovery on supported Linux/Android 
 - Each case must raise `WitnessVerificationError`; the recovery anchor must not be accepted when the witness stream cannot be fully verified.
 - Recovered-source search was repeated across the available prior conversation context. Exact definitions, names, family groupings and wording for capability IDs 1–84 and meta-rules 1–15 were not present. Existing context confirms 180 source-backed capability records (85–264) and 30 source-backed meta-rules; the missing originals remain blocked pending the user's source document.
 - The previous PR #13 exact head `ae0d46c0ad0b001988fdeeddd2ce9a751ddaa4a9` completed all five workflows successfully: CI, Tests, Security, Build and Formal Verification. The CI/Tests/Security logs each report 336 pytest tests passed; Ruff passed; compileall passed; Security pip check passed; wheel build passed; TLC model check passed.
-- New tamper-regression tests are committed after that verified head; their exact-SHA checks are pending and must pass before this increment is considered validated.
+- New tamper-regression test commit `fb43b0d309410fa9640044304f1490249ceb0f9f` passed all five workflows: CI `44453748142`, Tests `44453748117`, Security `44453748147`, Build `44453748175`, and Formal Verification `44453748235`. CI/Tests/Security each report 339 pytest tests passed; Ruff, compileall, dependency check, wheel build and TLC all passed.
 - No policy, lifecycle state, capability authorization, autonomy level, execution permission or trust key was changed.
 
 ### Next task
