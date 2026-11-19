@@ -292,6 +292,7 @@ def test_signed_proposal_review_rejects_receipt_for_another_proposal(tmp_path):
 
 def test_signed_review_storage_triggers_prevent_update_and_delete(tmp_path):
     import sqlite3
+
     from nexora.proposal_review import record_signed_proposal_review
 
     database, proposal, reviewers = _signed_review_fixture(tmp_path)
