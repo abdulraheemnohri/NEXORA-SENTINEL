@@ -7,9 +7,9 @@ execution authority.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
 
 from nexora.intelligence.litertlm import LiteRTLMError, runtime_status
 
@@ -33,7 +33,7 @@ class ProviderDescriptor:
     network_downloads_supported: bool
     automatic_execution: bool = False
 
-    def validate(self) -> "ProviderDescriptor":
+    def validate(self) -> ProviderDescriptor:
         if not isinstance(self.provider_id, str) or not _PROVIDER_ID.fullmatch(self.provider_id):
             raise ProviderRegistryError("provider_id_invalid")
         if not isinstance(self.display_name, str) or not self.display_name.strip():
