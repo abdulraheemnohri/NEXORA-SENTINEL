@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+from contextlib import contextmanager
 import json
 import os
 import sqlite3
@@ -20,6 +21,22 @@ MANIFEST_SUFFIX = ".manifest.json"
 
 class BackupError(RuntimeError):
     """Raised when a backup cannot be safely created, verified or restored."""
+
+
+@contextmanager
+def _database_connection(database: str | Path, **kwargs: Any):
+    """Provide transaction semantics and always close the underlying OS handle.
+
+    sqlite3.Connection.__exit__ commits or rolls back; it does not close the
+    connection. Explicit close is required before temporary files can be
+    removed on Windows.
+    """
+    connection = sqlite3.connect(database, **kwargs)
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
 
 
 def _canonical(value: dict[str, Any]) -> bytes:
@@ -132,7 +149,7 @@ def _set_delete_journal_mode(connection: sqlite3.Connection) -> None:
 
 def _inspect(database: Path) -> dict[str, Any]:
     try:
-        with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as db:
+        with _database_connection(f"file:{database}?mode=ro", uri=True) as db:
             check = db.execute("PRAGMA integrity_check").fetchone()[0]
             if check != "ok":
                 raise BackupError("sqlite_integrity_check_failed")
@@ -164,7 +181,7 @@ def create_backup(
     temporary_manifest = temporary.with_name(temporary.name + MANIFEST_SUFFIX)
     published_database = False
     try:
-        with sqlite3.connect(source, timeout=10) as src, sqlite3.connect(temporary) as dst:
+        with _database_connection(source, timeout=10) as src, _database_connection(temporary) as dst:
             src.backup(dst, pages=256, sleep=0.01)
             _set_delete_journal_mode(dst)
         manifest = {
@@ -245,7 +262,7 @@ def restore_backup(
     os.close(fd)
     temporary = Path(temporary_name)
     try:
-        with sqlite3.connect(f"file:{backup}?mode=ro", uri=True) as src, sqlite3.connect(temporary) as dst:
+        with _database_connection(f"file:{backup}?mode=ro", uri=True) as src, _database_connection(temporary) as dst:
             src.backup(dst, pages=256, sleep=0.01)
             _set_delete_journal_mode(dst)
         restored = _inspect(temporary)
