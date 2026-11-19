@@ -188,3 +188,14 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Compares public-key fingerprints, actual file identity, resolved paths, parent directories, and POSIX private-file permissions where available.
 - The result can establish only local key/path separation. Same-host separation, off-device custody, remote witness operation, hardware backing and independent human identity are always reported as unverified.
 - It does not rotate, enroll, revoke, copy or modify any key.
+
+
+## Signed trust-anchor rotation statements
+
+- Create a transition signed by the existing key:
+  `nexora trust-rotate --role update --old-private-key OLD.pem --new-public-key NEW.pub.pem --output update-rotation.json --reason "scheduled rotation"`.
+- Verify the signed statement against the currently pinned old public key:
+  `nexora trust-verify update-rotation.json --trusted-old-public-key OLD.pub.pem`.
+- Roles are explicit: `backup`, `update`, or `witness`.
+- Verification checks the old-key signature, role, repository context, embedded new Ed25519 public key and both fingerprints.
+- The command never changes trust pins, enrolls the new key, modifies the existing key files, or activates the new key. Pinning the replacement still requires a separately reviewed, out-of-band operator action.
