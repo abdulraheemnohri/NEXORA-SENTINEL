@@ -67,3 +67,10 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Status labels describe declared metadata completeness only; they do not independently authenticate the source, resolve revisions, or detect upstream changes.
 - Legacy records remain unchanged and are reported as UNDECLARED.
 - See [Evidence Freshness and Provenance](EVIDENCE_FRESHNESS.md).
+
+
+## Settings dashboard
+
+- `GET /api/settings`: displays the validated local settings file (`config/settings.yaml` by default) or safe built-in defaults when the file is absent.
+- The root dashboard includes a responsive Settings and Safety Controls panel. Invalid, unreadable, symlinked or unsupported settings files are reported as invalid and fail closed.
+- The panel is read-only. It exposes no settings write, apply, policy mutation, scheduler enablement, sandbox enablement or network enablement action. Use `nexora settings diff` for a separate candidate preview; authorization remains `NOT_EVALUATED`.
