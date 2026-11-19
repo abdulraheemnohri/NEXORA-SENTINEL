@@ -125,6 +125,9 @@ def main(argv=None):
     evidence_add.add_argument("--operator", required=True)
     evidence_add.add_argument("--note", default="")
     evidence_add.add_argument("--expires-at", help="Optional operator-declared ISO-8601 expiry with timezone")
+    evidence_add.add_argument("--source-uri", help="Operator-declared source URI or repository URL")
+    evidence_add.add_argument("--source-revision", help="Operator-declared commit, version, or immutable source revision")
+    evidence_add.add_argument("--collected-at", help="Optional timezone-aware ISO-8601 collection time")
     evidence_add.add_argument("--confirm", action="store_true", required=True)
     evidence_list = evidence_sub.add_parser("list")
     evidence_list.add_argument("--capability-id", type=int)
@@ -132,6 +135,9 @@ def main(argv=None):
     evidence_sub.add_parser("verify")
     evidence_freshness = evidence_sub.add_parser("freshness", help="Report operator-declared evidence expiry read-only")
     evidence_freshness.add_argument("--capability-id", type=int)
+    evidence_provenance = evidence_sub.add_parser("provenance", help="Read-only source provenance inventory")
+    evidence_provenance.add_argument("--capability-id", type=int)
+    evidence_provenance.add_argument("--limit", type=int, default=500)
     evidence_evaluate = evidence_sub.add_parser("evaluate", help="Report evidence readiness without changing lifecycle state")
     evidence_evaluate.add_argument("capability_id", type=int)
     evidence_verify_artifact = evidence_sub.add_parser(
@@ -438,7 +444,7 @@ def main(argv=None):
     if args.cmd == "evidence":
         from nexora.evidence import EvidenceError, EvidenceLedger
         ledger = (
-            None if args.evidence_cmd in {"evaluate", "verify-artifact", "freshness"}
+            None if args.evidence_cmd in {"evaluate", "verify-artifact", "freshness", "provenance"}
             else EvidenceLedger(args.data_dir / "registry.sqlite3")
         )
         try:
@@ -446,6 +452,7 @@ def main(argv=None):
                 result = ledger.add(
                     args.capability_id, args.evidence_type, args.reference,
                     args.sha256, args.operator, args.note, args.expires_at,
+                    args.source_uri, args.source_revision, args.collected_at,
                 )
                 print(json.dumps({"recorded": True, **result}, indent=2))
                 return 0
@@ -456,6 +463,14 @@ def main(argv=None):
                 from nexora.evidence_freshness import build_freshness_report
                 result = build_freshness_report(
                     args.data_dir / "registry.sqlite3", capability_id=args.capability_id,
+                )
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                return 0 if result["ledger_integrity"]["valid"] else 2
+            if args.evidence_cmd == "provenance":
+                from nexora.evidence_provenance import build_provenance_report
+                result = build_provenance_report(
+                    args.data_dir / "registry.sqlite3",
+                    capability_id=args.capability_id, limit=args.limit,
                 )
                 print(json.dumps(result, ensure_ascii=False, indent=2))
                 return 0 if result["ledger_integrity"]["valid"] else 2
