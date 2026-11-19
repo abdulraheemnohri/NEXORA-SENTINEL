@@ -6,7 +6,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from nexora.catalog import CATALOG, EXPECTED_FAMILIES
+from nexora.catalog import CATALOG, EXPECTED_FAMILIES, VALID_STATUSES
 
 
 class FamilyInventoryError(ValueError):
@@ -42,10 +42,13 @@ def build_family_inventory(catalog_path: Path = CATALOG) -> dict[str, Any]:
         family_name = row.get("family_name")
         source = row.get("source")
         name = row.get("name")
+        status = row.get("status")
         if not isinstance(name, str) or not name.strip():
             raise FamilyInventoryError("capability_name_missing")
         if not isinstance(source, str) or not source.strip():
             raise FamilyInventoryError("capability_source_missing")
+        if status not in VALID_STATUSES:
+            raise FamilyInventoryError("capability_status_invalid")
         if family == "CROSS-CUTTING":
             cross_cutting_rows.append(identifier)
             continue
