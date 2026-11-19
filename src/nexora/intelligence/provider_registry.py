@@ -89,7 +89,10 @@ class ProviderRegistry:
 
     def compatible(self, required: Iterable[str]) -> list[ProviderDescriptor]:
         requested = tuple(required)
-        if any(item not in _ALLOWED_CAPABILITIES for item in requested):
+        if any(
+            not isinstance(item, str) or item not in _ALLOWED_CAPABILITIES
+            for item in requested
+        ):
             raise ProviderRegistryError("requested_capability_not_qualified")
         return [
             descriptor
