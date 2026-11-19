@@ -143,7 +143,7 @@ def render_evidence_freshness(data_dir: Path) -> str:
         return "EVIDENCE FRESHNESS — ledger not configured"
     try:
         report = build_freshness_report(database)
-    except (OSError, ValueError, sqlite3.Error) as exc:
+    except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
         return f"EVIDENCE FRESHNESS — read failed closed ({type(exc).__name__})"
     counts = report["counts"]
     lines = [
