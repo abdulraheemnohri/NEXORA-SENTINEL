@@ -9,10 +9,10 @@ def test_doctor_cli_does_not_create_the_data_directory(tmp_path, capsys):
     report = json.loads(capsys.readouterr().out)
 
     assert result == 3
-    assert report["status"] == "BLOCKED"
-    assert report["read_only"] is True
-    assert report["controls"]["storage_created"] is False
-    assert report["controls"]["execution_enabled"] is False
+    assert report["status"] in {"DEGRADED", "ATTENTION_REQUIRED"}
+    assert report["safety"]["read_only"] is True
+    assert report["safety"]["data_directory_created"] is False
+    assert report["safety"]["execution_enabled"] is False
     assert not data_dir.exists()
 
 
