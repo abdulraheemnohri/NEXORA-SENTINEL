@@ -486,6 +486,8 @@ def main(argv=None):
         return 0 if result["status"] == "SOURCE_INVENTORY_COMPLETE" else 3
     if args.cmd == "proposals":
         from nexora.proposal_review import (
+            MAX_REVIEWERS,
+            MIN_REVIEWERS,
             ProposalReviewError,
             create_proposal_review_receipt,
             read_receipt_file,
@@ -518,6 +520,8 @@ def main(argv=None):
                     "execution_enabled": False,
                 }
             elif args.proposals_cmd == "review-record":
+                if not MIN_REVIEWERS <= len(args.receipt) <= MAX_REVIEWERS:
+                    raise ProposalReviewError("proposal_review_threshold_not_met")
                 receipts = [read_receipt_file(path) for path in args.receipt]
                 result = record_signed_proposal_review(
                     database, args.proposal_id, receipts
