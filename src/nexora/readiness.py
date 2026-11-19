@@ -16,7 +16,8 @@ from nexora.governance.validation import (
     DEFAULT_PRECEDENCE,
     build_governance_report,
 )
-from nexora.catalog import CATALOG, status as catalog_status
+from nexora.catalog import CATALOG
+from nexora.catalog import status as catalog_status
 from nexora.source_status import META_RULES, build_source_status
 
 ROOT = Path(__file__).resolve().parents[2]
