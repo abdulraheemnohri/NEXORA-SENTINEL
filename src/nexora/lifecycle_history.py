@@ -42,10 +42,10 @@ def build_lifecycle_history(database: Path, capability_id: int | None = None) ->
             tables = {row["name"] for row in db.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )}
-            chain_report = verify_lifecycle_chain(db)
             required = {"capabilities", "lifecycle_events", "revocation_events", "rollback_events"}
             if not required.issubset(tables):
                 raise LifecycleHistoryError("registry_schema_incomplete")
+            chain_report = verify_lifecycle_chain(db)
             caps_sql = "SELECT * FROM capabilities"
             event_sql = "SELECT * FROM lifecycle_events"
             rev_sql = "SELECT capability_id,event_id,created_at FROM revocation_events"
