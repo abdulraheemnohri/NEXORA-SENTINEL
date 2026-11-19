@@ -62,6 +62,9 @@ def build_lifecycle_history(database: Path, capability_id: int | None = None) ->
     except sqlite3.Error as exc:
         raise LifecycleHistoryError("registry_read_failed_closed") from exc
 
+    if capability_id is not None and not capabilities:
+        raise LifecycleHistoryError("capability_not_found")
+
     by_cap: dict[int, list[dict]] = {}
     for event in events:
         by_cap.setdefault(event["capability_id"], []).append(event)
