@@ -140,3 +140,13 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Symlink/non-file paths, malformed records, sequence discontinuities and hash mismatches fail closed.
 - Search is read-only; it never repairs, truncates, rotates or exports the audit log.
 - Results are bounded to 1–500 entries. The full chain is verified even when only a subset is returned.
+
+
+## Verified audit search
+
+- CLI: `nexora audit-search [--event EVENT] [--contains TEXT] [--from-sequence N] [--to-sequence N] [--limit N]`.
+- Web: `GET /api/audit-search` with the same filters as query parameters.
+- The search verifies the complete hash chain before returning any matching records. A malformed record, sequence gap, hash mismatch, unreadable file, symlink or non-regular path fails closed.
+- A missing log returns `NOT_CONFIGURED` and does not create a data directory or log.
+- The default result limit is 100 and the maximum is 500. The report records the number of verified and matched entries and whether results were truncated.
+- Search is read-only and does not initialize, repair, truncate, rotate or rewrite the audit log.
