@@ -89,4 +89,8 @@ Exact-SHA workflow status must be checked before treating this milestone as veri
 - A genuinely missing marker is the only clear state; permission, I/O and invalid-path inspection errors are treated as engaged.
 - Added regression coverage proving the policy kernel denies a low-risk action when the marker is a dangling symlink, and that lookup errors fail closed.
 - This is a narrow local-filesystem hardening change; it does not claim protection from a privileged local attacker who can alter the data directory.
-- Validation is pending on the new safety branch. No action execution or autonomy level is enabled by this change.
+- Implementation/test head `fb557d6bdf22ed359ae5c38d7c0eb7d6090be8b8` passed exact-SHA GitHub Actions: CI run `44450276066`, Tests `44450276001`, Security `44450276004`, Build `44450276131`, and Formal Verification `44450276073` all completed successfully.
+- Executed evidence: Ruff passed; pytest reported 338 passed; Python compileall passed; `pip check` passed; wheel build passed; TLC formal verification passed.
+- These are GitHub-hosted Linux checks. No Android/Pixel device test is claimed, and no release was published.
+- Prior conversation/source retrieval again found no original source text for capability IDs 1–84 or meta-rules 1–15. Those records remain a human-supplied source blocker; no definitions were fabricated.
+- No action execution or autonomy level is enabled by this change.
