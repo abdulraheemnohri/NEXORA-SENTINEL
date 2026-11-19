@@ -44,3 +44,14 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - `nexora lifecycle-chain-attest --witness-key PRIVATE --witness-log PATH --confirm` appends a signed external checkpoint.
 - `nexora lifecycle-chain-verify --witness-log PATH --trusted-witness-key PUBLIC` verifies the chain and requires the latest witness receipt to match its current head.
 - The external witness key and log must be held separately from the registry database to provide an independent trust anchor.
+
+
+## Evidence freshness intelligence
+
+- Evidence ledger schema v3 supports optional timezone-aware `expires_at` metadata, included in each new record's canonical hash.
+- Add evidence with `nexora evidence add ... --expires-at 2027-01-01T00:00:00Z --confirm`.
+- CLI report: `nexora evidence freshness [--capability-id 85]`.
+- Web: `GET /api/evidence-freshness` and optional `?capability_id=85`.
+- Terminal dashboard option 5 displays the read-only summary.
+- `UNKNOWN` is the correct status when no operator expiry is declared. `CURRENT` and `EXPIRED` are determined only from an explicit expiry timestamp; failed ledger integrity yields `UNVERIFIED`.
+- This report does not infer missing evidence, invalidate records, alter lifecycle state, authorize actions, or execute tools. See [Evidence Freshness](EVIDENCE_FRESHNESS.md).
