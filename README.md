@@ -433,3 +433,16 @@ nexora audit-search --contains "capability_id" --from-sequence 10 --to-sequence 
 ```
 
 The command verifies the entire hash chain before returning results. Corruption, missing sequence numbers, symlinks and non-regular files fail closed. The loopback dashboard exposes the same filters at `GET /api/audit-search`. Searches are read-only; no records are rewritten or deleted.
+
+
+## Proposal inspection
+
+Inspect stored self-family proposals without initializing a database or granting execution:
+
+```bash
+nexora proposals list
+nexora proposals list --limit 50
+nexora proposals show PROPOSAL_ID
+```
+
+The commands use SQLite read-only mode. Operator-recorded review labels remain separate from signed approvals; every proposal remains execution-disabled.
