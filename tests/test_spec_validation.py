@@ -61,6 +61,7 @@ def _artifacts(tmp_path):
             "status": "unpopulated",
             "default_relation": "unknown",
             "unknown_relation_policy": "deny_or_require_human_review",
+            "precedence": ["safety", "governance", "all_other_capabilities"],
             "allowed_relations": [
                 "reinforces",
                 "conflicts",
