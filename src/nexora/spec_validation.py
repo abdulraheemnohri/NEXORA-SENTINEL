@@ -28,6 +28,8 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _CAPABILITY_FIELDS = {"id", "name", "family", "family_name", "status", "source"}
 _META_RULE_FIELDS = {"id", "title", "text", "status", "mutable_by_agent"}
 _EXPECTED_PRECEDENCE = ["SAFETY", "GOVERNANCE", "OPERATIONAL", "CONVENIENCE"]
+_MATRIX_PRECEDENCE = ["safety", "governance", "all_other_capabilities"]
+_MAX_SPEC_FILE_BYTES = 5 * 1024 * 1024
 
 
 class SpecificationValidationError(ValueError):
@@ -58,6 +60,9 @@ def _read_object(path: Path, label: str, errors: list[dict[str, Any]]) -> dict[s
         return None
     if not stat.S_ISREG(metadata.st_mode):
         errors.append({"artifact": label, "code": "not_regular_file"})
+        return None
+    if metadata.st_size > _MAX_SPEC_FILE_BYTES:
+        errors.append({"artifact": label, "code": "file_too_large"})
         return None
     try:
         raw = source.read_text(encoding="utf-8")
@@ -275,6 +280,8 @@ def _validate_matrix(
         _error(errors, label, "default_relation_must_remain_unknown")
     if document.get("unknown_relation_policy") != "deny_or_require_human_review":
         _error(errors, label, "unknown_relation_policy_must_fail_closed")
+    if document.get("precedence") != _MATRIX_PRECEDENCE:
+        _error(errors, label, "matrix_precedence_order_invalid")
     allowed = document.get("allowed_relations")
     if (
         not isinstance(allowed, list)
@@ -383,8 +390,12 @@ def validate_specification(
     matrix_doc = _read_object(Path(matrix_path), "interaction_matrix", errors)
     precedence_doc = _read_object(Path(precedence_path), "precedence", errors)
 
+    error_count = len(errors)
     catalog = _validate_capabilities(catalog_doc, errors)
+    catalog["valid"] = len(errors) == error_count
+    error_count = len(errors)
     rules = _validate_meta_rules(rules_doc, errors)
+    rules["valid"] = len(errors) == error_count
     capability_ids = set(
         range(1, 265)
         if catalog_doc is None
@@ -396,8 +407,12 @@ def validate_specification(
             and 1 <= row["id"] <= 264
         )
     )
+    error_count = len(errors)
     matrix = _validate_matrix(matrix_doc, capability_ids, errors)
+    matrix["valid"] = len(errors) == error_count
+    error_count = len(errors)
     precedence = _validate_precedence(precedence_doc, errors)
+    precedence["valid"] = precedence.get("valid", False) and len(errors) == error_count
 
     valid = not errors
     complete = (
