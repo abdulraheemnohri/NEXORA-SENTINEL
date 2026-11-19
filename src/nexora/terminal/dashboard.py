@@ -167,7 +167,8 @@ def run_read_only_tui(
         "1": render_overview,
         "2": render_audit,
         "3": render_proposals,
-        "4": render_registry,\n        "5": render_evidence_freshness,
+        "4": render_registry,
+        "5": render_evidence_freshness,
     }
     while True:
         print(MENU, file=output)
