@@ -19,9 +19,9 @@ def test_doctor_api_is_read_only_and_does_not_initialize_storage(tmp_path):
 
         assert response.status == 200
         assert payload["read_only"] is True
-        assert report["read_only"] is True
-        assert report["controls"]["storage_created"] is False
-        assert report["controls"]["execution_enabled"] is False
+        assert report["safety"]["read_only"] is True
+        assert report["safety"]["data_directory_created"] is False
+        assert report["safety"]["execution_enabled"] is False
         assert not data_dir.exists()
         connection.close()
     finally:
