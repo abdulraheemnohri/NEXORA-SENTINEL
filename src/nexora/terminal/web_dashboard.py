@@ -35,6 +35,7 @@ VIEWS = {
     "/api/recovery-readiness": lambda root: _render_recovery_readiness(root),
     "/api/recovery-history": lambda root: _render_recovery_history(root),
     "/api/governance": lambda root: _render_governance(),
+    "/api/dependency-graph": lambda root: _render_dependency_graph(),
     "/api/spec-status": lambda root: _render_spec_status(),
     "/api/settings-policy": lambda root: _render_settings_policy(),
     "/api/doctor": lambda root: _render_doctor(root),
@@ -150,6 +151,12 @@ def _render_governance() -> str:
     from nexora.governance.validation import build_governance_report
 
     return json.dumps(build_governance_report(), ensure_ascii=False, indent=2)
+
+
+def _render_dependency_graph() -> str:
+    from nexora.governance.validation import build_dependency_graph
+
+    return json.dumps(build_dependency_graph(), ensure_ascii=False, indent=2)
 
 
 def _render_spec_status() -> str:
@@ -280,6 +287,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("Recovery readiness (trust anchor required for verification)", "/api/recovery-readiness"),
                     ("Witnessed recovery simulation history", "/api/recovery-history"),
                     ("Capability governance validation", "/api/governance"),
+                    ("Explicit capability dependency graph", "/api/dependency-graph"),
                     ("STA-264 specification completeness", "/api/spec-status"),
                     ("Settings authorization and rollback readiness", "/api/settings-policy"),
                     ("Read-only system doctor", "/api/doctor"),
