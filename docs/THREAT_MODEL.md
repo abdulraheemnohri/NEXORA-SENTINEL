@@ -60,3 +60,10 @@ rejects a symlink/non-directory data root and uses existing read-only
 diagnostic and SQLite accessors. Do not expose this listener through a proxy,
 port-forward or LAN interface. Loopback binding is not a substitute for
 operating-system process isolation or protection from other local processes.
+
+
+
+The API's \`network_egress_route_enabled: false\` flag is descriptive of the
+route set only. It is not a claim that the Python process or host operating
+system cannot initiate network connections. Enforce process/host egress
+restrictions separately when needed.
