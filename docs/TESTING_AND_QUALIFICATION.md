@@ -83,3 +83,8 @@ A green CI run is necessary but not sufficient. Do not publish a stable release 
 - A reviewed per-setting authorization matrix and rollback policy are absent.
 
 Use the manual checklist to record evidence. Keep unknown requirements blocked; never manufacture a passing result.
+
+
+## Windows private-key storage note
+
+On Windows, Python's POSIX-style `0o600` creation mode is not an NTFS ACL policy. Private signing-key files inherit the ACL of their parent directory. Store keys only in a user-controlled directory whose ACL grants access to the intended account and required system principals; verify with Windows `icacls`. The automated permission-bit assertion is POSIX-only and does not claim Windows ACL verification.
