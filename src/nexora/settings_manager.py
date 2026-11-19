@@ -43,3 +43,34 @@ def settings_report(path: Path | None = None) -> dict[str, Any]:
 
 def render_settings(path: Path | None = None) -> str:
     return json.dumps(settings_report(path), indent=2, sort_keys=True)
+
+
+def settings_diff_report(current_path: Path | None, candidate_path: Path) -> dict[str, Any]:
+    """Build a read-only change preview; never authorize or apply settings."""
+    current, current_present = load_settings(current_path)
+    candidate_source = Path(candidate_path)
+    if not candidate_source.is_file():
+        raise ValueError("candidate_settings_file_required")
+    candidate = Settings.load(candidate_source)
+
+    before = asdict(current)
+    after = asdict(candidate)
+    changes = [
+        {"setting": key, "current": before[key], "candidate": after[key]}
+        for key in before
+        if before[key] != after[key]
+    ]
+    changed = bool(changes)
+    return {
+        "valid": True,
+        "current_source": str(current_path) if current_present else "built-in defaults",
+        "candidate_source": str(candidate_source),
+        "changed_count": len(changes),
+        "changes": changes,
+        "status": "REVIEW_REQUIRED" if changed else "NO_CHANGES",
+        "authorization": "NOT_EVALUATED",
+        "reason": "per_setting_authorization_policy_not_defined" if changed else "candidate_matches_current_settings",
+        "human_review_required": changed,
+        "apply_supported": False,
+        "execution_enabled": False,
+    }
