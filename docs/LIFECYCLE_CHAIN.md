@@ -32,3 +32,40 @@ chain implementation.
 
 No lifecycle promotion, rollback execution, policy change, capability
 execution, automatic repair or autonomous tool use is enabled.
+
+## Operator checkpoint workflow
+
+Initialize/upgrade the registry through its normal application path, then
+inspect the local chain:
+
+```bash
+nexora lifecycle-history
+```
+
+Create a dedicated Ed25519 witness key pair using the existing backup key
+generator (do not reuse the backup signer):
+
+```bash
+nexora backup-keygen --private-key ./keys/lifecycle-witness-private.pem --public-key ./keys/lifecycle-witness-public.pem
+```
+
+After securely transferring the public key to the verification environment,
+create a signed checkpoint:
+
+```bash
+nexora lifecycle-chain-attest --witness-key ./keys/lifecycle-witness-private.pem --witness-log /separate-witness-storage/lifecycle.jsonl --confirm
+```
+
+Verify the current registry head against the signed witness log:
+
+```bash
+nexora lifecycle-chain-verify --witness-log /separate-witness-storage/lifecycle.jsonl --trusted-witness-key ./keys/lifecycle-witness-public.pem
+```
+
+The latest witness receipt must match the current chain head. If more registry
+events are appended after a checkpoint, verification reports
+`ANCHOR_MISMATCH` until a new checkpoint is explicitly created. Keep the
+witness log and public trust anchor on independently controlled storage; a
+witness log stored beside the registry on the same writable device is not an
+independent trust boundary. Back up the witness log and preserve its public
+key through a separate trusted channel.
