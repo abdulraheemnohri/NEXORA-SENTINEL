@@ -5,13 +5,13 @@ import base64
 import json
 import os
 import re
-import stat
 import secrets
+import stat
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from cryptography.exceptions import InvalidSignature
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
@@ -217,7 +217,7 @@ def verify_rotation_statement(
         raise TrustRotationError("trust_rotation_new_public_key_invalid")
     try:
         new_public = serialization.load_pem_public_key(pem.encode("ascii"))
-    except (ValueError, TypeError, UnicodeError) as exc:
+    except (ValueError, TypeError, UnicodeError, UnsupportedAlgorithm) as exc:
         raise TrustRotationError("trust_rotation_new_public_key_invalid") from exc
     if not isinstance(new_public, Ed25519PublicKey):
         raise TrustRotationError("trust_rotation_new_ed25519_key_required")
