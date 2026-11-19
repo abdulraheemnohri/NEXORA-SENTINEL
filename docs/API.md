@@ -74,3 +74,16 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - `GET /api/settings`: displays the validated local settings file (`config/settings.yaml` by default) or safe built-in defaults when the file is absent.
 - The root dashboard includes a responsive Settings and Safety Controls panel. Invalid, unreadable, symlinked or unsupported settings files are reported as invalid and fail closed.
 - The panel is read-only. It exposes no settings write, apply, policy mutation, scheduler enablement, sandbox enablement or network enablement action. Use `nexora settings diff` for a separate candidate preview; authorization remains `NOT_EVALUATED`.
+
+
+## Specification readiness
+
+- CLI: `nexora spec-status` aggregates exact-source capability/meta-rule
+  coverage, matrix coverage, precedence integrity and settings authorization
+  readiness.
+- CLI: `nexora settings policy-status` reports settings without an approved
+  per-setting authorization and rollback policy.
+- Both reports are read-only. A present policy file is not treated as approved.
+- Missing source records and unknown matrix relationships remain blockers.
+- No settings apply or execution endpoint is exposed.
+- See [SPECIFICATION_READINESS.md](SPECIFICATION_READINESS.md).
