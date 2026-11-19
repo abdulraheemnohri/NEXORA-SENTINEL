@@ -93,7 +93,7 @@ class EvidenceLedger:
                 required = {
                     "sequence", "capability_id", "evidence_type", "reference",
                     "artifact_sha256", "operator", "note", "created_at",
-                    "previous_hash", "record_hash", "schema_version", "expires_at",
+                    "previous_hash", "record_hash", "schema_version",
                 }
                 if not columns:
                     raise EvidenceError("evidence_ledger_schema_missing")
