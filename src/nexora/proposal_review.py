@@ -81,12 +81,24 @@ def _regular_file(path: Path, label: str) -> Path:
     return source
 
 
+def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ProposalReviewError("proposal_review_duplicate_json_key")
+        result[key] = value
+    return result
+
+
 def read_receipt_file(path: Path) -> dict[str, Any]:
     source = _regular_file(Path(path), "proposal_review_receipt")
     try:
         if source.stat().st_size > 128_000:
             raise ProposalReviewError("proposal_review_receipt_too_large")
-        data = json.loads(source.read_text(encoding="utf-8"))
+        data = json.loads(
+            source.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_json_keys,
+        )
     except ProposalReviewError:
         raise
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
