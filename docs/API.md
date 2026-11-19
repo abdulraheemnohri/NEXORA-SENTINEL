@@ -169,3 +169,13 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Cross-cutting records are reported separately. Conflicting source family names remain flagged rather than silently selected.
 - Missing capability IDs remain unassigned; no family membership is inferred from numbering or neighboring records.
 - The explorer is read-only and provides no capability activation or execution controls.
+
+
+## Structured proposal records API
+
+- `GET /api/proposal-records`: list up to 100 proposal records and review history as JSON.
+- `GET /api/proposal-records?proposal_id=0123456789abcdef01234567`: inspect one proposal.
+- `GET /api/proposal-records?limit=50`: bound the list to a maximum of 500.
+- The endpoint reads SQLite in read-only mode and does not initialize missing storage.
+- Duplicate/unknown query parameters, malformed IDs and invalid limits are rejected.
+- `REVIEWED` remains a human workflow label, not a cryptographic approval or execution grant.
