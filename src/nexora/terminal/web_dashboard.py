@@ -25,6 +25,7 @@ VIEWS = {
     "/api/audit-search": lambda root: _render_audit_search(root),
     "/api/audit-search": lambda root: _render_audit_search(root),
     "/api/proposals": render_proposals,
+    "/api/proposal-records": lambda root: _render_proposal_records(root),
     "/api/capabilities": render_registry,
     "/api/memory": lambda root: _render_memory(root),
     "/api/runtime": lambda root: _render_runtime(),
@@ -51,6 +52,22 @@ def _render_audit_search(data_dir: Path) -> str:
 
     return json.dumps(
         search_audit_log(Path(data_dir) / "audit.jsonl"),
+        ensure_ascii=False,
+        indent=2,
+    )
+
+
+def _render_proposal_records(
+    data_dir: Path, *, proposal_id: str | None = None, limit: int = 100
+) -> str:
+    from nexora.proposals import read_proposals
+
+    return json.dumps(
+        read_proposals(
+            Path(data_dir) / "registry.sqlite3",
+            proposal_id=proposal_id,
+            limit=limit,
+        ),
         ensure_ascii=False,
         indent=2,
     )
@@ -306,6 +323,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("Verified audit search", "/api/audit-search"),
                     ("Verified audit search", "/api/audit-search"),
                     ("Self-family proposals", "/api/proposals"),
+                    ("Structured proposal records and review history", "/api/proposal-records"),
                     ("Capability registry", "/api/capabilities"),
                     ("Local memory", "/api/memory"),
                     ("LiteRT-LM runtime and local models", "/api/runtime"),
@@ -366,6 +384,43 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ensure_ascii=False, separators=(",", ":"),
                 ).encode("utf-8")
                 self._send(200, "application/json; charset=utf-8", payload)
+                return
+            if path == "/api/proposal-records":
+                query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+                allowed = {"proposal_id", "limit"}
+                if set(query) - allowed or any(len(values) != 1 for values in query.values()):
+                    self._send(
+                        400, "application/json; charset=utf-8",
+                        b'{"error":"invalid_proposal_query"}',
+                    )
+                    return
+                try:
+                    proposal_id = query.get("proposal_id", [None])[0]
+                    limit_value = query.get("limit", ["100"])[0]
+                    if not limit_value.isdecimal():
+                        raise ValueError("proposal_limit_invalid")
+                    limit = int(limit_value)
+                    from nexora.proposals import ProposalReadError, read_proposals
+                    report = read_proposals(
+                        root / "registry.sqlite3",
+                        proposal_id=proposal_id,
+                        limit=limit,
+                    )
+                    payload = json.dumps(
+                        {"read_only": True, "view": report},
+                        ensure_ascii=False, separators=(",", ":"),
+                    ).encode("utf-8")
+                    self._send(200, "application/json; charset=utf-8", payload)
+                except (ProposalReadError, ValueError, TypeError) as exc:
+                    self._send(
+                        400, "application/json; charset=utf-8",
+                        json.dumps({"error":"invalid_proposal_query","detail":str(exc)}).encode("utf-8"),
+                    )
+                except OSError as exc:
+                    self._send(
+                        500, "application/json; charset=utf-8",
+                        json.dumps({"error":type(exc).__name__}).encode("utf-8"),
+                    )
                 return
             if path == "/api/audit-search":
                 query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
