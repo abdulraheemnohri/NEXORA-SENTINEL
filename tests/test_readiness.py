@@ -100,7 +100,8 @@ def test_spec_status_reports_missing_source_and_unknown_matrix(tmp_path):
     assert {item["id"] for item in report["blockers"]} == {
         "missing_capability_source", "missing_meta_rule_source",
         "interaction_matrix_unknown_pairs", "settings_authorization_and_rollback",
-        "capability_family_coverage",
+        "capability_family_coverage", "capability_catalogue_integrity",
+        "capability_catalogue_not_complete",
     }
 
 
