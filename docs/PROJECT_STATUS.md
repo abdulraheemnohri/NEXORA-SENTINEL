@@ -282,3 +282,18 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   interface was added.
 - Exact-head CI and cross-platform qualification are required before this
   increment is considered verified.
+
+
+
+## Read-only specification validator — 2026-11-19
+
+- Added \`nexora spec-validate\` and \`nexora.spec_validation.validate_specification\`.
+- Validates capability and meta-rule record shapes, exact integer ID ranges,
+  duplicate IDs, canonical family/status vocabulary, declared missing ranges,
+  immutable meta-rule flags, interaction-matrix dimensions and precedence.
+- Any declared matrix entry must reference two source-backed IDs and contain
+  a source reference plus a SHA-256 evidence fingerprint.
+- Duplicate JSON keys, symlinks, non-regular paths and malformed JSON fail
+  validation. The command never repairs, imports or rewrites source artifacts.
+- Distinguishes \`VALID_PARTIAL_BLOCKED\` from \`INVALID\`; structural validity
+  does not imply source completeness, governance approval or execution authority.
