@@ -1,4 +1,4 @@
-"""Read-only, hash-chain-verified audit log search."""
+"""Read-only search over the existing hash-chained audit JSONL log."""
 from __future__ import annotations
 
 import hashlib
@@ -7,43 +7,13 @@ import stat
 from pathlib import Path
 from typing import Any
 
-from nexora._oversight_impl import GENESIS, canonical
-
 
 class AuditSearchError(ValueError):
-    """Raised when an audit log or search request cannot be trusted."""
+    """Raised when audit search filters are invalid or the log is not trustworthy."""
 
 
-def _validate_filters(
-    *,
-    event: str | None,
-    contains: str | None,
-    from_sequence: int | None,
-    to_sequence: int | None,
-    limit: int,
-) -> None:
-    if event is not None and (
-        not isinstance(event, str) or not event.strip() or len(event) > 256
-    ):
-        raise AuditSearchError("audit_search_event_filter_invalid")
-    if contains is not None and (
-        not isinstance(contains, str) or not contains.strip() or len(contains) > 1024
-    ):
-        raise AuditSearchError("audit_search_contains_filter_invalid")
-    for name, value in (
-        ("from_sequence", from_sequence),
-        ("to_sequence", to_sequence),
-    ):
-        if value is not None and (type(value) is not int or value < 1):
-            raise AuditSearchError(f"audit_search_{name}_invalid")
-    if (
-        from_sequence is not None
-        and to_sequence is not None
-        and from_sequence > to_sequence
-    ):
-        raise AuditSearchError("audit_search_sequence_range_invalid")
-    if type(limit) is not int or not 1 <= limit <= 500:
-        raise AuditSearchError("audit_search_limit_out_of_range")
+def _canonical(value: dict[str, Any]) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def search_audit_log(
@@ -55,18 +25,32 @@ def search_audit_log(
     to_sequence: int | None = None,
     limit: int = 100,
 ) -> dict[str, Any]:
-    """Verify the complete append-only hash chain before returning filtered rows.
+    """Verify the entire log before returning a filtered, bounded result set."""
+    if event is not None and (
+        not isinstance(event, str) or not event.strip() or len(event) > 128
+    ):
+        raise AuditSearchError("event_filter_invalid")
+    if contains is not None and (
+        not isinstance(contains, str) or len(contains) > 256
+    ):
+        raise AuditSearchError("contains_filter_invalid")
+    if from_sequence is not None and (
+        type(from_sequence) is not int or from_sequence < 1
+    ):
+        raise AuditSearchError("from_sequence_must_be_positive")
+    if to_sequence is not None and (
+        type(to_sequence) is not int or to_sequence < 1
+    ):
+        raise AuditSearchError("to_sequence_must_be_positive")
+    if (
+        from_sequence is not None
+        and to_sequence is not None
+        and to_sequence < from_sequence
+    ):
+        raise AuditSearchError("sequence_range_invalid")
+    if type(limit) is not int or not 1 <= limit <= 500:
+        raise AuditSearchError("limit_out_of_range")
 
-    Missing logs are reported as NOT_CONFIGURED without creating directories or
-    files. Invalid, symlinked, or non-regular files never return partial results.
-    """
-    _validate_filters(
-        event=event,
-        contains=contains,
-        from_sequence=from_sequence,
-        to_sequence=to_sequence,
-        limit=limit,
-    )
     source = Path(path)
     try:
         metadata = source.lstat()
@@ -74,8 +58,7 @@ def search_audit_log(
         return {
             "status": "NOT_CONFIGURED",
             "valid": None,
-            "path": str(source),
-            "entries_verified": 0,
+            "total_entries": 0,
             "matched_entries": 0,
             "results": [],
             "filters": {
@@ -83,90 +66,72 @@ def search_audit_log(
                 "contains": contains,
                 "from_sequence": from_sequence,
                 "to_sequence": to_sequence,
+                "limit": limit,
             },
-            "limit": limit,
-            "truncated": False,
             "read_only": True,
             "execution_enabled": False,
         }
     except OSError as exc:
         raise AuditSearchError("audit_log_unreadable") from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+        raise AuditSearchError("audit_log_path_unsafe")
 
-    if stat.S_ISLNK(metadata.st_mode):
-        raise AuditSearchError("audit_log_symlink_refused")
-    if not stat.S_ISREG(metadata.st_mode):
-        raise AuditSearchError("audit_log_not_a_regular_file")
-
-    previous = GENESIS
-    verified_count = 0
-    matched_count = 0
-    results: list[dict[str, Any]] = []
-    search_text = contains.casefold() if contains is not None else None
-
+    previous = "0" * 64
+    verified: list[dict[str, Any]] = []
     try:
         with source.open("r", encoding="utf-8") as stream:
             for line_number, line in enumerate(stream, 1):
                 if not line.strip():
                     continue
-                if len(line) > 1_000_000:
-                    raise AuditSearchError(f"audit_record_too_large:{line_number}")
                 try:
-                    record = json.loads(line)
+                    row = json.loads(line)
                 except json.JSONDecodeError as exc:
                     raise AuditSearchError(f"audit_log_invalid_json:{line_number}") from exc
-                if not isinstance(record, dict):
-                    raise AuditSearchError(f"audit_record_not_object:{line_number}")
-
-                body = {key: value for key, value in record.items() if key != "hash"}
+                if not isinstance(row, dict):
+                    raise AuditSearchError(f"audit_log_record_invalid:{line_number}")
+                body = {key: value for key, value in row.items() if key != "hash"}
                 expected = hashlib.sha256(
-                    (previous + canonical(body)).encode("utf-8")
+                    (previous + _canonical(body)).encode("utf-8")
                 ).hexdigest()
-                sequence_value = record.get("sequence")
-                if (
-                    record.get("previous_hash") != previous
-                    or record.get("hash") != expected
-                    or type(sequence_value) is not int
-                    or sequence_value != verified_count + 1
-                ):
-                    raise AuditSearchError(f"audit_chain_integrity_failed:{line_number}")
-
-                verified_count += 1
+                if row.get("sequence") != len(verified) + 1:
+                    raise AuditSearchError(f"audit_log_sequence_invalid:{line_number}")
+                if row.get("previous_hash") != previous or row.get("hash") != expected:
+                    raise AuditSearchError(f"audit_log_hash_chain_invalid:{line_number}")
+                verified.append(row)
                 previous = expected
-
-                sequence = sequence_value
-                if from_sequence is not None and sequence < from_sequence:
-                    continue
-                if to_sequence is not None and sequence > to_sequence:
-                    continue
-                if event is not None and record.get("event") != event:
-                    continue
-                if search_text is not None and search_text not in canonical(record).casefold():
-                    continue
-
-                matched_count += 1
-                if len(results) < limit:
-                    results.append(record)
-    except AuditSearchError:
-        raise
     except (OSError, UnicodeError) as exc:
         raise AuditSearchError("audit_log_unreadable") from exc
+
+    needle = contains.casefold() if contains is not None else None
+    matches = []
+    for row in verified:
+        sequence = row["sequence"]
+        if from_sequence is not None and sequence < from_sequence:
+            continue
+        if to_sequence is not None and sequence > to_sequence:
+            continue
+        if event is not None and row.get("event") != event:
+            continue
+        if needle is not None and needle not in _canonical(row).casefold():
+            continue
+        matches.append(row)
 
     return {
         "status": "VALID",
         "valid": True,
-        "path": str(source),
-        "entries_verified": verified_count,
-        "matched_entries": matched_count,
-        "results": results,
+        "total_entries": len(verified),
+        "matched_entries": len(matches),
+        "returned_entries": min(len(matches), limit),
+        "results": matches[-limit:],
         "filters": {
             "event": event,
             "contains": contains,
             "from_sequence": from_sequence,
             "to_sequence": to_sequence,
+            "limit": limit,
         },
-        "limit": limit,
-        "truncated": matched_count > len(results),
         "head_hash": previous,
         "read_only": True,
         "execution_enabled": False,
+        "note": "The complete log is hash-chain verified before filtering; no record is changed.",
     }
