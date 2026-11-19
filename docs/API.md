@@ -210,3 +210,38 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Each signer must use a distinct enrolled key and distinct reviewer ID. All signers must attest the same decision and evidence.
 - nexora proposals show and GET /api/proposal-records re-verify stored signatures and nonce consumption.
 - Signed review does not grant lifecycle approval, capability activation, settings/policy mutation or tool execution.
+
+
+
+## Optional Litestar read-only API
+
+The optional ASGI adapter is installed with:
+
+    python -m pip install -e ".[control-plane]"
+
+Start it with:
+
+    nexora --data-dir data api --port 8765
+
+The supported launcher binds to \`127.0.0.1\` and the application Host
+allowlist is fixed to \`127.0.0.1\` and \`localhost\`. There is no CLI option to
+bind to another interface. Do not proxy, forward or expose this API outside
+the local machine.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | \`/healthz\` | Liveness and mode |
+| GET | \`/api/v1/status\` | Read-only doctor diagnostics |
+| GET | \`/api/v1/specification\` | Specification and governance readiness |
+| GET | \`/api/v1/specification/validation\` | Strict structural source validation |
+| GET | \`/api/v1/capabilities\` | Source-backed capability inventory |
+| GET | \`/api/v1/proposals\` | Proposal/review history |
+| GET | \`/api/v1/proposals/{proposal_id}\` | One proposal and review history |
+
+All responses contain \`read_only: true\` and explicit false control flags.
+There are no POST, PUT, PATCH or DELETE handlers, no approval or lifecycle
+transition endpoints, no settings-apply path, no tool execution and no
+network-egress operation. Unimplemented methods return HTTP 405. The proposal
+reader uses SQLite read-only mode and does not initialize a missing database.
+The route collection is not an authorization API; operator approval and
+execution remain outside this service.
