@@ -112,6 +112,7 @@ def test_cli_settings_diff_returns_review_required_without_applying(tmp_path, ca
     assert output["apply_supported"] is False
     assert not (tmp_path / "missing.json").exists()
 
+
 def test_settings_loader_rejects_dangling_symlink_instead_of_using_defaults(tmp_path):
     path = tmp_path / "settings.json"
     try:
