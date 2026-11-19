@@ -318,3 +318,20 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   validation. The command never repairs, imports or rewrites source artifacts.
 - Distinguishes \`VALID_PARTIAL_BLOCKED\` from \`INVALID\`; structural validity
   does not imply source completeness, governance approval or execution authority.
+
+
+
+## Optional Litestar local diagnostics API
+
+- Added \`nexora api --port 8765\` using an optional Litestar/Uvicorn dependency
+  group; the default installation remains lightweight.
+- Added GET-only \`/healthz\` and \`/api/v1/\` routes for system status,
+  specification readiness/validation, source capability inventory and
+  proposal review history.
+- The launcher binds explicitly to \`127.0.0.1\`, fixes the Host allowlist to
+  loopback names, rejects symlink/non-directory data roots, and provides no
+  mutation or execution handlers.
+- API responses carry explicit read-only and disabled-control fields.
+- This is intentionally not a LAN/public API and is not a control/authorization
+  surface. Integration tests exercise read methods, blocked POST, and
+  no-storage-creation behavior.

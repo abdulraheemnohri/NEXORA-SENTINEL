@@ -547,3 +547,32 @@ A structurally valid but incomplete specification returns
 STA specification is complete or authorized. Use \`nexora spec-status\` for
 the broader readiness report. Neither command imports records, infers missing
 relationships, changes settings, or enables execution.
+
+
+
+## Optional Litestar diagnostics API
+
+Install the local API extras:
+
+    python -m pip install -e ".[control-plane]"
+
+Run the GET-only API:
+
+    nexora --data-dir data api --port 8765
+
+The service binds to \`127.0.0.1\` only. Open
+\`http://127.0.0.1:8765/healthz\`. Diagnostic routes are under
+\`/api/v1/\`: \`status\`, \`specification\`,
+\`specification/validation\`, \`capabilities\`, and \`proposals\`.
+Proposal detail uses \`/api/v1/proposals/{proposal_id}\`.
+
+This is a local inspection API, not a remote control plane. It exposes no
+write, approval, settings-apply, lifecycle-transition, tool-execution or
+network-egress route. Unknown HTTP methods are rejected. Do not expose it
+through a reverse proxy or bind it to a LAN/public interface. The existing
+stdlib dashboard remains available with \`nexora web\`.
+
+
+
+The API's disabled network-egress flag describes only its registered route
+surface; it is not a process-wide or operating-system network firewall.

@@ -47,3 +47,23 @@ NEXORA-SENTINEL v0.2.0 is a local-first governance and runtime foundation, not a
 3. Require explicit per-capability maturity evidence, human authorization and signed approvals. No self-promotion.
 4. Treat remote witness deployment as a separate trust domain with independent operators, keys and retention.
 5. Re-run platform-specific tests on the actual target device; GitHub CI does not establish Android device compatibility.
+
+
+
+### Optional Litestar diagnostics API
+
+The Litestar adapter is a local diagnostic surface only. The supported CLI
+launcher binds Uvicorn to IPv4 loopback (\`127.0.0.1\`) and the app accepts only
+loopback Host values. It has no write, approval, settings mutation, lifecycle
+transition, tool-execution or network-egress handlers. The application
+rejects a symlink/non-directory data root and uses existing read-only
+diagnostic and SQLite accessors. Do not expose this listener through a proxy,
+port-forward or LAN interface. Loopback binding is not a substitute for
+operating-system process isolation or protection from other local processes.
+
+
+
+The API's \`network_egress_route_enabled: false\` flag is descriptive of the
+route set only. It is not a claim that the Python process or host operating
+system cannot initiate network connections. Enforce process/host egress
+restrictions separately when needed.
