@@ -23,7 +23,6 @@ VIEWS = {
     "/api/overview": render_overview,
     "/api/audit": render_audit,
     "/api/audit-search": lambda root: _render_audit_search(root),
-    "/api/audit-search": lambda root: _render_audit_search(root),
     "/api/proposals": render_proposals,
     "/api/proposal-records": lambda root: _render_proposal_records(root),
     "/api/capabilities": render_registry,
