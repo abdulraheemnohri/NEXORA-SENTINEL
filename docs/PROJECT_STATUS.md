@@ -81,3 +81,67 @@ Implemented in the current development line:
 - No evidence mutation, lifecycle transition, authorization or execution is performed by the report.
 
 Exact-SHA workflow status must be checked before treating this milestone as verified. See [EVIDENCE_FRESHNESS.md](EVIDENCE_FRESHNESS.md).
+
+## Atomic settings persistence hardening — 2026-11-19
+
+- `Settings.save()` now serializes before touching the destination, writes a same-directory temporary file, applies owner-only POSIX permissions where supported, flushes and fsyncs file contents, atomically replaces the target, and fsyncs the containing directory on POSIX.
+- Rejects symlink destinations (including dangling links) and existing non-file targets. Temporary files are cleaned after write/replace failures; a failed replacement preserves the previous settings file.
+- Added regression tests for successful replacement/round-trip, replacement failure preserving the old file, temporary-file cleanup, symlink refusal, directory refusal, and POSIX mode 0600.
+- Added `docs/SETTINGS_PERSISTENCE_SAFETY.md`. This does not add a settings editor or policy mutation surface; settings inspection remains read-only, L0 remains default, and scheduler/sandbox/network remain disabled by default.
+- Commits: implementation `0fc0f71236af98eb0ed5585eca4aa86607f81051`; tests `173b2fb25362e27f7038453f83b85c71d7ce78ab`; documentation `c9e0b68b47700403527ab0501f579285e6864752`.
+- Persistence-only verification at commit `f1d2649b2e41c9b0678a339fc3ffcfa43c6a11e9`: all five workflows passed (CI, Tests, Security, Build and Formal Verification). GitHub-hosted Linux executed Ruff, pytest, compileall, pip check, wheel build and TLC. This does not validate the later settings-diff preview changes below.
+
+### Next task
+
+After all exact-SHA workflows pass, define the reviewed per-setting authorization and rollback requirements before implementing a controlled settings-change workflow. Do not expose settings mutation until those governance rules are approved.
+
+## Settings change preview and path hardening — 2026-11-19
+
+- Added `nexora settings diff --config CURRENT --candidate PROPOSED`, a read-only comparison of validated settings files.
+- Changed settings return `REVIEW_REQUIRED`, `authorization=NOT_EVALUATED`, and `apply_supported=false`; identical settings return `NO_CHANGES`. The CLI returns exit code 3 for a non-empty diff and never writes either file.
+- No per-setting authorization matrix is assumed or fabricated. There is no settings apply command, policy mutation, feature enablement or autonomy increase.
+- Settings inspection now uses `lstat()` and rejects symlink paths, including dangling symlinks, instead of treating an uninspectable/dangling path as absent defaults. Candidate settings use the same strict loader.
+- Added tests for diff output, no-change behavior, invalid/missing candidate files, CLI non-mutation, and symlink rejection.
+- README and `docs/SETTINGS_PERSISTENCE_SAFETY.md` document the preview-only contract.
+- Current branch-head verification is pending after these additions; do not infer it from the earlier persistence-only run.
+
+
+### Validation correction
+
+The first workflow run for the settings-diff increment caught four Ruff F821 errors because the new tests had not imported `Settings` (run `44454809809`). The explicit import was added in commit `0d2d8ccec3b5dd591330f47bd9fac2a27a326240`. All five workflows then passed on that code/test commit: CI `44454875472`, Tests `44454875493`, Security `44454875533`, Build `44454875513`, and Formal Verification `44454875517`. CI/Tests/Security each report Ruff passed, compileall passed, and 346 pytest tests passed; Security also reports `pip check` passed. Build reports wheel creation passed; TLC model check passed. The only later commit is this documentation update (`902092e076ee7850870cff1e9219750e30fb3b5f`).
+
+
+## Final testing preparation increment — 2026-11-19
+
+- Added `.github/workflows/platform-qualification.yml` with Ubuntu and Windows hosted runners on Python 3.11 and 3.12. Each job runs dependency consistency, Ruff, the full pytest suite, compileall, wheel build and CLI/settings-diff help smoke tests.
+- Added `scripts/qualify.ps1` for Windows PowerShell and `scripts/qualify.sh` for Linux/Debian. Both use an isolated `.venv`, install development/build dependencies and run the same core checks.
+- Added `docs/TESTING_AND_QUALIFICATION.md` with Windows 10/11, Linux, Android Debian, backup/witness, settings non-mutation and manual device qualification checklists. Linked it from README.
+- Hosted Windows CI is a current Windows runner, not exact Windows 10 hardware certification. Android Debian and physical independent witness custody still require the operator's devices.
+- New platform matrix workflows have been added; exact results are pending. No final release readiness claim is made until they pass and manual blockers are resolved.
+
+
+## Cross-platform test findings and fixes — 2026-11-19
+
+- Initial Platform Qualification run exposed Windows-only failures: SQLite database connections were not explicitly closed before temporary backup/restore files were deleted (Windows `WinError 32`), and a signing-key test incorrectly treated POSIX permission bits as meaningful on Windows.
+- Fixed backup SQLite connection lifetime through a helper that preserves transaction commit/rollback semantics and always closes the connection in `finally`; applied to inspection, backup and restore paths.
+- Updated the update-signing key test to assert POSIX mode 0600 only on POSIX. On Windows, it checks key usability and documents inherited NTFS ACL requirements; no claim of automated Windows ACL verification is made.
+- The first failing matrix run is retained as evidence. A corrected cross-platform matrix run is pending; do not count Windows as qualified until both Python versions and all CLI smoke steps pass.
+
+
+### Follow-up CI correction
+
+The first run after the Windows portability change stopped at Ruff because the new `contextmanager` import was out of order; the Windows pytest jobs had not yet validated that change. Import ordering was corrected in commit `909d8c85269992b9a9085a98fe467847dea8fdb4`. A fresh exact-head CI and platform matrix is required before accepting the fix.
+
+
+### Second Windows permission-test correction
+
+The corrected SQLite handle fix removed the prior backup/restore temp-file errors. The next Windows matrix run passed 343 tests and exposed one remaining platform-assumption in `tests/test_approval_key_lifecycle.py`: it asserted POSIX mode 0600 unconditionally. Updated the assertion to check POSIX mode only on POSIX and to check generated key readability/usability on Windows, where ACLs inherit from the parent directory. This does not certify Windows ACLs; operator verification with `icacls` remains required. The new test-only correction is commit `b4aee138a69a07d9f7881ad05d63cc165307721b`; exact-head matrix rerun pending.
+
+
+## Read-only settings dashboard UI — 2026-11-19
+
+- Added a Settings and Safety Controls panel to the local web dashboard with a responsive dark console layout suitable for desktop and mobile browsers.
+- Added `GET /api/settings`, which reads and validates the configured settings file or reports safe built-in defaults when absent. Invalid/unreadable/symlinked configuration is reported as invalid; it is never silently replaced.
+- The endpoint and dashboard remain GET-only and read-only. No settings apply form, policy mutation, feature activation or execution control was added. The existing `nexora settings diff` remains a preview only.
+- Added tests for valid settings, invalid settings fail-closed behavior, dashboard panel rendering and absence of data-store creation.
+- Settings path can be injected when creating the server for embedding/tests; default remains `config/settings.yaml`.

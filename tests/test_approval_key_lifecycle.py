@@ -1,3 +1,4 @@
+import os
 import sqlite3
 
 import pytest
@@ -22,7 +23,11 @@ def test_keypair_permissions_and_no_overwrite(tmp_path):
     private, public = _keypair(tmp_path, "first")
     assert load_public_key(public)
     assert load_private_key(private)
-    assert private.stat().st_mode & 0o777 == 0o600
+    if os.name == "posix":
+        assert private.stat().st_mode & 0o777 == 0o600
+    else:
+        # Windows ACLs inherit from the parent directory; POSIX mode bits do not apply.
+        assert private.read_bytes().startswith(b"-----BEGIN PRIVATE KEY-----")
     with pytest.raises(ApprovalError, match="already_exists"):
         generate_keypair(private, public)
 
