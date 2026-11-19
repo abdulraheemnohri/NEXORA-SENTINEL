@@ -48,7 +48,7 @@ def test_history_replays_valid_legacy_events_without_claiming_authenticity(tmp_p
     report = build_lifecycle_history(path)
     assert report["status"] == "STRUCTURALLY_CONSISTENT"
     assert report["capabilities"][0]["replayed_state"] == "IMPLEMENTED"
-    assert report["integrity"]["history_authenticity"] == "UNVERIFIED"
+    assert report["integrity"]["history_authenticity"] == "UNVERIFIED_WITHOUT_EXTERNAL_ANCHOR"
     assert report["execution_enabled"] is False
 
 
