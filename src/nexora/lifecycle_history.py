@@ -12,6 +12,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from nexora.lifecycle import LIFECYCLE
+from nexora.lifecycle_chain import verify_lifecycle_chain
 
 
 class LifecycleHistoryError(RuntimeError):
@@ -35,11 +36,13 @@ def build_lifecycle_history(database: Path, capability_id: int | None = None) ->
         type(capability_id) is not int or not 1 <= capability_id <= 264
     ):
         raise LifecycleHistoryError("capability_id_out_of_range")
+    chain_report = None
     try:
         with closing(_readonly(database)) as db:
             tables = {row["name"] for row in db.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )}
+            chain_report = verify_lifecycle_chain(db)
             required = {"capabilities", "lifecycle_events", "revocation_events", "rollback_events"}
             if not required.issubset(tables):
                 raise LifecycleHistoryError("registry_schema_incomplete")
@@ -137,9 +140,18 @@ def build_lifecycle_history(database: Path, capability_id: int | None = None) ->
         "capabilities": records,
         "integrity": {
             "append_only_triggers": "PRESENT_IN_SCHEMA",
-            "cryptographic_hash_chain": "NOT_IMPLEMENTED_FOR_LEGACY_LIFECYCLE_EVENTS",
-            "history_authenticity": "UNVERIFIED",
-            "assessment": "Structural replay detects inconsistencies but cannot prove records were not rewritten outside SQLite triggers.",
+            "cryptographic_hash_chain": (
+                "VALID_WITH_LEGACY_UNVERIFIED_RECORDS"
+                if chain_report and chain_report.get("valid")
+                else (chain_report.get("status", "UNVERIFIED") if chain_report else "UNVERIFIED")
+            ),
+            "chain": chain_report,
+            "history_authenticity": "UNVERIFIED_WITHOUT_EXTERNAL_ANCHOR",
+            "assessment": (
+                "The local hash chain detects changes to post-activation records. "
+                "Legacy records are excluded and remain unverified; a privileged database rewrite "
+                "can rewrite the local chain unless its head is independently witnessed."
+            ),
         },
         "read_only": True,
         "authorization_granted": False,
