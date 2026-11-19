@@ -68,7 +68,7 @@ def test_trust_rotation_verification_rejects_wrong_old_pin(tmp_path):
     old = Ed25519PrivateKey.generate()
     new = Ed25519PrivateKey.generate()
     old_private = _write_private(tmp_path / "old" / "private.pem", old)
-    old_public = _write_public(tmp_path / "old" / "public.pem", old)
+    _write_public(tmp_path / "old" / "public.pem", old)
     wrong_public = _write_public(
         tmp_path / "wrong" / "public.pem", Ed25519PrivateKey.generate()
     )
