@@ -91,3 +91,24 @@ def test_api_cli_rejects_invalid_port_without_starting_server(capsys):
     assert payload["started"] is False
     assert payload["error"] == "control_plane_port_out_of_range"
     assert payload["execution_enabled"] is False
+
+
+
+def test_api_launcher_hard_binds_to_ipv4_loopback(tmp_path, monkeypatch):
+    import uvicorn
+
+    from nexora.litestar_api import run_litestar_api
+
+    captured = {}
+
+    def fake_run(app, **kwargs):
+        captured["app"] = app
+        captured.update(kwargs)
+
+    monkeypatch.setattr(uvicorn, "run", fake_run)
+    run_litestar_api(tmp_path / "missing-data", port=8765)
+
+    assert captured["host"] == "127.0.0.1"
+    assert captured["port"] == 8765
+    assert captured["access_log"] is False
+    assert not (tmp_path / "missing-data").exists()
