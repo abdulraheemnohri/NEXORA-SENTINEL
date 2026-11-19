@@ -248,6 +248,10 @@ def verify_lifecycle_chain_anchor(database: Path, witness_log: Path, trusted_pub
     if not chain.get("valid"):
         return {"valid": False, "status": "LOCAL_CHAIN_INVALID", "chain": chain}
     witness = verify_witness_chain(witness_log, trusted_public_key)
+    latest = {
+        "event_type": witness.get("last_event_type"),
+        "event_hash": witness.get("last_event_hash"),
+    }
     matches = (
         latest.get("event_type") == "lifecycle_chain_head"
         and latest.get("event_hash") == chain.get("head_hash")
