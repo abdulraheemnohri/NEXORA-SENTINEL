@@ -222,3 +222,14 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   the current proposal table does not retain the original complete payload.
 - Proposal review mutation and signed proposal approvals remain separate
   follow-up work; execution remains disabled.
+
+
+## Source-backed family explorer — 2026-11-19
+
+- Added `nexora family-map` and `GET /api/family-map` with a dashboard card.
+- The report lists all 40 canonical family codes and shows names/counts only
+  from source-backed catalogue records.
+- Cross-cutting records are separate; conflicting source names are flagged.
+- Missing capability IDs remain unassigned and unknown family values are
+  counted rather than mapped by inference.
+- No capability status, relationship, authorization or execution state changes.
