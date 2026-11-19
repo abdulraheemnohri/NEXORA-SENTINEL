@@ -24,6 +24,20 @@ def canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
+def _baseline_hash(db: sqlite3.Connection) -> tuple[str, dict[str, int]]:
+    metadata = {
+        row["source_table"]: row["legacy_max_event_id"]
+        for row in db.execute(
+            "SELECT source_table,legacy_max_event_id FROM lifecycle_chain_meta ORDER BY source_table"
+        )
+    }
+    if set(metadata) != set(SOURCE_TABLES):
+        raise LifecycleChainError("lifecycle_chain_watermarks_incomplete")
+    payload = {"domain": "nexora-lifecycle-chain-v1", "legacy_watermarks": metadata}
+    digest = hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+    return digest, metadata
+
+
 def _event_hash(sequence: int, source_table: str, source_event_id: int,
                 payload_json: str, previous_hash: str) -> str:
     envelope = {
@@ -92,7 +106,7 @@ def append_lifecycle_event(db: sqlite3.Connection, source_table: str, event_id: 
         "SELECT sequence,event_hash FROM lifecycle_chain_events ORDER BY sequence DESC LIMIT 1"
     ).fetchone()
     sequence = (previous["sequence"] + 1) if previous else 1
-    previous_hash = previous["event_hash"] if previous else GENESIS
+    previous_hash = previous["event_hash"] if previous else _baseline_hash(db)[0]
     digest = _event_hash(sequence, source_table, event_id, payload_json, previous_hash)
     db.execute(
         """INSERT INTO lifecycle_chain_events(
@@ -114,22 +128,20 @@ def verify_lifecycle_chain(db: sqlite3.Connection) -> dict:
             "head_hash": None, "legacy_unverified": True,
             "error": "lifecycle_chain_schema_missing",
         }
-    metadata = {
-        row["source_table"]: row["legacy_max_event_id"]
-        for row in db.execute("SELECT source_table,legacy_max_event_id FROM lifecycle_chain_meta")
-    }
-    if set(metadata) != set(SOURCE_TABLES):
+    try:
+        baseline_digest, metadata = _baseline_hash(db)
+    except LifecycleChainError:
         return {
             "valid": False, "status": "INVALID", "event_count": 0,
             "head_hash": None, "legacy_unverified": True,
             "error": "lifecycle_chain_watermarks_incomplete",
         }
 
-    previous_hash = GENESIS
+    previous_hash = baseline_digest
     expected_sequence = 1
     covered: set[tuple[str, int]] = set()
     errors: list[str] = []
-    head_hash = GENESIS
+    head_hash = baseline_digest
     rows = db.execute("SELECT * FROM lifecycle_chain_events ORDER BY sequence").fetchall()
     for row in rows:
         event = dict(row)
