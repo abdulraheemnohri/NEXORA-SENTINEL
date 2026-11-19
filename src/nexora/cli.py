@@ -24,6 +24,10 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check"):
         sub.add_parser(name)
+    maturity = sub.add_parser("maturity-report", help="Report lifecycle evidence and explicit L0-L4 source gaps")
+    maturity.add_argument("--capability-id", type=int)
+    maturity.add_argument("--database", type=Path)
+    maturity.add_argument("--catalog", type=Path)
     capabilities = sub.add_parser("capabilities", help="Inspect source-backed self-capability coverage")
     capabilities.add_argument("--family")
     capabilities.add_argument("--include-records", action="store_true")
@@ -428,6 +432,19 @@ def main(argv=None):
         except (EvidenceError, OSError, ValueError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
+    if args.cmd == "maturity-report":
+        from nexora.maturity_report import MaturityReportError, build_maturity_report
+        try:
+            result = build_maturity_report(
+                args.database or args.data_dir / "registry.sqlite3",
+                catalog_path=args.catalog,
+                capability_id=args.capability_id,
+            )
+        except (MaturityReportError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["ledger"]["status"] != "INVALID" else 3
     if args.cmd == "capabilities":
         from nexora.self_capability_report import build_report
         try:
