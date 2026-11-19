@@ -355,12 +355,52 @@ def main(argv=None):
         "--policy", type=Path, default=Path("config/settings_authorization.json")
     )
 
+    proposals = sub.add_parser(
+        "proposals", help="Inspect self-family proposals without execution authorization"
+    )
+    proposals_sub = proposals.add_subparsers(dest="proposals_cmd", required=True)
+    proposals_list = proposals_sub.add_parser("list", help="List stored proposals read-only")
+    proposals_list.add_argument("--database", type=Path)
+    proposals_list.add_argument("--limit", type=int, default=100)
+    proposals_show = proposals_sub.add_parser("show", help="Inspect one proposal and its review history")
+    proposals_show.add_argument("proposal_id")
+    proposals_show.add_argument("--database", type=Path)
     memory_delete = sub.add_parser("memory-delete", aliases=["memory-tombstone", "memory-hide"])
     memory_delete.add_argument("memory_id", type=int)
     memory_delete.add_argument("--reason", required=True)
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "proposals":
+        from nexora.proposals import ProposalReadError, read_proposals
+        database = args.database or (args.data_dir / "registry.sqlite3")
+        try:
+            result = read_proposals(
+                database,
+                proposal_id=args.proposal_id if args.proposals_cmd == "show" else None,
+                limit=args.limit if args.proposals_cmd == "list" else 1,
+            )
+        except (ProposalReadError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        if args.proposals_cmd == "show":
+            if result["status"] == "VALID" and not result["proposals"]:
+                print(json.dumps({
+                    "status": "NOT_FOUND",
+                    "proposal_id": args.proposal_id,
+                    "read_only": True,
+                    "execution_enabled": False,
+                }, indent=2))
+                return 3
+            result["proposal"] = result["proposals"][0] if result["proposals"] else None
+            result.pop("proposals", None)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "VALID" else 3
     if args.cmd == "audit-search":
         from nexora.audit_search import AuditSearchError, search_audit_log
         try:
