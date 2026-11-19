@@ -225,7 +225,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+            self.send_header("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'")
             self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
             self.wfile.write(body)
@@ -263,18 +263,32 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                 ):
                     content = VIEWS[route](root)
                     blocks.append(
-                        "<section><h2>" + escape(title) + "</h2><pre>" +
+                        "<section class=\"panel\"><h2>" + escape(title) + "</h2><pre>" +
                         escape(content) + "</pre><p><a href=\"" + route +
                         "\">View read-only JSON endpoint</a></p></section>"
                     )
                 page = (
                     "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">"
                     "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                    "<title>NEXORA Sentinel — Read Only</title><body>"
-                    "<h1>NEXORA SENTINEL</h1><p>Local read-only dashboard · L0 default</p>"
+                    "<title>NEXORA Sentinel — Read Only</title><style>"
+                    ":root{color-scheme:dark;font-family:Inter,Segoe UI,Arial,sans-serif;background:#0b1220;color:#e5edf8}"
+                    "body{margin:0;background:radial-gradient(circle at top left,#172b45,#0b1220 52%);min-height:100vh}"
+                    "main{max-width:1180px;margin:auto;padding:32px 20px 56px}"
+                    "header{padding:24px;border:1px solid #26384f;border-radius:18px;background:#101c2d;margin-bottom:22px}"
+                    "h1{font-size:clamp(25px,4vw,38px);margin:0 0 8px;letter-spacing:.04em}"
+                    ".sub{color:#9fb2c9;margin:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px}"
+                    ".panel{min-width:0;padding:18px;border:1px solid #26384f;border-radius:16px;background:#101c2d;box-shadow:0 8px 24px #0003}"
+                    "h2{font-size:16px;margin:0 0 12px;color:#b8d5f7}pre{white-space:pre-wrap;overflow-wrap:anywhere;"
+                    "font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;color:#d4dfed;margin:0 0 14px}"
+                    "a{color:#7cc4ff;text-decoration:none}a:hover{text-decoration:underline}"
+                    "footer{margin-top:22px;color:#8ea2bb;font-size:12px}"
+                    "@media(max-width:520px){main{padding:16px 12px 32px}.panel{padding:14px}}"
+                    "</style></head><body><main><header>"
+                    "<h1>NEXORA SENTINEL</h1><p class=\"sub\">Local safety console · read-only diagnostics · L0 default</p>"
+                    "</header><div class=\"grid\">"
                     + "".join(blocks) +
-                    "<footer>GET-only diagnostics. No control or execution endpoints.</footer>"
-                    "</body></html>"
+                    "</div><footer>GET-only diagnostics. No control or execution endpoints. Settings changes are preview-only.</footer>"
+                    "</main></body></html>"
                 )
                 self._send(200, "text/html; charset=utf-8", page.encode("utf-8"))
                 return
