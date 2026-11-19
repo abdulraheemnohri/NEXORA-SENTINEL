@@ -222,6 +222,13 @@ def main(argv=None):
     spec_status.add_argument("--matrix", type=Path)
     spec_status.add_argument("--precedence", type=Path)
     spec_status.add_argument("--settings-policy", type=Path)
+    spec_validate = sub.add_parser(
+        "spec-validate", help="Validate source artifact schemas and provenance without mutation"
+    )
+    spec_validate.add_argument("--catalog", type=Path)
+    spec_validate.add_argument("--rules", type=Path)
+    spec_validate.add_argument("--matrix", type=Path)
+    spec_validate.add_argument("--precedence", type=Path)
     source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
     source_status.add_argument("--catalog", type=Path)
     source_status.add_argument("--rules", type=Path)
@@ -867,6 +874,31 @@ def main(argv=None):
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["status"] == "READY_FOR_INDEPENDENT_REVIEW" else 3
+    if args.cmd == "spec-validate":
+        from nexora.spec_validation import validate_specification
+        try:
+            kwargs = {}
+            for argument, key in (
+                ("catalog", "catalog_path"),
+                ("rules", "rules_path"),
+                ("matrix", "matrix_path"),
+                ("precedence", "precedence_path"),
+            ):
+                value = getattr(args, argument)
+                if value is not None:
+                    kwargs[key] = value
+            result = validate_specification(**kwargs)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "valid": False,
+                "error": str(exc),
+                "execution_enabled": False,
+                "policy_mutation_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["valid"] else 2
     if args.cmd == "source-status":
         from nexora.source_status import build_source_status
         try:
