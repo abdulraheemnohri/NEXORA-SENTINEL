@@ -13,7 +13,7 @@ from typing import Any
 
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from nexora.approval import ApprovalError, load_private_key, load_public_key, public_key_fingerprint
 
@@ -190,7 +190,7 @@ def verify_rotation_statement(
     if not isinstance(created_at, str):
         raise TrustRotationError("trust_rotation_timestamp_invalid")
     try:
-        parsed_created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        parsed_created_at = datetime.fromisoformat(created_at)
     except ValueError as exc:
         raise TrustRotationError("trust_rotation_timestamp_invalid") from exc
     if parsed_created_at.tzinfo is None:
