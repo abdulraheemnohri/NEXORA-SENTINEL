@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from nexora.config import Settings
 from nexora.settings_manager import load_settings, settings_report
 
 
