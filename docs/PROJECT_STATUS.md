@@ -136,3 +136,12 @@ The first run after the Windows portability change stopped at Ruff because the n
 ### Second Windows permission-test correction
 
 The corrected SQLite handle fix removed the prior backup/restore temp-file errors. The next Windows matrix run passed 343 tests and exposed one remaining platform-assumption in `tests/test_approval_key_lifecycle.py`: it asserted POSIX mode 0600 unconditionally. Updated the assertion to check POSIX mode only on POSIX and to check generated key readability/usability on Windows, where ACLs inherit from the parent directory. This does not certify Windows ACLs; operator verification with `icacls` remains required. The new test-only correction is commit `b4aee138a69a07d9f7881ad05d63cc165307721b`; exact-head matrix rerun pending.
+
+
+## Read-only settings dashboard UI — 2026-11-19
+
+- Added a Settings and Safety Controls panel to the local web dashboard with a responsive dark console layout suitable for desktop and mobile browsers.
+- Added `GET /api/settings`, which reads and validates the configured settings file or reports safe built-in defaults when absent. Invalid/unreadable/symlinked configuration is reported as invalid; it is never silently replaced.
+- The endpoint and dashboard remain GET-only and read-only. No settings apply form, policy mutation, feature activation or execution control was added. The existing `nexora settings diff` remains a preview only.
+- Added tests for valid settings, invalid settings fail-closed behavior, dashboard panel rendering and absence of data-store creation.
+- Settings path can be injected when creating the server for embedding/tests; default remains `config/settings.yaml`.
