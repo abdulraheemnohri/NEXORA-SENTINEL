@@ -1,3 +1,4 @@
+import hashlib
 import json
 
 from nexora.diagnostics import build_doctor_report
@@ -60,3 +61,26 @@ def test_doctor_cli_returns_report_without_creating_data_directory(tmp_path, cap
     assert payload["safety"]["read_only"] is True
     assert payload["safety"]["execution_enabled"] is False
     assert not data_dir.exists()
+
+
+def test_doctor_rejects_boolean_audit_sequence_even_with_valid_hash(tmp_path):
+    from nexora._oversight_impl import GENESIS, canonical
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    record = {
+        "sequence": True,
+        "event": "test.event",
+        "payload": {},
+        "previous_hash": GENESIS,
+    }
+    record["hash"] = hashlib.sha256(
+        (GENESIS + canonical(record)).encode("utf-8")
+    ).hexdigest()
+    audit = data_dir / "audit.jsonl"
+    audit.write_text(json.dumps(record) + "\\n", encoding="utf-8")
+
+    report = build_doctor_report(data_dir)
+
+    assert report["checks"]["audit"]["status"] == "INVALID"
+    assert report["safety"]["execution_enabled"] is False
