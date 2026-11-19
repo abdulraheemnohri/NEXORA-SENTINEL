@@ -22,7 +22,7 @@ nexora = "nexora.cli:main"
 where = ["src"]
 
 [tool.setuptools.data-files]
-"share/nexora/spec" = ["spec/capability_catalog.json", "spec/meta_rules.json", "spec/interaction_matrix.json"]
+"share/nexora/spec" = ["spec/capability_catalog.json", "spec/meta_rules.json", "spec/interaction_matrix.json", "data/governance/precedence.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

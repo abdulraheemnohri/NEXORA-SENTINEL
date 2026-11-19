@@ -97,3 +97,14 @@ The charter's settings precedence (per-capability → per-family → global → 
 - Each implementation increment has tests, threat-model updates, and exact-head CI evidence. Physical platform claims are made only after actual device qualification.
 
 **Bottom line:** STA v1.0 substantially clarifies the intended destination, but it is not yet a complete machine-executable specification. This reconciliation intentionally preserves the missing-source boundary and prevents a design example from being mistaken for authorization.
+
+
+
+## Follow-on implementation: source validator
+
+A read-only \`nexora spec-validate\` command now validates the current source
+artifacts' record shapes and declared gaps. It also requires every future
+interaction pair to carry a source reference and SHA-256 evidence fingerprint.
+This is a structural/provenance contract only: it does not create missing
+definitions or relationships, authenticate an external source, or authorize
+any capability. See \`docs/SPEC_VALIDATION.md\`.

@@ -518,3 +518,32 @@ Use distinct enrolled keys and reviewer IDs. Signed reviews are append-only
 and re-verified when proposals are read. They do not grant lifecycle approval,
 settings/policy mutation, capability activation or execution. See
 docs/GOVERNANCE.md.
+
+
+
+## Specification validation
+
+Validate the committed capability catalogue, meta-rules, interaction matrix
+and precedence artifact without modifying any source file:
+
+    nexora spec-validate
+
+Optional file overrides are available for controlled testing and review:
+
+    nexora spec-validate \
+      --catalog path/to/capability_catalog.json \
+      --rules path/to/meta_rules.json \
+      --matrix path/to/interaction_matrix.json \
+      --precedence path/to/precedence.json
+
+The command checks exact ID types/ranges, duplicate IDs, required fields,
+family/status values, immutable meta-rule flags, declared missing-range
+accuracy, matrix dimensions and relation vocabulary. Any declared interaction
+pair must reference source-backed capability IDs and carry a source reference
+and SHA-256 evidence fingerprint.
+
+A structurally valid but incomplete specification returns
+\`VALID_PARTIAL_BLOCKED\`. That means the files are well-formed, not that the
+STA specification is complete or authorized. Use \`nexora spec-status\` for
+the broader readiness report. Neither command imports records, infers missing
+relationships, changes settings, or enables execution.
