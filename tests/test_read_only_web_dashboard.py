@@ -367,3 +367,42 @@ def test_web_dashboard_rejects_invalid_evidence_freshness_filter(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def test_web_dashboard_exposes_evidence_provenance_without_creating_storage(tmp_path):
+    data_dir = tmp_path / "no-evidence"
+    server = create_read_only_server(data_dir, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/evidence-provenance")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        assert response.status == 200
+        assert payload["read_only"] is True
+        report = json.loads(payload["view"])
+        assert report["status"] == "NOT_CONFIGURED"
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_web_dashboard_rejects_invalid_evidence_provenance_filter(tmp_path):
+    server = create_read_only_server(tmp_path, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/evidence-provenance?capability_id=0")
+        response = connection.getresponse()
+        assert response.status == 400
+        assert b"invalid_capability_id" in response.read()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
