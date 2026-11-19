@@ -354,6 +354,16 @@ def main(argv=None):
     update_verify.add_argument("manifest", type=Path)
     update_verify.add_argument("--trusted-key", type=Path, required=True)
 
+    providers_parser = sub.add_parser(
+        "providers", help="Inspect registered model providers without loading models"
+    )
+    providers_parser.add_argument("--config", type=Path, default=Path("config/litertlm.yaml"))
+    models_parser = sub.add_parser("models", help="Inspect the declared local model catalogue")
+    models_sub = models_parser.add_subparsers(dest="models_cmd", required=True)
+    models_catalog = models_sub.add_parser("catalog")
+    models_catalog.add_argument("--config", type=Path, default=Path("config/models.yaml"))
+    models_catalog.add_argument("--model-dir", type=Path, default=Path("models"))
+
     litertlm = sub.add_parser("litertlm", help="Manage the optional local LiteRT-LM runtime")
     litertlm_sub = litertlm.add_subparsers(dest="litertlm_cmd", required=True)
     litertlm_sub.add_parser("doctor")
@@ -1050,6 +1060,16 @@ def main(argv=None):
             return 2
         print(json.dumps(result, indent=2))
         return 0
+    if args.cmd == "providers":
+        from nexora.intelligence.provider_registry import build_provider_report
+        result = build_provider_report(args.config)
+        print(json.dumps(result, indent=2))
+        return 0 if result["status"] == "OK" else 2
+    if args.cmd == "models":
+        from nexora.intelligence.model_catalog import build_model_catalog_report
+        result = build_model_catalog_report(args.config, model_dir=args.model_dir)
+        print(json.dumps(result, indent=2))
+        return 0 if result["valid"] else 2
     if args.cmd == "litertlm":
         from nexora.intelligence.litertlm import (
             LiteRTLMError,
