@@ -10,14 +10,14 @@ from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
+from nexora.catalog import CATALOG
+from nexora.catalog import status as catalog_status
 from nexora.config import Settings
 from nexora.governance.validation import (
     DEFAULT_MATRIX,
     DEFAULT_PRECEDENCE,
     build_governance_report,
 )
-from nexora.catalog import CATALOG
-from nexora.catalog import status as catalog_status
 from nexora.source_status import META_RULES, build_source_status
 
 ROOT = Path(__file__).resolve().parents[2]
