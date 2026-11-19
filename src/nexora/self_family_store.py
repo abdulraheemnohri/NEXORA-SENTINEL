@@ -160,6 +160,17 @@ class SelfFamilyProposalStore:
             ).fetchone()
             if row is None:
                 raise SelfFamilyStoreError("unknown_proposal_denied")
+            signed_review_table = db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' "
+                "AND name='self_family_signed_reviews'"
+            ).fetchone()
+            if signed_review_table is not None:
+                signed_review = db.execute(
+                    "SELECT 1 FROM self_family_signed_reviews WHERE proposal_id=?",
+                    (proposal_id,),
+                ).fetchone()
+                if signed_review is not None:
+                    raise SelfFamilyStoreError("proposal_has_signed_review_record")
             latest = db.execute(
                 "SELECT decision FROM self_family_review_events "
                 "WHERE proposal_id=? ORDER BY event_id DESC LIMIT 1",
