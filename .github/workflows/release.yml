@@ -3,15 +3,17 @@ on:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: "Publish a GitHub release (requires explicit operator intent)"
+        description: "Publish a GitHub draft release (requires explicit operator intent)"
         required: true
         type: boolean
         default: false
 permissions:
-  contents: write
+  contents: read
 jobs:
   build-and-gate:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Require main branch for release candidates
         run: |
@@ -38,11 +40,18 @@ jobs:
         with:
           name: release-candidate
           path: dist/*
-      - name: Require explicit release approval
-        if: ${{ inputs.publish_release != true }}
-        run: echo "Release not published. Set publish_release=true only after human review."
+  publish-draft:
+    if: ${{ inputs.publish_release == true }}
+    needs: build-and-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-candidate
+          path: dist
       - name: Publish draft release
-        if: ${{ inputs.publish_release == true }}
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v0.2.0-build-${{ github.run_number }}
