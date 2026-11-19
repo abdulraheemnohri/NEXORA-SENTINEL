@@ -297,3 +297,10 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   validation. The command never repairs, imports or rewrites source artifacts.
 - Distinguishes \`VALID_PARTIAL_BLOCKED\` from \`INVALID\`; structural validity
   does not imply source completeness, governance approval or execution authority.
+
+
+
+- Follow-on: \`nexora spec-validate\` now checks the committed capability,
+  meta-rule, interaction and precedence artifacts. The current repository
+  validates as structurally sound but incomplete; missing definitions and
+  matrix pairs remain blocking and no imports or policy changes are performed.
