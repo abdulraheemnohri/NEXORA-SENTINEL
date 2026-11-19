@@ -29,6 +29,7 @@ def test_settings_policy_status_lists_all_settings_as_unapproved(tmp_path):
     assert "autonomy_level" in report["settings_without_approved_authorization"]
     assert "network_enabled" in report["settings_without_approved_authorization"]
     assert report["missing_policy_controls"]
+    assert len(report["proposed_settings_not_implemented"]) == 7
 
 
 def test_settings_policy_rejects_symlink(tmp_path):
