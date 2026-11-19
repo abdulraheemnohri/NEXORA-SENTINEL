@@ -181,7 +181,7 @@ def create_backup(
     temporary_manifest = temporary.with_name(temporary.name + MANIFEST_SUFFIX)
     published_database = False
     try:
-        with _database_connection(f"file:{source}?mode=ro", timeout=10, uri=True) as src, _database_connection(temporary) as dst:
+        with _database_connection(source, timeout=10) as src, _database_connection(temporary) as dst:
             src.backup(dst, pages=256, sleep=0.01)
             _set_delete_journal_mode(dst)
         manifest = {
