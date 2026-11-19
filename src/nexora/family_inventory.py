@@ -28,6 +28,7 @@ def build_family_inventory(catalog_path: Path = CATALOG) -> dict[str, Any]:
     }
     seen_ids: set[int] = set()
     unknown_family_rows = 0
+    cross_cutting_rows: list[int] = []
     for row in payload["capabilities"]:
         if not isinstance(row, dict):
             raise FamilyInventoryError("capability_record_invalid")
@@ -39,7 +40,16 @@ def build_family_inventory(catalog_path: Path = CATALOG) -> dict[str, Any]:
         seen_ids.add(identifier)
         family = row.get("family")
         family_name = row.get("family_name")
-        if family not in EXPECTED_FAMILIES:
+        source = row.get("source")
+        name = row.get("name")
+        if not isinstance(name, str) or not name.strip():
+            raise FamilyInventoryError("capability_name_missing")
+        if not isinstance(source, str) or not source.strip():
+            raise FamilyInventoryError("capability_source_missing")
+        if family == "CROSS-CUTTING":
+            cross_cutting_rows.append(identifier)
+            continue
+        if not isinstance(family, str) or family not in EXPECTED_FAMILIES:
             unknown_family_rows += 1
             continue
         if not isinstance(family_name, str) or not family_name.strip():
@@ -88,6 +98,8 @@ def build_family_inventory(catalog_path: Path = CATALOG) -> dict[str, Any]:
         "source_backed_capability_count": len(seen_ids),
         "missing_capability_ids": missing_ids,
         "unknown_family_assignment_count": unknown_family_rows,
+        "cross_cutting_capability_ids": sorted(cross_cutting_rows),
+        "cross_cutting_capability_count": len(cross_cutting_rows),
         "families": families,
         "controls": {
             "read_only": True,
