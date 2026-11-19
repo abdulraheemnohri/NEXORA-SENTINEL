@@ -107,3 +107,12 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - A policy file's existence or arbitrary contents are never treated as approval.
 - Missing source material and unknown interaction pairs remain blockers. Neither endpoint changes policy, writes settings, or enables execution.
 - CLI equivalents: `nexora spec-status` and `nexora settings policy-status`. Exit code 3 means the artifacts were readable but blockers remain.
+
+
+## Operational doctor diagnostics
+
+- `GET /api/doctor` runs local read-only health checks for audit integrity, kill-switch state, registry SQLite integrity, settings validation, specification readiness, settings policy readiness and sandbox preflight.
+- CLI equivalent: `nexora doctor`.
+- The report does not initialize missing storage, clear an emergency stop, mutate settings, probe the network or execute tools.
+- Exit code 2 indicates a critical integrity/configuration failure; 3 indicates outstanding blockers; 0 indicates no reported blockers.
+- The result is diagnostic evidence, not a production certification.
