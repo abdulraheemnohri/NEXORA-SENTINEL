@@ -80,9 +80,7 @@ def inspect_witness_independence(
     parent_directories = [item["parent_directory"] for item in roles]
 
     same_files = False
-    for index, left in enumerate(
-        (Path(item["path"]) for item in roles)
-    ):
+    for index, left in enumerate(Path(item["path"]) for item in roles):
         for right in (Path(item["path"]) for item in roles[index + 1:]):
             try:
                 if os.path.samefile(left, right):
