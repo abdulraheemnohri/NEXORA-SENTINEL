@@ -208,3 +208,127 @@ def inspect_relation(source: int, target: int, matrix_path: Path = DEFAULT_MATRI
                 "decision": "BLOCK_AND_ESCALATE"}
     return {"source": source, "target": target, "known": True,
             "decision": "REVIEW_REQUIRED", "entry": matches[0]}
+
+
+def build_dependency_graph(matrix_path: Path = DEFAULT_MATRIX) -> dict[str, Any]:
+    """Report only explicit directed depends_on edges and their graph cycles.
+
+    Edge semantics: source capability depends on target capability. No inverse,
+    family-derived, transitive, or inferred edge is ever materialized.
+    """
+    matrix = _read_object(matrix_path, "interaction_matrix")
+    if matrix.get("dimensions") != [264, 264]:
+        raise GovernanceValidationError("interaction_matrix_dimensions_invalid")
+    if matrix.get("capability_id_range") != [1, 264]:
+        raise GovernanceValidationError("interaction_matrix_id_range_invalid")
+    if matrix.get("default_relation") != "unknown":
+        raise GovernanceValidationError("default_relation_must_remain_unknown")
+    if matrix.get("unknown_relation_policy") != "deny_or_require_human_review":
+        raise GovernanceValidationError("unknown_relation_policy_must_fail_closed")
+    allowed = matrix.get("allowed_relations")
+    if (
+        not isinstance(allowed, list)
+        or len(allowed) != len(set(allowed))
+        or set(allowed) != RELATIONS
+    ):
+        raise GovernanceValidationError("interaction_matrix_relation_vocabulary_invalid")
+    entries = matrix.get("entries")
+    if not isinstance(entries, list):
+        raise GovernanceValidationError("interaction_matrix_entries_must_be_list")
+
+    seen: set[tuple[int, int]] = set()
+    adjacency: dict[int, set[int]] = {identifier: set() for identifier in range(1, 265)}
+    relation_counts = {relation: 0 for relation in sorted(RELATIONS)}
+    edges: list[dict[str, int]] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise GovernanceValidationError("interaction_matrix_entry_invalid")
+        source = entry.get("source")
+        target = entry.get("target")
+        relation = entry.get("relation")
+        if (
+            type(source) is not int
+            or type(target) is not int
+            or not (1 <= source <= 264 and 1 <= target <= 264)
+        ):
+            raise GovernanceValidationError("interaction_matrix_pair_out_of_range")
+        pair = (source, target)
+        if pair in seen:
+            raise GovernanceValidationError("interaction_matrix_duplicate_pair")
+        if relation not in RELATIONS:
+            raise GovernanceValidationError("interaction_matrix_relation_invalid")
+        seen.add(pair)
+        relation_counts[relation] += 1
+        if relation == "depends_on":
+            adjacency[source].add(target)
+            edges.append({"capability_id": source, "requires": target})
+
+    # Tarjan strongly-connected components identify dependency cycles without
+    # guessing their meaning or automatically resolving them.
+    index = 0
+    indexes: dict[int, int] = {}
+    lowlinks: dict[int, int] = {}
+    stack: list[int] = []
+    on_stack: set[int] = set()
+    components: list[list[int]] = []
+
+    def visit(node: int) -> None:
+        nonlocal index
+        indexes[node] = index
+        lowlinks[node] = index
+        index += 1
+        stack.append(node)
+        on_stack.add(node)
+        for neighbor in sorted(adjacency[node]):
+            if neighbor not in indexes:
+                visit(neighbor)
+                lowlinks[node] = min(lowlinks[node], lowlinks[neighbor])
+            elif neighbor in on_stack:
+                lowlinks[node] = min(lowlinks[node], indexes[neighbor])
+        if lowlinks[node] == indexes[node]:
+            component: list[int] = []
+            while True:
+                member = stack.pop()
+                on_stack.remove(member)
+                component.append(member)
+                if member == node:
+                    break
+            components.append(sorted(component))
+
+    for node in range(1, 265):
+        if node not in indexes:
+            visit(node)
+
+    cycles = [
+        component for component in components
+        if len(component) > 1
+        or (len(component) == 1 and component[0] in adjacency[component[0]])
+    ]
+    cycles.sort(key=lambda component: component[0])
+    possible_pairs = 264 * 264
+    unknown_pairs = possible_pairs - len(seen)
+    return {
+        "status": "UNPOPULATED_BLOCKING" if not entries else "REVIEW_REQUIRED",
+        "nodes": 264,
+        "declared_relation_pairs": len(seen),
+        "possible_relation_pairs": possible_pairs,
+        "unknown_relation_pairs": unknown_pairs,
+        "relationship_coverage_complete": unknown_pairs == 0,
+        "relation_counts": relation_counts,
+        "dependency_edge_count": len(edges),
+        "dependency_edges": sorted(
+            edges, key=lambda edge: (edge["capability_id"], edge["requires"])
+        ),
+        "dependency_cycles": cycles,
+        "cycle_count": len(cycles),
+        "unknown_relationship_decision": "BLOCK_AND_ESCALATE",
+        "relationship_inference_enabled": False,
+        "automatic_dependency_resolution": False,
+        "execution_enabled": False,
+        "read_only": True,
+        "note": (
+            "Only explicit directed depends_on entries are represented. "
+            "Undeclared pairs stay unknown; cycles are reported, never repaired "
+            "or resolved automatically."
+        ),
+    }

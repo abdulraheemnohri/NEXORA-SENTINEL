@@ -21,7 +21,7 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Six provisional self-* domains: observation, diagnostics, repair planning, learning, governance assistance and evolution proposals. Only read-only observation/diagnostics are enabled by default; all self-family outputs are proposals, never execution.
 - Conservative YAML configuration profiles and validated settings loader.
 - Durable local memory with source SHA-256 provenance, deterministic lexical retrieval, append-only records and auditable tombstones; no automatic model writes.
-- Dependency-free read-only terminal dashboard for system status, audit history, self-family proposals, capability registry and evidence freshness; it exposes no mutation or execution controls.
+- Dependency-free read-only terminal dashboard for system status, audit history, proposals, capability registry, evidence, specification/matrix readiness, doctor diagnostics, family inventory, dependency graph and settings authorization readiness; it exposes no mutation or execution controls.
 - Loopback-only, GET-only local web dashboard with JSON diagnostic endpoints, Host-header validation and no control or execution endpoints.
 
 ## Repository map
@@ -35,6 +35,8 @@ See docs/SELF_FAMILIES.md. These six operational domains are provisional interfa
 ## Specification completeness
 
 The supplied source records cover capabilities 85–264 (180 entries) and meta-rules 16–45 (30 entries). Original definitions 1–84 and 1–15 have not been supplied. The 264×264 interaction matrix remains empty by design. Missing source material is not fabricated. The catalog-check command therefore continues to report incomplete.
+
+Run `nexora spec-status` for the aggregate specification, matrix and settings-governance readiness report, or `nexora settings policy-status` to inspect missing per-setting authorization and rollback controls. These reports are read-only; a populated policy file is not accepted as approval.
 
 ## Install — Linux / Android Debian
 
@@ -382,3 +384,108 @@ A changed configuration returns `REVIEW_REQUIRED` (exit code 3), lists changed f
 ## Testing and platform qualification
 
 See [`docs/TESTING_AND_QUALIFICATION.md`](docs/TESTING_AND_QUALIFICATION.md) for the reproducible Windows PowerShell and Linux qualification runners, four-job OS/Python CI matrix, first-run smoke checks and manual device/trust checklist. On Windows, run `Set-ExecutionPolicy -Scope Process Bypass` then `.\scripts\qualify.ps1`. On Linux/Debian, run `bash scripts/qualify.sh`. A green hosted CI run does not certify a physical Windows 10, Android or independent witness device.
+
+
+## Specification and governance readiness
+
+Run `nexora spec-status` for a read-only aggregate of canonical source coverage,
+the 264 × 264 interaction matrix, precedence integrity and settings authorization
+readiness. Run `nexora settings policy-status` to inspect the missing per-setting
+authorization and rollback requirements. These commands do not populate missing
+specifications, infer relationships, approve settings, or enable execution.
+See [Specification Readiness](docs/SPECIFICATION_READINESS.md).
+
+
+## Specification readiness and authorization gaps
+
+Run the read-only readiness reports:
+
+```bash
+nexora spec-status
+nexora settings policy-status
+```
+
+The reports identify missing source-backed capability definitions and meta-rules, unknown pairs in the 264 × 264 interaction matrix, and settings whose authorization/rollback rules have not been approved. They never reconstruct missing definitions or infer relationships. A policy file is not approval. Settings application and autonomous execution remain disabled.
+
+
+## Audit search
+
+Search the verified local audit history without changing it:
+
+```bash
+nexora audit-search --event policy.decision --limit 100
+nexora audit-search --contains permission --from-sequence 10
+```
+
+The read-only web endpoint is `GET /api/audit-search`. Search verifies the full
+hash chain and sequence before returning filtered results. Corrupt or unsafe
+audit paths fail closed; search never repairs or rotates the log.
+
+
+## Verified audit search
+
+Search the audit chain without modifying it:
+
+```bash
+nexora audit-search
+nexora audit-search --event policy.denied
+nexora audit-search --contains "capability_id" --from-sequence 10 --to-sequence 100 --limit 50
+```
+
+The command verifies the entire hash chain before returning results. Corruption, missing sequence numbers, symlinks and non-regular files fail closed. The loopback dashboard exposes the same filters at `GET /api/audit-search`. Searches are read-only; no records are rewritten or deleted.
+
+
+## Proposal inspection
+
+Inspect stored self-family proposals without initializing a database or granting execution:
+
+```bash
+nexora proposals list
+nexora proposals list --limit 50
+nexora proposals show PROPOSAL_ID
+```
+
+The commands use SQLite read-only mode. Operator-recorded review labels remain separate from signed approvals; every proposal remains execution-disabled.
+
+
+## Capability family explorer
+
+Run `nexora family-map` or open `GET /api/family-map` in the local dashboard to inspect the 40 canonical family slots and their source-backed capability counts. Missing capabilities remain unassigned, cross-cutting entries are shown separately, and conflicting family names are flagged. No family relationships or missing assignments are inferred.
+
+
+The local dashboard also exposes structured proposal history at `GET /api/proposal-records` (optionally filtered by `proposal_id` or `limit`). This endpoint is read-only and does not turn a human review label into signed approval.
+
+
+## Witness key separation check
+
+Run `nexora witness-independence --backup-private-key PATH --update-private-key PATH --witness-private-key PATH` to compare the backup, update and witness signing keys. The check is read-only. It can identify duplicate fingerprints, shared files/directories and weak POSIX private-key permissions, but it cannot establish off-device custody or hardware-backed protection.
+
+
+## Signed trust-anchor rotation
+
+Prepare and verify a signed trust transition without automatically trusting the replacement key:
+
+```bash
+nexora trust-rotate --role update --old-private-key OLD.pem --new-public-key NEW.pub.pem --output update-rotation.json --reason "scheduled rotation"
+nexora trust-verify update-rotation.json --trusted-old-public-key OLD.pub.pem
+```
+
+The same commands support the `backup` and `witness` key roles. Verification does not enroll the new key or change any configured trust pin; replacement pinning remains an explicit out-of-band operator action.
+
+
+
+## Expanded read-only terminal dashboard
+
+Run nexora tui to inspect the local control desk. In addition to system status,
+audit history, proposals, registry and evidence, the menu includes:
+
+- Specification and interaction-matrix readiness.
+- Read-only doctor diagnostics.
+- Source-backed capability family inventory.
+- Explicit directed dependency edges and reported cycles.
+- Per-setting authorization and rollback readiness.
+
+These views do not initialize missing databases, infer source material or
+relationships, approve settings, change policy, enable autonomy, or execute
+tools. Unknown relationships remain blocking. The dashboard is diagnostic,
+not an authorization surface.

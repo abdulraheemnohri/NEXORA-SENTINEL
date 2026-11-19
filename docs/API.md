@@ -74,3 +74,128 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - `GET /api/settings`: displays the validated local settings file (`config/settings.yaml` by default) or safe built-in defaults when the file is absent.
 - The root dashboard includes a responsive Settings and Safety Controls panel. Invalid, unreadable, symlinked or unsupported settings files are reported as invalid and fail closed.
 - The panel is read-only. It exposes no settings write, apply, policy mutation, scheduler enablement, sandbox enablement or network enablement action. Use `nexora settings diff` for a separate candidate preview; authorization remains `NOT_EVALUATED`.
+
+
+## Specification readiness
+
+- CLI: `nexora spec-status` aggregates exact-source capability/meta-rule
+  coverage, matrix coverage, precedence integrity and settings authorization
+  readiness.
+- CLI: `nexora settings policy-status` reports settings without an approved
+  per-setting authorization and rollback policy.
+- Both reports are read-only. A present policy file is not treated as approved.
+- Missing source records and unknown matrix relationships remain blockers.
+- No settings apply or execution endpoint is exposed.
+- See [SPECIFICATION_READINESS.md](SPECIFICATION_READINESS.md).
+
+
+## Specification readiness APIs
+
+- `GET /api/spec-status`: read-only aggregate of canonical source coverage,
+  catalogue integrity, interaction-matrix coverage, precedence validity and
+  settings-policy readiness.
+- `GET /api/settings-policy`: reports whether a reviewed per-setting
+  authorization and rollback policy exists. A file's presence is not approval.
+- Both endpoints expose `read_only: true`; neither grants settings mutation,
+  policy mutation, capability activation or execution.
+
+
+## Specification and settings governance readiness
+
+- `GET /api/spec-status`: read-only aggregate of exact-source capability/meta-rule coverage, catalogue integrity, 264 × 264 interaction-matrix coverage, precedence integrity, and settings authorization readiness.
+- `GET /api/settings-policy`: reports whether a policy file exists and lists the per-setting authority and rollback controls still awaiting owner approval.
+- A policy file's existence or arbitrary contents are never treated as approval.
+- Missing source material and unknown interaction pairs remain blockers. Neither endpoint changes policy, writes settings, or enables execution.
+- CLI equivalents: `nexora spec-status` and `nexora settings policy-status`. Exit code 3 means the artifacts were readable but blockers remain.
+
+
+## Operational doctor diagnostics
+
+- `GET /api/doctor` runs local read-only health checks for audit integrity, kill-switch state, registry SQLite integrity, settings validation, specification readiness, settings policy readiness and sandbox preflight.
+- CLI equivalent: `nexora doctor`.
+- The report does not initialize missing storage, clear an emergency stop, mutate settings, probe the network or execute tools.
+- Exit code 2 indicates a critical integrity/configuration failure; 3 indicates outstanding blockers; 0 indicates no reported blockers.
+- The result is diagnostic evidence, not a production certification.
+
+
+## Explicit capability dependency graph
+
+- CLI: `nexora governance-dependencies`.
+- Web: `GET /api/dependency-graph`.
+- The graph contains only directed `depends_on` pairs explicitly recorded in
+  `spec/interaction_matrix.json`. Each edge is shown as
+  `capability_id -> requires`.
+- The report counts unknown matrix pairs, identifies strongly connected
+  dependency cycles, and marks all declarations as review-only.
+- No dependency is inferred from family membership, numbering, symmetry or
+  transitivity. Unknown pairs remain `BLOCK_AND_ESCALATE`.
+- No cycle is repaired, no dependent is revoked, and no capability is enabled.
+
+
+## Verified audit search
+
+- CLI: `nexora audit-search [--event EVENT] [--contains TEXT] [--from-sequence N] [--to-sequence N] [--limit N]`.
+- Web: `GET /api/audit-search` with the same optional query parameters.
+- The complete JSONL file is hash-chain and sequence verified before filtering.
+- Symlink/non-file paths, malformed records, sequence discontinuities and hash mismatches fail closed.
+- Search is read-only; it never repairs, truncates, rotates or exports the audit log.
+- Results are bounded to 1–500 entries. The full chain is verified even when only a subset is returned.
+
+
+## Verified audit search
+
+- CLI: `nexora audit-search [--event EVENT] [--contains TEXT] [--from-sequence N] [--to-sequence N] [--limit N]`.
+- Web: `GET /api/audit-search` with the same filters as query parameters.
+- The search verifies the complete hash chain before returning any matching records. A malformed record, sequence gap, hash mismatch, unreadable file, symlink or non-regular path fails closed.
+- A missing log returns `NOT_CONFIGURED` and does not create a data directory or log.
+- The default result limit is 100 and the maximum is 500. The report records the number of verified and matched entries and whether results were truncated.
+- Search is read-only and does not initialize, repair, truncate, rotate or rewrite the audit log.
+
+
+## Self-family proposal inspection
+
+- CLI: `nexora proposals list [--database PATH] [--limit N]`.
+- CLI: `nexora proposals show PROPOSAL_ID [--database PATH]`.
+- The reader opens an existing SQLite database in read-only mode and never initializes missing storage.
+- Review history is shown as operator-recorded metadata. `REVIEWED` is not an Ed25519 approval, capability lifecycle promotion, or execution grant.
+- Proposal digests are reported as recorded but not recomputed because the stored proposal row does not retain the original complete payload. The output makes this limitation explicit.
+
+
+## Source-backed capability family inventory
+
+- CLI: `nexora family-map [--catalog PATH]`.
+- Web: `GET /api/family-map`.
+- The inventory lists all 40 canonical family slots, showing a family name only when supplied by the source catalogue.
+- Cross-cutting records are reported separately. Conflicting source family names remain flagged rather than silently selected.
+- Missing capability IDs remain unassigned; no family membership is inferred from numbering or neighboring records.
+- The explorer is read-only and provides no capability activation or execution controls.
+
+
+## Structured proposal records API
+
+- `GET /api/proposal-records`: list up to 100 proposal records and review history as JSON.
+- `GET /api/proposal-records?proposal_id=0123456789abcdef01234567`: inspect one proposal.
+- `GET /api/proposal-records?limit=50`: bound the list to a maximum of 500.
+- The endpoint reads SQLite in read-only mode and does not initialize missing storage.
+- Duplicate/unknown query parameters, malformed IDs and invalid limits are rejected.
+- `REVIEWED` remains a human workflow label, not a cryptographic approval or execution grant.
+
+
+## Witness key independence diagnostic
+
+- CLI: `nexora witness-independence --backup-private-key PATH --update-private-key PATH --witness-private-key PATH`.
+- Reads three Ed25519 private-key files without modifying them or exposing key material.
+- Compares public-key fingerprints, actual file identity, resolved paths, parent directories, and POSIX private-file permissions where available.
+- The result can establish only local key/path separation. Same-host separation, off-device custody, remote witness operation, hardware backing and independent human identity are always reported as unverified.
+- It does not rotate, enroll, revoke, copy or modify any key.
+
+
+## Signed trust-anchor rotation statements
+
+- Create a transition signed by the existing key:
+  `nexora trust-rotate --role update --old-private-key OLD.pem --new-public-key NEW.pub.pem --output update-rotation.json --reason "scheduled rotation"`.
+- Verify the signed statement against the currently pinned old public key:
+  `nexora trust-verify update-rotation.json --trusted-old-public-key OLD.pub.pem`.
+- Roles are explicit: `backup`, `update`, or `witness`.
+- Verification checks the old-key signature, role, repository context, embedded new Ed25519 public key and both fingerprints.
+- The command never changes trust pins, enrolls the new key, modifies the existing key files, or activates the new key. Pinning the replacement still requires a separately reviewed, out-of-band operator action.

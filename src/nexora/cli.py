@@ -22,8 +22,16 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="nexora")
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check"):
+    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check", "doctor", "kill-switch-test"):
         sub.add_parser(name)
+    audit_search = sub.add_parser(
+        "audit-search", help="Search the verified audit chain without mutation"
+    )
+    audit_search.add_argument("--event")
+    audit_search.add_argument("--contains")
+    audit_search.add_argument("--from-sequence", type=int)
+    audit_search.add_argument("--to-sequence", type=int)
+    audit_search.add_argument("--limit", type=int, default=100)
     lifecycle_history = sub.add_parser(
         "lifecycle-history", help="Replay existing lifecycle events read-only"
     )
@@ -179,6 +187,11 @@ def main(argv=None):
     )
     governance_impact.add_argument("capability_id", type=int)
     governance_impact.add_argument("--matrix", type=Path)
+    governance_dependencies = sub.add_parser(
+        "governance-dependencies",
+        help="Show explicit capability dependency edges and cycles read-only",
+    )
+    governance_dependencies.add_argument("--matrix", type=Path)
     governance_relation = sub.add_parser("governance-relation", help="Inspect one directed capability relationship")
     governance_relation.add_argument("source", type=int)
     governance_relation.add_argument("target", type=int)
@@ -201,6 +214,14 @@ def main(argv=None):
     )
     governance_arbitrate.add_argument("--matrix", type=Path)
     governance_arbitrate.add_argument("--wait-graph", type=Path)
+    spec_status = sub.add_parser(
+        "spec-status", help="Report source, matrix and settings-governance readiness"
+    )
+    spec_status.add_argument("--catalog", type=Path)
+    spec_status.add_argument("--rules", type=Path)
+    spec_status.add_argument("--matrix", type=Path)
+    spec_status.add_argument("--precedence", type=Path)
+    spec_status.add_argument("--settings-policy", type=Path)
     source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
     source_status.add_argument("--catalog", type=Path)
     source_status.add_argument("--rules", type=Path)
@@ -271,6 +292,28 @@ def main(argv=None):
     witness_verify = sub.add_parser("verify-witness")
     witness_verify.add_argument("receipt_log", type=Path)
     witness_verify.add_argument("--trusted-key", type=Path)
+    witness_independence = sub.add_parser(
+        "witness-independence",
+        help="Compare backup, update and witness key separation read-only",
+    )
+    witness_independence.add_argument("--backup-private-key", type=Path, required=True)
+    witness_independence.add_argument("--update-private-key", type=Path, required=True)
+    witness_independence.add_argument("--witness-private-key", type=Path, required=True)
+    trust_rotate = sub.add_parser(
+        "trust-rotate",
+        help="Create an old-key-signed trust-anchor transition statement",
+    )
+    trust_rotate.add_argument("--role", choices=("backup", "update", "witness"), required=True)
+    trust_rotate.add_argument("--old-private-key", type=Path, required=True)
+    trust_rotate.add_argument("--new-public-key", type=Path, required=True)
+    trust_rotate.add_argument("--output", type=Path, required=True)
+    trust_rotate.add_argument("--reason", required=True)
+    trust_verify = sub.add_parser(
+        "trust-verify",
+        help="Verify a trust-anchor transition against the old pinned key",
+    )
+    trust_verify.add_argument("manifest", type=Path)
+    trust_verify.add_argument("--trusted-old-public-key", type=Path, required=True)
 
     web = sub.choices["web"]
     web.add_argument("--port", type=int, default=8765)
@@ -327,13 +370,157 @@ def main(argv=None):
     settings_diff = settings_sub.add_parser("diff", help="Preview settings changes without applying them")
     settings_diff.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
     settings_diff.add_argument("--candidate", type=Path, required=True)
+    settings_policy = settings_sub.add_parser(
+        "policy-status", help="Report per-setting authorization and rollback policy readiness"
+    )
+    settings_policy.add_argument(
+        "--policy", type=Path, default=Path("config/settings_authorization.json")
+    )
 
+    family_map = sub.add_parser(
+        "family-map", help="Show source-backed capability family inventory read-only"
+    )
+    family_map.add_argument("--catalog", type=Path)
+    proposals = sub.add_parser(
+        "proposals", help="Inspect self-family proposals without execution authorization"
+    )
+    proposals_sub = proposals.add_subparsers(dest="proposals_cmd", required=True)
+    proposals_list = proposals_sub.add_parser("list", help="List stored proposals read-only")
+    proposals_list.add_argument("--database", type=Path)
+    proposals_list.add_argument("--limit", type=int, default=100)
+    proposals_show = proposals_sub.add_parser("show", help="Inspect one proposal and its review history")
+    proposals_show.add_argument("proposal_id")
+    proposals_show.add_argument("--database", type=Path)
     memory_delete = sub.add_parser("memory-delete", aliases=["memory-tombstone", "memory-hide"])
     memory_delete.add_argument("memory_id", type=int)
     memory_delete.add_argument("--reason", required=True)
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd in {"trust-rotate", "trust-verify"}:
+        from nexora.trust_rotation import (
+            TrustRotationError,
+            create_rotation_statement,
+            verify_rotation_statement,
+        )
+        try:
+            if args.cmd == "trust-rotate":
+                result = create_rotation_statement(
+                    role=args.role,
+                    old_private_key=args.old_private_key,
+                    new_public_key=args.new_public_key,
+                    output=args.output,
+                    reason=args.reason,
+                )
+                exit_code = 0
+            else:
+                result = verify_rotation_statement(
+                    args.manifest,
+                    trusted_old_public_key=args.trusted_old_public_key,
+                )
+                exit_code = 0 if result["valid"] else 2
+        except (TrustRotationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "valid": False,
+                "error": str(exc),
+                "trust_pin_changed": False,
+                "new_key_enrolled": False,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return exit_code
+    if args.cmd == "witness-independence":
+        from nexora.witness_independence import (
+            WitnessIndependenceError,
+            inspect_witness_independence,
+        )
+        try:
+            result = inspect_witness_independence(
+                args.backup_private_key,
+                args.update_private_key,
+                args.witness_private_key,
+            )
+        except (WitnessIndependenceError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "LOCAL_SEPARATION_CHECK_PASSED" else 3
+    if args.cmd == "family-map":
+        from nexora.family_inventory import FamilyInventoryError, build_family_inventory
+        try:
+            result = build_family_inventory(args.catalog) if args.catalog else build_family_inventory()
+        except (FamilyInventoryError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "SOURCE_INVENTORY_COMPLETE" else 3
+    if args.cmd == "proposals":
+        from nexora.proposals import ProposalReadError, read_proposals
+        database = args.database or (args.data_dir / "registry.sqlite3")
+        try:
+            result = read_proposals(
+                database,
+                proposal_id=args.proposal_id if args.proposals_cmd == "show" else None,
+                limit=args.limit if args.proposals_cmd == "list" else 1,
+            )
+        except (ProposalReadError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        if args.proposals_cmd == "show":
+            if result["status"] == "VALID" and not result["proposals"]:
+                result = {
+                    "status": "NOT_FOUND",
+                    "proposal_id": args.proposal_id,
+                    "read_only": True,
+                    "execution_enabled": False,
+                }
+            else:
+                result["proposal"] = result["proposals"][0] if result["proposals"] else None
+                result.pop("proposals", None)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "VALID" else 3
+    if args.cmd == "audit-search":
+        from nexora.audit_search import AuditSearchError, search_audit_log
+        try:
+            report = search_audit_log(
+                args.data_dir / "audit.jsonl",
+                event=args.event,
+                contains=args.contains,
+                from_sequence=args.from_sequence,
+                to_sequence=args.to_sequence,
+                limit=args.limit,
+            )
+        except (AuditSearchError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report["status"] == "VALID" else 3
+    if args.cmd == "kill-switch-test":
+        from nexora.self_tests import run_kill_switch_self_test
+        result = run_kill_switch_self_test()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "PASS" else 2
     if args.cmd == "sandbox-check":
         from nexora.sandbox_readiness import inspect_sandbox_readiness
         result = inspect_sandbox_readiness()
@@ -610,6 +797,25 @@ def main(argv=None):
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
+    if args.cmd == "governance-dependencies":
+        from nexora.governance.validation import (
+            DEFAULT_MATRIX,
+            GovernanceValidationError,
+            build_dependency_graph,
+        )
+        try:
+            result = build_dependency_graph(args.matrix or DEFAULT_MATRIX)
+        except (GovernanceValidationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "valid": False,
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] != "UNPOPULATED_BLOCKING" else 3
     if args.cmd in ("governance-check", "governance-relation"):
         from nexora.governance.validation import (
             GovernanceValidationError,
@@ -636,6 +842,31 @@ def main(argv=None):
         if args.cmd == "governance-check":
             return 0 if result["valid"] else 2
         return 0 if result["known"] else 3
+    if args.cmd == "spec-status":
+        from nexora.readiness import build_spec_status
+        try:
+            kwargs = {}
+            for argument, key in (
+                ("catalog", "catalog_path"),
+                ("rules", "rules_path"),
+                ("matrix", "matrix_path"),
+                ("precedence", "precedence_path"),
+                ("settings_policy", "settings_policy_path"),
+            ):
+                value = getattr(args, argument)
+                if value is not None:
+                    kwargs[key] = value
+            result = build_spec_status(**kwargs)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "valid": False,
+                "error": str(exc),
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "READY_FOR_INDEPENDENT_REVIEW" else 3
     if args.cmd == "source-status":
         from nexora.source_status import build_source_status
         try:
@@ -774,8 +1005,13 @@ def main(argv=None):
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
     if args.cmd == "settings":
+        from nexora.readiness import build_settings_policy_status
         from nexora.settings_manager import render_settings, settings_diff_report
         try:
+            if args.settings_cmd == "policy-status":
+                result = build_settings_policy_status(args.policy)
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                return 0 if result["status"] == "POLICY_APPROVED" else 3
             if args.settings_cmd == "diff":
                 result = settings_diff_report(args.config, args.candidate)
                 print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -813,6 +1049,21 @@ def main(argv=None):
             "note": "The record is hidden from retrieval; append-only content and audit history remain on disk.",
         }, indent=2))
         return 0
+    if args.cmd == "doctor":
+        from nexora.diagnostics import build_doctor_report
+        try:
+            result = build_doctor_report(args.data_dir)
+        except (OSError, ValueError, TypeError, RuntimeError) as exc:
+            print(json.dumps({
+                "status": "ATTENTION_REQUIRED",
+                "error": type(exc).__name__,
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "HEALTHY" else 3
+
     args.data_dir.mkdir(parents=True, exist_ok=True)
     log = AuditLog(args.data_dir / "audit.jsonl")
     stop = KillSwitch(args.data_dir / "KILL")

@@ -145,3 +145,140 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - The endpoint and dashboard remain GET-only and read-only. No settings apply form, policy mutation, feature activation or execution control was added. The existing `nexora settings diff` remains a preview only.
 - Added tests for valid settings, invalid settings fail-closed behavior, dashboard panel rendering and absence of data-store creation.
 - Settings path can be injected when creating the server for embedding/tests; default remains `config/settings.yaml`.
+
+
+## Specification readiness audit — 2026-11-19
+
+- Added `nexora spec-status`, a read-only aggregate for exact-source coverage,
+  catalogue integrity, interaction-matrix coverage, precedence integrity and
+  settings authorization readiness.
+- Added `nexora settings policy-status` to report all settings without an
+  approved per-setting authorization policy and the missing rollback controls.
+- A policy file being present is not treated as approval; no policy schema or
+  permission is inferred from arbitrary file contents.
+- Missing capability IDs 1–84 and meta-rule IDs 1–15 remain explicitly missing.
+- Unknown matrix pairs remain blocking; no family-level relationships or
+  compatibility grants are fabricated.
+- No settings mutation, policy mutation, autonomy increase, or execution path
+  was added. See [SPECIFICATION_READINESS.md](SPECIFICATION_READINESS.md).
+
+
+## Specification readiness audit — 2026-11-19
+
+- Added `nexora spec-status`, a read-only aggregate for canonical source coverage,
+  catalogue integrity, 40-family representation, 264×264 interaction coverage,
+  precedence integrity and settings authorization readiness.
+- Added `nexora settings policy-status` to report every current setting without
+  an approved per-setting authorization rule and the required rollback controls.
+- Added read-only web endpoints `GET /api/spec-status` and
+  `GET /api/settings-policy`; both are rendered on the local dashboard.
+- A settings policy file's presence or self-asserted approval fields are never
+  treated as authorization. No policy schema, authority or rollback permission
+  is inferred from unreviewed contents.
+- Missing capability IDs 1–84 and meta-rule IDs 1–15 remain explicitly missing.
+  Unknown interaction pairs remain blocking; no family-level relationships,
+  symmetry, transitivity or compatibility grants are fabricated.
+- No settings apply, policy mutation, capability activation, autonomy increase
+  or execution path was added. The current defaults remain unchanged.
+- Validation and CI are pending for the exact development-branch head.
+
+
+## Read-only diagnostics additions — 2026-11-19
+
+- Added explicit dependency graph reporting from declared `depends_on` edges,
+  including strongly connected cycles and the number of unknown matrix pairs.
+- Added `nexora governance-dependencies` and `GET /api/dependency-graph`.
+- Added read-only `nexora audit-search` and `GET /api/audit-search`; both verify
+  the entire audit hash chain and sequence before filtering by event, text or
+  sequence window.
+- Neither feature infers relationships, repairs audit history, enables
+  capabilities or executes tools.
+- Exact-head CI results must be checked for the current PR head before this
+  increment is considered qualified.
+
+
+## Verified audit search — 2026-11-19
+
+- Added `nexora audit-search` with event, text, sequence-range and bounded
+  result-count filters.
+- Added loopback-only `GET /api/audit-search` and a dashboard search panel.
+- Search verifies the complete SHA-256 audit chain and sequence continuity
+  before returning results; invalid logs fail closed with no partial results.
+- Missing logs are reported as `NOT_CONFIGURED`; no directory or log is created.
+- Symlink and non-regular log paths are refused. Search is read-only and does
+  not repair, rotate, truncate or rewrite audit history.
+- Exact-head CI and platform qualification are pending for this increment.
+
+
+## Proposal inspection — 2026-11-19
+
+- Added `nexora proposals list` and `nexora proposals show` for stored
+  self-family proposals and append-only human review history.
+- The reader uses SQLite read-only mode and refuses missing, symlinked,
+  non-regular or invalid stores without initializing storage.
+- Operator-recorded `REVIEWED` labels are explicitly not treated as signed
+  approvals, lifecycle promotion, policy authorization or execution grants.
+- The stored payload digest is labeled recorded-but-not-recomputed because
+  the current proposal table does not retain the original complete payload.
+- Proposal review mutation and signed proposal approvals remain separate
+  follow-up work; execution remains disabled.
+
+
+## Source-backed family explorer — 2026-11-19
+
+- Added `nexora family-map` and `GET /api/family-map` with a dashboard card.
+- The report lists all 40 canonical family codes and shows names/counts only
+  from source-backed catalogue records.
+- Cross-cutting records are separate; conflicting source names are flagged.
+- Missing capability IDs remain unassigned and unknown family values are
+  counted rather than mapped by inference.
+- No capability status, relationship, authorization or execution state changes.
+
+
+## Structured proposal records API — 2026-11-19
+
+- Added `GET /api/proposal-records` with bounded list and exact-ID lookup.
+- The endpoint uses SQLite read-only mode and rejects duplicate/unknown query
+  parameters, malformed IDs and invalid limits.
+- Proposal review history remains display-only metadata; no signed approval,
+  capability lifecycle transition, or execution grant is created.
+
+
+## Witness key independence diagnostic — 2026-11-19
+
+- Added `nexora witness-independence` to inspect backup, update and witness
+  Ed25519 private keys without changing or exposing key material.
+- Compares public fingerprints, file identity, resolved paths, parent
+  directories and POSIX permissions where available.
+- Explicitly does not claim different-host custody, remote witness operation,
+  hardware-backed storage or independent human identity.
+- Added tests for reused fingerprints, shared directories, symlinks and weak
+  POSIX permissions.
+
+
+## Signed trust-anchor rotation — 2026-11-19
+
+- Added `nexora trust-rotate` to create an old-key-signed transition statement
+  for backup, update or witness Ed25519 keys.
+- Added `nexora trust-verify` to verify the statement against the existing
+  pinned old public key and verify the embedded replacement key fingerprint.
+- The workflow does not enroll the new key, change configuration, replace
+  trust pins or activate a new key. Out-of-band operator confirmation remains
+  mandatory.
+- Added tests for valid transitions, wrong old pins, tampering, no-op rotation,
+  output overwrite refusal, symlink refusal and CLI behavior.
+
+
+
+## Expanded terminal diagnostics — 2026-11-19
+
+- Extended the dependency-free TUI with read-only specification/matrix
+  readiness, doctor diagnostics, source-backed family inventory, explicit
+  dependency graph and settings authorization readiness views.
+- Corrected the menu layout and added explicit view/exit numbering.
+- Added regression coverage for all five views and for the invariant that
+  the dashboard does not initialize the registry database.
+- No settings, policy, lifecycle, capability, memory or execution mutation
+  interface was added.
+- Exact-head CI and cross-platform qualification are required before this
+  increment is considered verified.

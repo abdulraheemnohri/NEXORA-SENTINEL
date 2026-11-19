@@ -328,7 +328,9 @@ def test_backup_source_survives_snapshot_failure(tmp_path, monkeypatch):
     source = _database(tmp_path / "source.sqlite3")
     backup = tmp_path / "snapshot.sqlite3"
     private, _, _ = _keys(tmp_path)
-    before = backup_module._sha256(source)
+    before = backup_module._inspect(source)
+    with sqlite3.connect(source) as connection:
+        before_rows = connection.execute("SELECT value FROM records ORDER BY value").fetchall()
     original_inspect = backup_module._inspect
     calls = 0
 
@@ -342,7 +344,10 @@ def test_backup_source_survives_snapshot_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(backup_module, "_inspect", fail_snapshot_inspection)
     with pytest.raises(BackupError, match="injected_snapshot_validation_failure"):
         create_backup(source, backup, signing_key=private)
-    assert backup_module._sha256(source) == before
+    assert backup_module._inspect(source) == before
+    with sqlite3.connect(source) as connection:
+        after_rows = connection.execute("SELECT value FROM records ORDER BY value").fetchall()
+    assert after_rows == before_rows
     assert not backup.exists()
     assert not backup.with_name(backup.name + ".manifest.json").exists()
     assert not list(tmp_path.glob(".nexora-backup-*"))
