@@ -7,7 +7,7 @@ network-facing deployments. The supported launcher binds to IPv4 loopback.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 
 class ControlPlaneError(RuntimeError):
@@ -34,7 +34,6 @@ def create_litestar_app(
     data_dir: Path = Path("data"),
     *,
     settings_path: Path = Path("config/settings.yaml"),
-    allowed_hosts: Sequence[str] = ("127.0.0.1", "localhost"),
 ):
     """Build a GET-only Litestar app; does not initialize local storage.
 
@@ -49,6 +48,17 @@ def create_litestar_app(
         ) from exc
 
     root = Path(data_dir)
+    try:
+        root_metadata = root.lstat()
+    except FileNotFoundError:
+        root_metadata = None
+    except OSError as exc:
+        raise ControlPlaneError("control_plane_data_dir_unreadable") from exc
+    if root_metadata is not None and (
+        root.is_symlink() or not root.is_dir()
+    ):
+        raise ControlPlaneError("control_plane_data_dir_must_be_real_directory")
+    root = root.absolute()
     settings_file = Path(settings_path)
 
     @get(path="/healthz", sync_to_thread=True)
@@ -159,7 +169,7 @@ def create_litestar_app(
             proposals,
             proposal_detail,
         ],
-        allowed_hosts=list(allowed_hosts),
+        allowed_hosts=["127.0.0.1", "localhost"],
         debug=False,
         request_max_body_size=64 * 1024,
     )
