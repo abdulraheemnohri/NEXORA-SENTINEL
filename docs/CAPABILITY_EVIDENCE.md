@@ -77,3 +77,23 @@ a capability's lifecycle state, or enable execution. In particular,
 `human_approval` evidence is not itself proof of an authorized approver; the
 approval gate remains blocked until a separate trusted authorization mechanism
 is implemented. No lifecycle promotion is performed by this command.
+
+
+## Verify actual local artifact bytes
+
+The ledger stores an operator-supplied digest; it does not read the file at
+recording time. Verify a later local file against one exact capability and
+ledger sequence:
+
+```sh
+nexora evidence verify-artifact 85 1 --path ./reports/test-report.json
+nexora evidence verify-artifact 85 1 --path ./reports/test-report.json \
+  --reference "git:commit/0123456789abcdef"
+```
+
+The command first verifies the complete evidence chain, then hashes the
+selected regular file in bounded chunks. Symbolic links, non-regular files,
+and files larger than 2 GiB are rejected. A matching digest establishes byte
+equality only; it does not establish authorship, semantic validity, safety,
+or authorization. The command is read-only and cannot promote or execute a
+capability. See [ARTIFACT_INTEGRITY.md](ARTIFACT_INTEGRITY.md).
