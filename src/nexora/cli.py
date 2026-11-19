@@ -348,20 +348,6 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
-    if args.cmd == "doctor":
-        from nexora.doctor import build_doctor_report
-        try:
-            result = build_doctor_report(args.data_dir)
-        except (OSError, ValueError, TypeError, RuntimeError) as exc:
-            print(json.dumps({
-                "status": "CRITICAL",
-                "error": type(exc).__name__,
-                "read_only": True,
-                "execution_enabled": False,
-            }, indent=2))
-            return 2
-        print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 2 if result["status"] == "CRITICAL" else (3 if result["status"] == "BLOCKED" else 0)
     if args.cmd == "kill-switch-test":
         from nexora.self_tests import run_kill_switch_self_test
         result = run_kill_switch_self_test()
