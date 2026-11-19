@@ -24,3 +24,8 @@ NEXORA settings currently expose inspection and validation interfaces. This docu
 Atomic file replacement is not authorization. No CLI, web, TUI, scheduler, model, or agent path is added to call this method as a policy editor. The settings inspection interface remains read-only. The default autonomy level remains L0; scheduler, sandbox and network flags remain false by default.
 
 A future settings-change workflow still requires a reviewed per-setting authorization matrix, explicit human confirmation, append-only before/after audit records, backup/rollback semantics, and tests proving that invalid or unauthorized changes cannot be applied. Unknown policy relationships remain blocked rather than inferred.
+
+
+## Read-only change preview
+
+`nexora settings diff --config CURRENT --candidate PROPOSED` compares two validated configurations and reports changed fields. A non-empty diff is marked `REVIEW_REQUIRED`; authorization remains `NOT_EVALUATED` because a reviewed per-setting authorization matrix has not been approved. The command has no apply mode and cannot mutate configuration or enable any feature. A matching candidate reports `NO_CHANGES`. Missing/invalid candidates fail closed.
