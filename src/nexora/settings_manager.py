@@ -54,9 +54,9 @@ def settings_diff_report(current_path: Path | None, candidate_path: Path) -> dic
     """Build a read-only change preview; never authorize or apply settings."""
     current, current_present = load_settings(current_path)
     candidate_source = Path(candidate_path)
-    if not candidate_source.is_file():
+    candidate, candidate_present = load_settings(candidate_source)
+    if not candidate_present:
         raise ValueError("candidate_settings_file_required")
-    candidate = Settings.load(candidate_source)
 
     before = asdict(current)
     after = asdict(candidate)
