@@ -174,7 +174,7 @@ class EvidenceLedger:
             if not isinstance(expires_at, str) or not expires_at.strip():
                 raise EvidenceError("expires_at_invalid")
             try:
-                parsed_expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                parsed_expiry = datetime.fromisoformat(expires_at)
                 if parsed_expiry.tzinfo is None or parsed_expiry.utcoffset() is None:
                     raise ValueError("timezone_required")
                 expires_at = parsed_expiry.astimezone(UTC).isoformat(
