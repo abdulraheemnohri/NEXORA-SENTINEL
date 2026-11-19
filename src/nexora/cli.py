@@ -876,6 +876,21 @@ def main(argv=None):
             "note": "The record is hidden from retrieval; append-only content and audit history remain on disk.",
         }, indent=2))
         return 0
+    if args.cmd == "doctor":
+        from nexora.diagnostics import build_doctor_report
+        try:
+            result = build_doctor_report(args.data_dir)
+        except (OSError, ValueError, TypeError, RuntimeError) as exc:
+            print(json.dumps({
+                "status": "ATTENTION_REQUIRED",
+                "error": type(exc).__name__,
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "HEALTHY" else 3
+
     args.data_dir.mkdir(parents=True, exist_ok=True)
     log = AuditLog(args.data_dir / "audit.jsonl")
     stop = KillSwitch(args.data_dir / "KILL")
