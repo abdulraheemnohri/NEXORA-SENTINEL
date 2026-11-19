@@ -109,3 +109,12 @@ After all exact-SHA workflows pass, define the reviewed per-setting authorizatio
 ### Validation correction
 
 The first workflow run for the settings-diff increment caught four Ruff F821 errors because the new tests had not imported `Settings` (run `44454809809`). The explicit import was added in commit `0d2d8ccec3b5dd591330f47bd9fac2a27a326240`. All five workflows then passed on that code/test commit: CI `44454875472`, Tests `44454875493`, Security `44454875533`, Build `44454875513`, and Formal Verification `44454875517`. CI/Tests/Security each report Ruff passed, compileall passed, and 346 pytest tests passed; Security also reports `pip check` passed. Build reports wheel creation passed; TLC model check passed. The only later commit is this documentation update (`902092e076ee7850870cff1e9219750e30fb3b5f`).
+
+
+## Final testing preparation increment — 2026-11-19
+
+- Added `.github/workflows/platform-qualification.yml` with Ubuntu and Windows hosted runners on Python 3.11 and 3.12. Each job runs dependency consistency, Ruff, the full pytest suite, compileall, wheel build and CLI/settings-diff help smoke tests.
+- Added `scripts/qualify.ps1` for Windows PowerShell and `scripts/qualify.sh` for Linux/Debian. Both use an isolated `.venv`, install development/build dependencies and run the same core checks.
+- Added `docs/TESTING_AND_QUALIFICATION.md` with Windows 10/11, Linux, Android Debian, backup/witness, settings non-mutation and manual device qualification checklists. Linked it from README.
+- Hosted Windows CI is a current Windows runner, not exact Windows 10 hardware certification. Android Debian and physical independent witness custody still require the operator's devices.
+- New platform matrix workflows have been added; exact results are pending. No final release readiness claim is made until they pass and manual blockers are resolved.
