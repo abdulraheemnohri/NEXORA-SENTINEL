@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added Evidence Provenance Intelligence v2 with optional source URI, source revision and collection timestamp fields in evidence ledger schema v4.
+- Added read-only provenance inventory to CLI, web dashboard and terminal dashboard; status labels describe metadata completeness and do not claim independent source authentication.
+
 - Added Evidence Freshness Intelligence with optional, timezone-aware operator-declared expiry metadata in evidence ledger schema v3.
 - Added read-only freshness reports to CLI, loopback web dashboard and terminal dashboard, with UNKNOWN/EXPIRED/CURRENT/UNVERIFIED/INVALID_METADATA classifications.
 - Preserved legacy evidence hashes and UNKNOWN semantics; no inferred expiry, evidence deletion, lifecycle mutation or execution.
