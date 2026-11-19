@@ -66,7 +66,7 @@ def create_rotation_statement(
     reason: str,
 ) -> dict[str, Any]:
     """Create an old-key-signed transition statement without changing trust pins."""
-    if role not in ROLES:
+    if not isinstance(role, str) or role not in ROLES:
         raise TrustRotationError("trust_role_invalid")
     if not isinstance(reason, str) or not reason.strip() or len(reason) > 1024:
         raise TrustRotationError("trust_rotation_reason_required")
@@ -172,7 +172,7 @@ def verify_rotation_statement(
     payload = document["payload"]
     if not isinstance(payload, dict) or set(payload) != PAYLOAD_FIELDS:
         raise TrustRotationError("trust_rotation_payload_schema_invalid")
-    if payload.get("schema_version") != 1 or payload.get("repository") != REPOSITORY:
+    if type(payload.get("schema_version")) is not int or payload["schema_version"] != 1 or payload.get("repository") != REPOSITORY:
         raise TrustRotationError("trust_rotation_context_invalid")
     if payload.get("role") not in ROLES:
         raise TrustRotationError("trust_rotation_role_invalid")
