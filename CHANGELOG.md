@@ -2,6 +2,9 @@
 
 ## 0.2.0 — 2026-11-18
 
+- Added a SHA-256 hash chain for new lifecycle, revocation and rollback events, with legacy watermarks explicitly excluded and bound into the chain genesis.
+- Added read-only chain verification and operator-driven Ed25519 external witness checkpoint/verification commands.
+
 - Added read-only artifact integrity verification against exact evidence-ledger records.
 - Added lifecycle history replay and structural regression diagnostics for lifecycle, revocation and rollback records.
 - Added lifecycle history CLI commands and a loopback GET-only dashboard endpoint; legacy lifecycle authenticity remains explicitly unverified.
