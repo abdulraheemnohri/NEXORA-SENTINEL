@@ -201,9 +201,8 @@ class EvidenceLedger:
                 not isinstance(value, str) or not value.strip() or len(value) > maximum
             ):
                 raise EvidenceError(field + "_invalid")
-            if value is not None:
-                if any(ord(char) < 32 for char in value):
-                    raise EvidenceError(field + "_contains_control_character")
+            if value is not None and any(ord(char) < 32 for char in value):
+                raise EvidenceError(field + "_contains_control_character")
         if collected_at is not None:
             if not isinstance(collected_at, str) or not collected_at.strip():
                 raise EvidenceError("collected_at_invalid")
