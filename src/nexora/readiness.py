@@ -65,14 +65,48 @@ def build_settings_policy_status(
         "rollback_verification",
         "unknown_policy_denies",
     ]
+    proposed_settings_not_implemented = [
+        {
+            "name": "interaction_matrix_path",
+            "reason": "Matrix location is currently supplied by explicit CLI/API parameters; no mutable path setting is registered.",
+        },
+        {
+            "name": "capability_maturity_defaults",
+            "reason": "Canonical L0-L4 thresholds and per-capability defaults remain undefined.",
+        },
+        {
+            "name": "witness_remote_endpoint",
+            "reason": "Remote witness transport and independent-host verification are not implemented.",
+        },
+        {
+            "name": "sandbox_backend",
+            "reason": "No OS sandbox backend has completed adversarial qualification.",
+        },
+        {
+            "name": "memory_embedding_model",
+            "reason": "Semantic embedding retrieval is not implemented; lexical retrieval remains authoritative.",
+        },
+        {
+            "name": "proposal_review_required",
+            "reason": "A governed proposal approval workflow is not implemented.",
+        },
+        {
+            "name": "audit_export_format",
+            "reason": "A separate SIEM/export pipeline is not implemented; audit JSONL remains the record format.",
+        },
+    ]
     return {
         "status": "POLICY_NOT_APPROVED" if not present else "PRESENT_REQUIRES_INDEPENDENT_REVIEW",
         "policy_file": str(path),
         "policy_file_present": present,
         "settings_count": len(setting_names),
+        "current_core_settings_without_approved_authorization": setting_names,
         "settings_without_approved_authorization": setting_names,
+        "proposed_settings_not_implemented": proposed_settings_not_implemented,
         "required_policy_controls": required_controls,
         "missing_policy_controls": required_controls,
+        "policy_schema_validated": False,
+        "owner_approval_verified": False,
         "authorization": "NOT_EVALUATED",
         "apply_supported": False,
         "rollback_supported": False,
@@ -138,6 +172,14 @@ def build_spec_status(
             "status": "BLOCKED",
             "missing_count": len(missing_rules),
             "missing_ranges": _ranges(missing_rules),
+        })
+    if not catalogue["entries_valid"] or not catalogue["exact_family_coverage"]:
+        blockers.append({
+            "id": "capability_catalogue_integrity",
+            "status": "BLOCKED",
+            "entries_valid": catalogue["entries_valid"],
+            "unique_ids": catalogue["unique_ids"],
+            "exact_family_coverage": catalogue["exact_family_coverage"],
         })
     if unknown_pairs:
         blockers.append({
