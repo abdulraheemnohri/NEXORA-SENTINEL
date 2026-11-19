@@ -17,7 +17,7 @@ NEXORA SENTINEL — READ-ONLY CONTROL DESK
 2. Audit log
 3. Self-family proposals
 4. Capability registry
-5. Exit
+5. Evidence freshness\n6. Exit
 """
 
 
@@ -135,6 +135,27 @@ def render_registry(data_dir: Path) -> str:
     return "\n".join(lines)
 
 
+def render_evidence_freshness(data_dir: Path) -> str:
+    from nexora.evidence_freshness import build_freshness_report
+
+    database = Path(data_dir) / "registry.sqlite3"
+    if not database.is_file():
+        return "EVIDENCE FRESHNESS — ledger not configured"
+    try:
+        report = build_freshness_report(database)
+    except (OSError, ValueError, sqlite3.Error) as exc:
+        return f"EVIDENCE FRESHNESS — read failed closed ({type(exc).__name__})"
+    counts = report["counts"]
+    lines = [
+        "EVIDENCE FRESHNESS — READ ONLY",
+        f"Ledger integrity: {'VALID' if report['ledger_integrity']['valid'] else 'INVALID'}",
+        f"Records: {report['reported_records']}/{report['total_records']}",
+    ]
+    lines.extend(f"{name}: {count}" for name, count in counts.items())
+    lines.append("UNKNOWN does not mean valid; expiry is operator-declared only.")
+    return "\\n".join(lines)
+
+
 def run_read_only_tui(
     data_dir: Path,
     *,
@@ -146,16 +167,16 @@ def run_read_only_tui(
         "1": render_overview,
         "2": render_audit,
         "3": render_proposals,
-        "4": render_registry,
+        "4": render_registry,\n        "5": render_evidence_freshness,
     }
     while True:
         print(MENU, file=output)
         try:
-            choice = input_fn("Select a view (1-5): ").strip()
+            choice = input_fn("Select a view (1-6): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("Leaving read-only dashboard.", file=output)
             return 0
-        if choice == "5":
+        if choice == "6":
             print("Leaving read-only dashboard.", file=output)
             return 0
         view = views.get(choice)
