@@ -5,7 +5,6 @@ material, authorizes settings, changes governance, or enables execution.
 """
 from __future__ import annotations
 
-import json
 import stat
 from dataclasses import fields
 from pathlib import Path
@@ -17,8 +16,8 @@ from nexora.governance.validation import (
     DEFAULT_PRECEDENCE,
     build_governance_report,
 )
-from nexora.source_status import META_RULES, SOURCE_SPEC, build_source_status
 from nexora.catalog import CATALOG, status as catalog_status
+from nexora.source_status import META_RULES, build_source_status
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SETTINGS_POLICY = ROOT / "config" / "settings_authorization.json"
