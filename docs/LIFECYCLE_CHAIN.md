@@ -26,9 +26,8 @@ local chain is not an independent trust anchor.
 For stronger protection, export signed chain-head checkpoints to an
 independently controlled witness host or offline medium. Keep the witness
 private key and trusted public key outside the registry database and preferably
-outside the same device. A future milestone will add an operator-facing
-checkpoint/verification workflow; no remote service is implied by this local
-chain implementation.
+outside the same device. The operator-facing checkpoint/verification workflow
+is provided by the commands below; no remote service is implied.
 
 No lifecycle promotion, rollback execution, policy change, capability
 execution, automatic repair or autonomous tool use is enabled.
