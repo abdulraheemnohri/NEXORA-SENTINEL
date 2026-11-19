@@ -24,6 +24,16 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check"):
         sub.add_parser(name)
+    lifecycle_history = sub.add_parser(
+        "lifecycle-history", help="Replay existing lifecycle events read-only"
+    )
+    lifecycle_history.add_argument("--capability-id", type=int)
+    lifecycle_history.add_argument("--database", type=Path)
+    regression = sub.add_parser(
+        "regression-report", help="Detect structural lifecycle history regressions read-only"
+    )
+    regression.add_argument("--capability-id", type=int)
+    regression.add_argument("--database", type=Path)
     maturity = sub.add_parser("maturity-report", help="Report lifecycle evidence and explicit L0-L4 source gaps")
     maturity.add_argument("--capability-id", type=int)
     maturity.add_argument("--database", type=Path)
@@ -450,6 +460,17 @@ def main(argv=None):
         except (EvidenceError, OSError, ValueError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
+    if args.cmd in {"lifecycle-history", "regression-report"}:
+        from nexora.lifecycle_history import LifecycleHistoryError, build_lifecycle_history
+        database = args.database or (args.data_dir / "registry.sqlite3")
+        try:
+            result = build_lifecycle_history(database, args.capability_id)
+        except (LifecycleHistoryError, OSError, ValueError) as exc:
+            print(json.dumps({"valid": False, "error": str(exc), "read_only": True}, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["regression_count"] == 0 else 2
+
     if args.cmd == "maturity-report":
         from nexora.maturity_report import MaturityReportError, build_maturity_report
         try:
