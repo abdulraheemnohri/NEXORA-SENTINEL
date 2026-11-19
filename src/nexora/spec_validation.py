@@ -8,12 +8,21 @@ from __future__ import annotations
 import json
 import re
 import stat
+import sysconfig
 from pathlib import Path
 from typing import Any
 
 from nexora.catalog import CATALOG, EXPECTED_FAMILIES, VALID_STATUSES
 from nexora.governance.validation import DEFAULT_MATRIX, DEFAULT_PRECEDENCE, RELATIONS
 from nexora.source_status import META_RULES
+
+_PACKAGE_SPEC = Path(sysconfig.get_path("data")) / "share" / "nexora" / "spec"
+_PACKAGED_MATRIX = _PACKAGE_SPEC / "interaction_matrix.json"
+_PACKAGED_PRECEDENCE = _PACKAGE_SPEC / "precedence.json"
+DEFAULT_VALIDATION_MATRIX = _PACKAGED_MATRIX if _PACKAGED_MATRIX.is_file() else DEFAULT_MATRIX
+DEFAULT_VALIDATION_PRECEDENCE = (
+    _PACKAGED_PRECEDENCE if _PACKAGED_PRECEDENCE.is_file() else DEFAULT_PRECEDENCE
+)
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _CAPABILITY_FIELDS = {"id", "name", "family", "family_name", "status", "source"}
@@ -357,8 +366,8 @@ def validate_specification(
     *,
     catalog_path: Path = CATALOG,
     rules_path: Path = META_RULES,
-    matrix_path: Path = DEFAULT_MATRIX,
-    precedence_path: Path = DEFAULT_PRECEDENCE,
+    matrix_path: Path = DEFAULT_VALIDATION_MATRIX,
+    precedence_path: Path = DEFAULT_VALIDATION_PRECEDENCE,
 ) -> dict[str, Any]:
     """Validate source artifact structure and provenance without writing files.
 
