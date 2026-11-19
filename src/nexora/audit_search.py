@@ -121,17 +121,19 @@ def search_audit_log(
                 expected = hashlib.sha256(
                     (previous + canonical(body)).encode("utf-8")
                 ).hexdigest()
+                sequence_value = record.get("sequence")
                 if (
                     record.get("previous_hash") != previous
                     or record.get("hash") != expected
-                    or record.get("sequence") != verified_count + 1
+                    or type(sequence_value) is not int
+                    or sequence_value != verified_count + 1
                 ):
                     raise AuditSearchError(f"audit_chain_integrity_failed:{line_number}")
 
                 verified_count += 1
                 previous = expected
 
-                sequence = record["sequence"]
+                sequence = sequence_value
                 if from_sequence is not None and sequence < from_sequence:
                     continue
                 if to_sequence is not None and sequence > to_sequence:
