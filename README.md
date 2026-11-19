@@ -451,3 +451,6 @@ The commands use SQLite read-only mode. Operator-recorded review labels remain s
 ## Capability family explorer
 
 Run `nexora family-map` or open `GET /api/family-map` in the local dashboard to inspect the 40 canonical family slots and their source-backed capability counts. Missing capabilities remain unassigned, cross-cutting entries are shown separately, and conflicting family names are flagged. No family relationships or missing assignments are inferred.
+
+
+The local dashboard also exposes structured proposal history at `GET /api/proposal-records` (optionally filtered by `proposal_id` or `limit`). This endpoint is read-only and does not turn a human review label into signed approval.
