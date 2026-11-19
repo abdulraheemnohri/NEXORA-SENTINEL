@@ -454,3 +454,8 @@ Run `nexora family-map` or open `GET /api/family-map` in the local dashboard to 
 
 
 The local dashboard also exposes structured proposal history at `GET /api/proposal-records` (optionally filtered by `proposal_id` or `limit`). This endpoint is read-only and does not turn a human review label into signed approval.
+
+
+## Witness key separation check
+
+Run `nexora witness-independence --backup-private-key PATH --update-private-key PATH --witness-private-key PATH` to compare the backup, update and witness signing keys. The check is read-only. It can identify duplicate fingerprints, shared files/directories and weak POSIX private-key permissions, but it cannot establish off-device custody or hardware-backed protection.
