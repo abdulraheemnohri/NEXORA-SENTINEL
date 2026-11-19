@@ -96,3 +96,24 @@ def test_search_rejects_symlink_including_dangling_target(tmp_path):
 def test_search_rejects_invalid_filters(tmp_path, kwargs):
     with pytest.raises(AuditSearchError):
         search_audit_log(tmp_path / "missing.jsonl", **kwargs)
+
+
+def test_search_rejects_boolean_sequence_even_when_hash_is_consistent(tmp_path):
+    import hashlib
+
+    from nexora._oversight_impl import GENESIS, canonical
+
+    path = tmp_path / "audit.jsonl"
+    record = {
+        "sequence": True,
+        "event": "event",
+        "payload": {},
+        "previous_hash": GENESIS,
+    }
+    record["hash"] = hashlib.sha256(
+        (GENESIS + canonical(record)).encode("utf-8")
+    ).hexdigest()
+    path.write_text(json.dumps(record) + "\\n", encoding="utf-8")
+
+    with pytest.raises(AuditSearchError, match="audit_chain_integrity_failed"):
+        search_audit_log(path)
