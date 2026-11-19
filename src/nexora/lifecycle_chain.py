@@ -248,17 +248,6 @@ def verify_lifecycle_chain_anchor(database: Path, witness_log: Path, trusted_pub
     if not chain.get("valid"):
         return {"valid": False, "status": "LOCAL_CHAIN_INVALID", "chain": chain}
     witness = verify_witness_chain(witness_log, trusted_public_key)
-    try:
-        with Path(witness_log).open(encoding="utf-8") as stream:
-            receipts = [json.loads(line) for line in stream if line.strip()]
-    except (OSError, json.JSONDecodeError) as exc:
-        raise LifecycleChainError("witness_log_unreadable") from exc
-    if not receipts:
-        return {
-            "valid": False, "status": "WITNESS_ANCHOR_MISSING",
-            "chain": chain, "witness": witness,
-        }
-    latest = receipts[-1].get("payload", {})
     matches = (
         latest.get("event_type") == "lifecycle_chain_head"
         and latest.get("event_hash") == chain.get("head_hash")
