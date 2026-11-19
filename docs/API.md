@@ -87,3 +87,14 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Missing source records and unknown matrix relationships remain blockers.
 - No settings apply or execution endpoint is exposed.
 - See [SPECIFICATION_READINESS.md](SPECIFICATION_READINESS.md).
+
+
+## Specification readiness APIs
+
+- `GET /api/spec-status`: read-only aggregate of canonical source coverage,
+  catalogue integrity, interaction-matrix coverage, precedence validity and
+  settings-policy readiness.
+- `GET /api/settings-policy`: reports whether a reviewed per-setting
+  authorization and rollback policy exists. A file's presence is not approval.
+- Both endpoints expose `read_only: true`; neither grants settings mutation,
+  policy mutation, capability activation or execution.
