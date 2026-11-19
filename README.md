@@ -382,3 +382,13 @@ A changed configuration returns `REVIEW_REQUIRED` (exit code 3), lists changed f
 ## Testing and platform qualification
 
 See [`docs/TESTING_AND_QUALIFICATION.md`](docs/TESTING_AND_QUALIFICATION.md) for the reproducible Windows PowerShell and Linux qualification runners, four-job OS/Python CI matrix, first-run smoke checks and manual device/trust checklist. On Windows, run `Set-ExecutionPolicy -Scope Process Bypass` then `.\scripts\qualify.ps1`. On Linux/Debian, run `bash scripts/qualify.sh`. A green hosted CI run does not certify a physical Windows 10, Android or independent witness device.
+
+
+## Specification and governance readiness
+
+Run `nexora spec-status` for a read-only aggregate of canonical source coverage,
+the 264 × 264 interaction matrix, precedence integrity and settings authorization
+readiness. Run `nexora settings policy-status` to inspect the missing per-setting
+authorization and rollback requirements. These commands do not populate missing
+specifications, infer relationships, approve settings, or enable execution.
+See [Specification Readiness](docs/SPECIFICATION_READINESS.md).
