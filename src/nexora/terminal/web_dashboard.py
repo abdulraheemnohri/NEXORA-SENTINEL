@@ -21,6 +21,7 @@ from nexora.terminal.dashboard import (
 
 VIEWS = {
     "/api/overview": render_overview,
+    "/api/settings": lambda root: _render_settings(_SETTINGS_PATH),
     "/api/audit": render_audit,
     "/api/proposals": render_proposals,
     "/api/capabilities": render_registry,
@@ -190,11 +191,31 @@ def _render_recovery_history(data_dir: Path) -> str:
         return json.dumps({"valid": False, "error": type(exc).__name__, "read_only": True})
 
 
-def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPServer:
+
+def _render_settings(settings_path: Path) -> str:
+    """Render validated settings without exposing a mutation endpoint."""
+    from nexora.settings_manager import settings_report
+
+    try:
+        return json.dumps(settings_report(settings_path), ensure_ascii=False, indent=2)
+    except (OSError, ValueError, TypeError) as exc:
+        return json.dumps({
+            "valid": False,
+            "error": type(exc).__name__,
+            "execution_enabled": False,
+            "policy_mutation_enabled": False,
+            "read_only": True,
+        }, ensure_ascii=False, indent=2)
+
+
+
+def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: Path | None = None) -> ThreadingHTTPServer:
     """Create a loopback-only server; callers may use port 0 for ephemeral tests."""
     if type(port) is not int or not 0 <= port <= 65535:
         raise ValueError("port_out_of_range")
     root = Path(data_dir)
+    global _SETTINGS_PATH
+    _SETTINGS_PATH = Path(settings_path) if settings_path is not None else Path("config/settings.yaml")
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "NEXORA-ReadOnly/1"
@@ -225,6 +246,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                 blocks = []
                 for title, route in (
                     ("System overview", "/api/overview"),
+                    ("Settings and safety controls — read only", "/api/settings"),
                     ("Audit log", "/api/audit"),
                     ("Self-family proposals", "/api/proposals"),
                     ("Capability registry", "/api/capabilities"),
