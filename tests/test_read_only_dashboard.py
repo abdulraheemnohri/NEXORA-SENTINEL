@@ -10,7 +10,7 @@ from nexora.terminal.dashboard import (
 
 def test_tui_is_read_only_and_exits_cleanly(tmp_path):
     output = StringIO()
-    answers = iter(["1", "3", "4", "5", "6"])
+    answers = iter(["1", "3", "4", "5", "6", "7"])
     assert run_read_only_tui(
         tmp_path, input_fn=lambda _: next(answers), output=output
     ) == 0
@@ -19,6 +19,7 @@ def test_tui_is_read_only_and_exits_cleanly(tmp_path):
     assert "SELF-FAMILY PROPOSALS" in text
     assert "CAPABILITY REGISTRY" in text
     assert "EVIDENCE FRESHNESS" in text
+    assert "EVIDENCE PROVENANCE" in text
     assert not (tmp_path / "registry.sqlite3").exists()
 
 
