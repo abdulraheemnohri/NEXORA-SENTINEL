@@ -394,13 +394,13 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                         b'{"error":"invalid_proposal_query"}',
                     )
                     return
+                from nexora.proposals import ProposalReadError, read_proposals
                 try:
                     proposal_id = query.get("proposal_id", [None])[0]
                     limit_value = query.get("limit", ["100"])[0]
                     if not limit_value.isdecimal():
                         raise ValueError("proposal_limit_invalid")
                     limit = int(limit_value)
-                    from nexora.proposals import ProposalReadError, read_proposals
                     report = read_proposals(
                         root / "registry.sqlite3",
                         proposal_id=proposal_id,
