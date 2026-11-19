@@ -117,6 +117,7 @@ def test_legacy_watermark_is_bound_to_chain_genesis(tmp_path):
     registry = CapabilityRegistry(database)
     registry.register(7, "Chain test", "A", source_record=True)
     with sqlite3.connect(database) as db:
+        db.execute("DROP TRIGGER lifecycle_chain_meta_no_update")
         db.execute(
             "UPDATE lifecycle_chain_meta SET legacy_max_event_id=legacy_max_event_id+1 "
             "WHERE source_table='lifecycle_events'"
@@ -148,3 +149,25 @@ def test_external_witness_detects_chain_advance_after_checkpoint(tmp_path):
     result = verify_lifecycle_chain_anchor(database, witness_log, public_key)
     assert result["valid"] is False
     assert result["status"] == "ANCHOR_MISMATCH"
+
+
+
+def test_existing_registry_rows_become_unverified_legacy_on_chain_activation(tmp_path):
+    from nexora.lifecycle_chain import verify_lifecycle_chain_file
+    from nexora.registry import CapabilityRegistry
+
+    database = tmp_path / "registry.sqlite3"
+    registry = CapabilityRegistry(database)
+    registry.register(7, "Old capability", "A", source_record=True)
+    with sqlite3.connect(database) as db:
+        db.execute("DROP TABLE lifecycle_chain_events")
+        db.execute("DROP TABLE lifecycle_chain_meta")
+    upgraded = CapabilityRegistry(database)
+    report = verify_lifecycle_chain_file(database)
+    assert report["valid"] is True
+    assert report["event_count"] == 0
+    assert report["legacy_watermarks"]["lifecycle_events"] == 1
+    upgraded.register(8, "New capability", "A", source_record=True)
+    report = verify_lifecycle_chain_file(database)
+    assert report["valid"] is True
+    assert report["event_count"] == 1
