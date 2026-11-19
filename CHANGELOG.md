@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added Evidence Freshness Intelligence with optional, timezone-aware operator-declared expiry metadata in evidence ledger schema v3.
+- Added read-only freshness reports to CLI, loopback web dashboard and terminal dashboard, with UNKNOWN/EXPIRED/CURRENT/UNVERIFIED/INVALID_METADATA classifications.
+- Preserved legacy evidence hashes and UNKNOWN semantics; no inferred expiry, evidence deletion, lifecycle mutation or execution.
+
+
 ## 0.2.0 — 2026-11-18
 
 - Added a SHA-256 hash chain for new lifecycle, revocation and rollback events, with legacy watermarks explicitly excluded and bound into the chain genesis.
