@@ -31,3 +31,9 @@ restart persistence and clear-after-restart behavior. It never touches
 
 This is not proof of worker termination, execution freeze, physical-device
 behavior or recovery authorization. Those require separate integration tests.
+
+
+## Dashboard
+
+The loopback-only web dashboard exposes the same diagnostic report at
+`GET /api/doctor`. The endpoint is GET-only and does not initialize storage.
