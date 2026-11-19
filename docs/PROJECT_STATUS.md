@@ -161,3 +161,23 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   compatibility grants are fabricated.
 - No settings mutation, policy mutation, autonomy increase, or execution path
   was added. See [SPECIFICATION_READINESS.md](SPECIFICATION_READINESS.md).
+
+
+## Specification readiness audit — 2026-11-19
+
+- Added `nexora spec-status`, a read-only aggregate for canonical source coverage,
+  catalogue integrity, 40-family representation, 264×264 interaction coverage,
+  precedence integrity and settings authorization readiness.
+- Added `nexora settings policy-status` to report every current setting without
+  an approved per-setting authorization rule and the required rollback controls.
+- Added read-only web endpoints `GET /api/spec-status` and
+  `GET /api/settings-policy`; both are rendered on the local dashboard.
+- A settings policy file's presence or self-asserted approval fields are never
+  treated as authorization. No policy schema, authority or rollback permission
+  is inferred from unreviewed contents.
+- Missing capability IDs 1–84 and meta-rule IDs 1–15 remain explicitly missing.
+  Unknown interaction pairs remain blocking; no family-level relationships,
+  symmetry, transitivity or compatibility grants are fabricated.
+- No settings apply, policy mutation, capability activation, autonomy increase
+  or execution path was added. The current defaults remain unchanged.
+- Validation and CI are pending for the exact development-branch head.
