@@ -20,8 +20,7 @@ from nexora.governance.validation import (
 )
 from nexora.source_status import META_RULES, build_source_status
 
-ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_SETTINGS_POLICY = ROOT / "config" / "settings_authorization.json"
+DEFAULT_SETTINGS_POLICY = Path("config/settings_authorization.json")
 
 
 def _ranges(values: list[int]) -> list[str]:
@@ -117,6 +116,14 @@ def build_spec_status(
             "status": "BLOCKED",
             "entries_valid": catalogue["entries_valid"],
             "unique_ids": catalogue["unique_ids"],
+        })
+    if not catalogue["complete"]:
+        blockers.append({
+            "id": "capability_catalogue_not_complete",
+            "status": "BLOCKED",
+            "catalogue_status": catalogue["status"],
+            "exact_id_coverage": catalogue["exact_id_coverage"],
+            "exact_family_coverage": catalogue["exact_family_coverage"],
         })
     if not catalogue["exact_family_coverage"]:
         blockers.append({
