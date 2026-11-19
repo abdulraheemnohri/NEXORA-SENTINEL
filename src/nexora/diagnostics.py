@@ -37,7 +37,7 @@ def collect(data_dir: Path) -> dict:
 def _audit_report(path: Path) -> dict[str, Any]:
     """Verify a hash-chained audit file without constructing its mutating facade."""
     try:
-        metadata = path.lstat()
+        path.lstat()
     except FileNotFoundError:
         return {"status": "NOT_CONFIGURED", "valid": None, "entries": 0}
     if path.is_symlink() or not path.is_file():
@@ -186,16 +186,27 @@ def build_doctor_report(
     elif database.is_symlink() or not database.is_file():
         checks["registry"] = {"status": "UNSAFE_PATH", "read_only": True}
     else:
+        connection = None
         try:
+            connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+            integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+            connection.close()
+            connection = None
+            if integrity != "ok":
+                raise sqlite3.DatabaseError("registry_integrity_check_failed")
             from nexora.lifecycle_history import build_lifecycle_history
             history = build_lifecycle_history(database)
             checks["registry"] = {
                 "status": history.get("status", "UNVERIFIED"),
                 "event_count": history.get("event_count", 0),
+                "sqlite_integrity": integrity,
                 "read_only": True,
             }
         except (OSError, ValueError, TypeError, sqlite3.Error):
             checks["registry"] = {"status": "INVALID", "read_only": True}
+        finally:
+            if connection is not None:
+                connection.close()
 
     try:
         from nexora.intelligence.litertlm import runtime_status
