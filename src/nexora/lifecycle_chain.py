@@ -59,6 +59,18 @@ def initialize_lifecycle_chain(db: sqlite3.Connection) -> None:
         )
     """)
     db.execute("""
+        CREATE TRIGGER IF NOT EXISTS lifecycle_chain_meta_no_update
+        BEFORE UPDATE ON lifecycle_chain_meta BEGIN
+            SELECT RAISE(ABORT, 'lifecycle chain activation watermarks are immutable');
+        END
+    """)
+    db.execute("""
+        CREATE TRIGGER IF NOT EXISTS lifecycle_chain_meta_no_delete
+        BEFORE DELETE ON lifecycle_chain_meta BEGIN
+            SELECT RAISE(ABORT, 'lifecycle chain activation watermarks are immutable');
+        END
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS lifecycle_chain_events (
             sequence INTEGER PRIMARY KEY CHECK(sequence >= 1),
             source_table TEXT NOT NULL CHECK(source_table IN (
