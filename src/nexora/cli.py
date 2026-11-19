@@ -292,6 +292,13 @@ def main(argv=None):
     witness_verify = sub.add_parser("verify-witness")
     witness_verify.add_argument("receipt_log", type=Path)
     witness_verify.add_argument("--trusted-key", type=Path)
+    witness_independence = sub.add_parser(
+        "witness-independence",
+        help="Compare backup, update and witness key separation read-only",
+    )
+    witness_independence.add_argument("--backup-private-key", type=Path, required=True)
+    witness_independence.add_argument("--update-private-key", type=Path, required=True)
+    witness_independence.add_argument("--witness-private-key", type=Path, required=True)
 
     web = sub.choices["web"]
     web.add_argument("--port", type=int, default=8765)
@@ -375,6 +382,27 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "witness-independence":
+        from nexora.witness_independence import (
+            WitnessIndependenceError,
+            inspect_witness_independence,
+        )
+        try:
+            result = inspect_witness_independence(
+                args.backup_private_key,
+                args.update_private_key,
+                args.witness_private_key,
+            )
+        except (WitnessIndependenceError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "LOCAL_SEPARATION_CHECK_PASSED" else 3
     if args.cmd == "family-map":
         from nexora.family_inventory import FamilyInventoryError, build_family_inventory
         try:
