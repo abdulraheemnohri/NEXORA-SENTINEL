@@ -35,6 +35,8 @@ VIEWS = {
     "/api/recovery-readiness": lambda root: _render_recovery_readiness(root),
     "/api/recovery-history": lambda root: _render_recovery_history(root),
     "/api/governance": lambda root: _render_governance(),
+    "/api/spec-status": lambda root: _render_spec_status(),
+    "/api/settings-policy": lambda root: _render_settings_policy(),
     "/api/sandbox-readiness": lambda root: _render_sandbox_readiness(),
 }
 
@@ -149,6 +151,18 @@ def _render_governance() -> str:
     return json.dumps(build_governance_report(), ensure_ascii=False, indent=2)
 
 
+def _render_spec_status() -> str:
+    from nexora.readiness import build_spec_status
+
+    return json.dumps(build_spec_status(), ensure_ascii=False, indent=2)
+
+
+def _render_settings_policy() -> str:
+    from nexora.readiness import build_settings_policy_status
+
+    return json.dumps(build_settings_policy_status(), ensure_ascii=False, indent=2)
+
+
 def _render_recovery_readiness(data_dir: Path) -> str:
     from nexora.recovery_readiness import RecoverySettings, build_recovery_readiness
 
@@ -259,6 +273,8 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("Recovery readiness (trust anchor required for verification)", "/api/recovery-readiness"),
                     ("Witnessed recovery simulation history", "/api/recovery-history"),
                     ("Capability governance validation", "/api/governance"),
+                    ("STA-264 specification completeness", "/api/spec-status"),
+                    ("Settings authorization and rollback readiness", "/api/settings-policy"),
                     ("OS sandbox readiness (preflight only)", "/api/sandbox-readiness"),
                 ):
                     content = (
