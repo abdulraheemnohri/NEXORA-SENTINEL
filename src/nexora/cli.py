@@ -201,6 +201,14 @@ def main(argv=None):
     )
     governance_arbitrate.add_argument("--matrix", type=Path)
     governance_arbitrate.add_argument("--wait-graph", type=Path)
+    spec_status = sub.add_parser(
+        "spec-status", help="Report source, matrix and settings-governance readiness"
+    )
+    spec_status.add_argument("--catalog", type=Path)
+    spec_status.add_argument("--rules", type=Path)
+    spec_status.add_argument("--matrix", type=Path)
+    spec_status.add_argument("--precedence", type=Path)
+    spec_status.add_argument("--settings-policy", type=Path)
     source_status = sub.add_parser("source-status", help="Report missing exact-source catalogue records")
     source_status.add_argument("--catalog", type=Path)
     source_status.add_argument("--rules", type=Path)
@@ -327,6 +335,12 @@ def main(argv=None):
     settings_diff = settings_sub.add_parser("diff", help="Preview settings changes without applying them")
     settings_diff.add_argument("--config", type=Path, default=Path("config/settings.yaml"))
     settings_diff.add_argument("--candidate", type=Path, required=True)
+    settings_policy = settings_sub.add_parser(
+        "policy-status", help="Report per-setting authorization and rollback policy readiness"
+    )
+    settings_policy.add_argument(
+        "--policy", type=Path, default=Path("config/settings_authorization.json")
+    )
 
     memory_delete = sub.add_parser("memory-delete", aliases=["memory-tombstone", "memory-hide"])
     memory_delete.add_argument("memory_id", type=int)
@@ -636,6 +650,31 @@ def main(argv=None):
         if args.cmd == "governance-check":
             return 0 if result["valid"] else 2
         return 0 if result["known"] else 3
+    if args.cmd == "spec-status":
+        from nexora.readiness import build_spec_status
+        try:
+            kwargs = {}
+            for argument, key in (
+                ("catalog", "catalog_path"),
+                ("rules", "rules_path"),
+                ("matrix", "matrix_path"),
+                ("precedence", "precedence_path"),
+                ("settings_policy", "settings_policy_path"),
+            ):
+                value = getattr(args, argument)
+                if value is not None:
+                    kwargs[key] = value
+            result = build_spec_status(**kwargs)
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "valid": False,
+                "error": str(exc),
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "READY_FOR_INDEPENDENT_REVIEW" else 3
     if args.cmd == "source-status":
         from nexora.source_status import build_source_status
         try:
@@ -775,7 +814,12 @@ def main(argv=None):
             return 2
     if args.cmd == "settings":
         from nexora.settings_manager import render_settings, settings_diff_report
+        from nexora.readiness import build_settings_policy_status
         try:
+            if args.settings_cmd == "policy-status":
+                result = build_settings_policy_status(args.policy)
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                return 0 if result["status"] == "POLICY_APPROVED" else 3
             if args.settings_cmd == "diff":
                 result = settings_diff_report(args.config, args.candidate)
                 print(json.dumps(result, ensure_ascii=False, indent=2))
