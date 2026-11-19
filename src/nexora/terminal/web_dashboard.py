@@ -30,6 +30,7 @@ VIEWS = {
     "/api/runtime": lambda root: _render_runtime(),
     "/api/self-capabilities": lambda root: _render_self_capabilities(),
     "/api/family-evaluation": lambda root: _render_family_evaluation(root),
+    "/api/family-map": lambda root: _render_family_inventory(),
     "/api/maturity-report": lambda root: _render_maturity_report(root),
     "/api/lifecycle-history": lambda root: _render_lifecycle_history(root),
     "/api/evidence-freshness": lambda root: _render_evidence_freshness(root),
@@ -95,6 +96,12 @@ def _render_self_capabilities() -> str:
     from nexora.self_capability_report import build_report
 
     return json.dumps(build_report(include_records=True), ensure_ascii=False, indent=2)
+
+
+def _render_family_inventory() -> str:
+    from nexora.family_inventory import build_family_inventory
+
+    return json.dumps(build_family_inventory(), ensure_ascii=False, indent=2)
 
 
 def _render_family_evaluation(data_dir: Path, family: str | None = None) -> str:
@@ -304,6 +311,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("LiteRT-LM runtime and local models", "/api/runtime"),
                     ("Self-capability catalogue and source gaps", "/api/self-capabilities"),
                     ("Capability family evidence evaluation", "/api/family-evaluation"),
+                    ("Source-backed 40-family explorer", "/api/family-map"),
                     ("Capability maturity and L0-L4 source gaps", "/api/maturity-report"),
                     ("Lifecycle history and structural regression diagnostics", "/api/lifecycle-history"),
                     ("Evidence freshness and operator-declared expiry", "/api/evidence-freshness"),
