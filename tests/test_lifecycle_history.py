@@ -107,3 +107,10 @@ def test_report_does_not_mutate_database(tmp_path):
     before = path.read_bytes()
     build_lifecycle_history(path)
     assert path.read_bytes() == before
+
+
+def test_unknown_capability_filter_is_not_reported_as_clean(tmp_path):
+    path = tmp_path / "registry.sqlite3"
+    _database(path)
+    with pytest.raises(LifecycleHistoryError, match="capability_not_found"):
+        build_lifecycle_history(path, 2)
