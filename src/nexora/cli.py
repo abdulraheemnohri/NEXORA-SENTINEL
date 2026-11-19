@@ -324,6 +324,11 @@ def main(argv=None):
 
     web = sub.choices["web"]
     web.add_argument("--port", type=int, default=8765)
+    api = sub.add_parser(
+        "api", help="Start the optional GET-only Litestar diagnostics API on loopback"
+    )
+    api.add_argument("--port", type=int, default=8765)
+    api.add_argument("--settings", type=Path, default=Path("config/settings.yaml"))
     memory_add = sub.add_parser("memory-add")
     memory_add.add_argument("content")
     memory_add.add_argument("--source", required=True)
@@ -1113,6 +1118,20 @@ def main(argv=None):
             print(render_settings(args.config))
         except (OSError, ValueError, TypeError) as exc:
             print(json.dumps({"valid": False, "error": str(exc)}, indent=2))
+            return 2
+        return 0
+    if args.cmd == "api":
+        from nexora.litestar_api import ControlPlaneError, run_litestar_api
+        try:
+            run_litestar_api(
+                args.data_dir, settings_path=args.settings, port=args.port,
+            )
+        except (ControlPlaneError, OSError, ValueError) as exc:
+            print(json.dumps({
+                "started": False,
+                "error": str(exc),
+                "execution_enabled": False,
+            }, indent=2))
             return 2
         return 0
     if args.cmd == "web":
