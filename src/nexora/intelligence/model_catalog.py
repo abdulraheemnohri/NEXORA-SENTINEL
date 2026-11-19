@@ -62,13 +62,8 @@ def _artifact_path(root: Path, artifact: str) -> Path:
     model_root = Path(root)
     if model_root.is_symlink():
         raise ModelCatalogError("model_root_symlink_rejected")
-    base = model_root.resolve()
-    target = base.joinpath(*relative.parts)
-    try:
-        target.resolve().relative_to(base)
-    except (OSError, ValueError) as exc:
-        raise ModelCatalogError("model_artifact_path_escapes_model_root") from exc
-    return target
+    base = model_root.absolute()
+    return base.joinpath(*relative.parts)
 
 
 def build_model_catalog_report(
@@ -113,7 +108,14 @@ def build_model_catalog_report(
             ):
                 raise ModelCatalogError("model_sha256_invalid")
             target = _artifact_path(Path(model_dir), item["artifact"])
-            if target.is_symlink():
+            cursor = Path(model_dir).absolute()
+            symlinked = False
+            for part in PurePosixPath(item["artifact"]).parts:
+                cursor = cursor / part
+                if cursor.is_symlink():
+                    symlinked = True
+                    break
+            if symlinked:
                 file_status = "SYMLINK_REJECTED"
                 integrity = "UNVERIFIED"
             elif not target.is_file():
