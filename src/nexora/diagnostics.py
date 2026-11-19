@@ -181,9 +181,17 @@ def build_doctor_report(
         }
 
     database = root / "registry.sqlite3"
-    if not database.exists():
+    try:
+        database.lstat()
+    except FileNotFoundError:
+        database_state = "MISSING"
+    except OSError:
+        database_state = "UNSAFE"
+    else:
+        database_state = "UNSAFE" if database.is_symlink() or not database.is_file() else "PRESENT"
+    if database_state == "MISSING":
         checks["registry"] = {"status": "NOT_CONFIGURED", "read_only": True}
-    elif database.is_symlink() or not database.is_file():
+    elif database_state == "UNSAFE":
         checks["registry"] = {"status": "UNSAFE_PATH", "read_only": True}
     else:
         connection = None
