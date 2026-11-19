@@ -8,7 +8,9 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 SOURCE_TABLES = ("lifecycle_events", "revocation_events", "rollback_events")
 GENESIS = "0" * 64
@@ -204,4 +206,56 @@ def verify_lifecycle_chain(db: sqlite3.Connection) -> dict:
             "A local database hash chain is not an independent trust anchor. "
             "Retain signed checkpoints on a separately controlled system."
         ),
+    }
+
+
+
+def verify_lifecycle_chain_file(database: Path) -> dict:
+    """Verify a registry database without creating files or changing its contents."""
+    path = Path(database)
+    if not path.is_file():
+        raise LifecycleChainError("registry_database_not_found")
+    uri = "file:" + quote(str(path.resolve()), safe="/") + "?mode=ro"
+    try:
+        db = sqlite3.connect(uri, uri=True, timeout=5)
+        db.row_factory = sqlite3.Row
+        db.execute("PRAGMA query_only=ON")
+        try:
+            return verify_lifecycle_chain(db)
+        finally:
+            db.close()
+    except sqlite3.Error as exc:
+        raise LifecycleChainError("registry_read_failed_closed") from exc
+
+
+def verify_lifecycle_chain_anchor(database: Path, witness_log: Path, trusted_public_key: Path) -> dict:
+    """Require the last independently signed witness receipt to match the current chain head."""
+    from nexora.oversight.witness import verify_witness_chain
+
+    chain = verify_lifecycle_chain_file(database)
+    if not chain.get("valid"):
+        return {"valid": False, "status": "LOCAL_CHAIN_INVALID", "chain": chain}
+    witness = verify_witness_chain(witness_log, trusted_public_key)
+    try:
+        with Path(witness_log).open(encoding="utf-8") as stream:
+            receipts = [json.loads(line) for line in stream if line.strip()]
+    except (OSError, json.JSONDecodeError) as exc:
+        raise LifecycleChainError("witness_log_unreadable") from exc
+    if not receipts:
+        return {
+            "valid": False, "status": "WITNESS_ANCHOR_MISSING",
+            "chain": chain, "witness": witness,
+        }
+    latest = receipts[-1].get("payload", {})
+    matches = (
+        latest.get("event_type") == "lifecycle_chain_head"
+        and latest.get("event_hash") == chain.get("head_hash")
+    )
+    return {
+        "valid": bool(witness.get("valid") and matches),
+        "status": "ANCHORED" if matches and witness.get("valid") else "ANCHOR_MISMATCH",
+        "chain": chain,
+        "witness": witness,
+        "latest_checkpoint": latest,
+        "external_anchor": "VERIFIED" if matches and witness.get("valid") else "INVALID",
     }
