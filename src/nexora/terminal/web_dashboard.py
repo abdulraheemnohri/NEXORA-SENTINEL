@@ -286,6 +286,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("Settings and safety controls — read only", "/api/settings"),
                     ("Audit log", "/api/audit"),
                     ("Verified audit search", "/api/audit-search"),
+                    ("Verified audit search", "/api/audit-search"),
                     ("Self-family proposals", "/api/proposals"),
                     ("Capability registry", "/api/capabilities"),
                     ("Local memory", "/api/memory"),
@@ -346,6 +347,57 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ensure_ascii=False, separators=(",", ":"),
                 ).encode("utf-8")
                 self._send(200, "application/json; charset=utf-8", payload)
+                return
+            if path == "/api/audit-search":
+                query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+                allowed = {"event", "contains", "from_sequence", "to_sequence", "limit"}
+                if set(query) - allowed or any(len(values) != 1 for values in query.values()):
+                    self._send(
+                        400,
+                        "application/json; charset=utf-8",
+                        b'{"error":"invalid_audit_search_query"}',
+                    )
+                    return
+                try:
+                    from nexora.audit_search import AuditSearchError, search_audit_log
+
+                    def parse_optional_int(key: str) -> int | None:
+                        value = query.get(key, [None])[0]
+                        if value is None:
+                            return None
+                        if not value.isdecimal():
+                            raise AuditSearchError("audit_search_numeric_filter_invalid")
+                        return int(value)
+
+                    report = search_audit_log(
+                        root / "audit.jsonl",
+                        event=query.get("event", [None])[0],
+                        contains=query.get("contains", [None])[0],
+                        from_sequence=parse_optional_int("from_sequence"),
+                        to_sequence=parse_optional_int("to_sequence"),
+                        limit=parse_optional_int("limit") if "limit" in query else 100,
+                    )
+                    payload = json.dumps(
+                        {"read_only": True, "view": report},
+                        ensure_ascii=False,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                    self._send(200, "application/json; charset=utf-8", payload)
+                except (AuditSearchError, ValueError, TypeError) as exc:
+                    self._send(
+                        400,
+                        "application/json; charset=utf-8",
+                        json.dumps({
+                            "error": "invalid_audit_search_query",
+                            "detail": str(exc),
+                        }).encode("utf-8"),
+                    )
+                except OSError as exc:
+                    self._send(
+                        500,
+                        "application/json; charset=utf-8",
+                        json.dumps({"error": type(exc).__name__}).encode("utf-8"),
+                    )
                 return
             if path == "/api/family-evaluation":
                 query = parse_qs(urlsplit(self.path).query)
