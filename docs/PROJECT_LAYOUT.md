@@ -9,3 +9,6 @@
 - `docs/`: architecture, threat model, operations and project status.
 
 The TUI, web dashboard, API, model inference and OS-enforced sandbox remain future work.
+
+
+- `litestar_api.py`: optional GET-only loopback diagnostics API. The stdlib dashboard remains the default local UI.
