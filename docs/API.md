@@ -245,3 +245,10 @@ network-egress operation. Unimplemented methods return HTTP 405. The proposal
 reader uses SQLite read-only mode and does not initialize a missing database.
 The route collection is not an authorization API; operator approval and
 execution remain outside this service.
+
+
+
+The \`network_egress_route_enabled: false\` response flag describes this API's
+route surface only. It does not disable outbound networking for the Python
+process or the operating system; use OS-level network policy separately where
+that guarantee is required.
