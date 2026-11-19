@@ -52,3 +52,18 @@ No merge or release is performed without owner approval.
 ## Update trust gate
 
 The updater install path now requires a signed Ed25519 manifest verified against a separately provisioned public key, exact commit-SHA equality with GitHub main, successful exact-SHA CI, a clean worktree and fast-forward ancestry. No publisher key is embedded or assumed. A release signing workflow and independently distributed publisher key remain operator/release-process tasks.
+
+
+## Evidence Freshness Intelligence v1
+
+Implemented in the current development line:
+
+- Evidence ledger schema v3 stores optional timezone-aware operator-declared `expires_at` metadata inside the record hash.
+- Legacy schema v1/v2 evidence hashes are preserved; records without expiry remain UNKNOWN.
+- Read-only freshness report distinguishes CURRENT, EXPIRED, UNKNOWN, UNVERIFIED and INVALID_METADATA.
+- CLI, loopback web dashboard API and terminal dashboard expose the report.
+- Reports disclose the 500-record display bound and whether coverage is complete.
+- No canonical expiry policy is embedded; no freshness is inferred from creation time or evidence type.
+- No automatic evidence invalidation, deletion, lifecycle transition, authorization or execution.
+
+Verification status is determined by the exact-SHA GitHub Actions runs. See [EVIDENCE_FRESHNESS.md](EVIDENCE_FRESHNESS.md) for operator usage and limitations.
