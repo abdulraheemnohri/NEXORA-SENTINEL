@@ -116,3 +116,17 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - The report does not initialize missing storage, clear an emergency stop, mutate settings, probe the network or execute tools.
 - Exit code 2 indicates a critical integrity/configuration failure; 3 indicates outstanding blockers; 0 indicates no reported blockers.
 - The result is diagnostic evidence, not a production certification.
+
+
+## Explicit capability dependency graph
+
+- CLI: `nexora governance-dependencies`.
+- Web: `GET /api/dependency-graph`.
+- The graph contains only directed `depends_on` pairs explicitly recorded in
+  `spec/interaction_matrix.json`. Each edge is shown as
+  `capability_id -> requires`.
+- The report counts unknown matrix pairs, identifies strongly connected
+  dependency cycles, and marks all declarations as review-only.
+- No dependency is inferred from family membership, numbering, symmetry or
+  transitivity. Unknown pairs remain `BLOCK_AND_ESCALATE`.
+- No cycle is repaired, no dependent is revoked, and no capability is enabled.
