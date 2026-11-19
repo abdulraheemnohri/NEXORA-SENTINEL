@@ -349,3 +349,21 @@ nexora evidence freshness --capability-id 85
 ```
 
 The evidence freshness report is available in the web dashboard at `/api/evidence-freshness` and in terminal dashboard option 5. Records without explicit expiry remain UNKNOWN. The feature is read-only and does not infer missing requirements, revoke evidence, or alter lifecycle state. See `docs/EVIDENCE_FRESHNESS.md`.
+
+
+### Evidence provenance
+
+Evidence records can optionally carry operator-declared source origin and revision metadata:
+
+```bash
+nexora evidence add 85 --type implementation_reference \
+  --reference git:commit/0123456789abcdef \
+  --sha256 YOUR_64_CHARACTER_SHA256 --operator operator-1 \
+  --source-uri https://github.com/example/project \
+  --source-revision 0123456789abcdef \
+  --collected-at 2026-11-19T10:00:00+05:00 --confirm
+
+nexora evidence provenance
+```
+
+The read-only report is also available at `/api/evidence-provenance` and terminal dashboard option 6. These are provenance declarations, not independent source authentication or remote change detection. See `docs/EVIDENCE_FRESHNESS.md`.
