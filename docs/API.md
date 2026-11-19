@@ -179,3 +179,12 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - The endpoint reads SQLite in read-only mode and does not initialize missing storage.
 - Duplicate/unknown query parameters, malformed IDs and invalid limits are rejected.
 - `REVIEWED` remains a human workflow label, not a cryptographic approval or execution grant.
+
+
+## Witness key independence diagnostic
+
+- CLI: `nexora witness-independence --backup-private-key PATH --update-private-key PATH --witness-private-key PATH`.
+- Reads three Ed25519 private-key files without modifying them or exposing key material.
+- Compares public-key fingerprints, actual file identity, resolved paths, parent directories, and POSIX private-file permissions where available.
+- The result can establish only local key/path separation. Same-host separation, off-device custody, remote witness operation, hardware backing and independent human identity are always reported as unverified.
+- It does not rotate, enroll, revoke, copy or modify any key.
