@@ -150,3 +150,12 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - A missing log returns `NOT_CONFIGURED` and does not create a data directory or log.
 - The default result limit is 100 and the maximum is 500. The report records the number of verified and matched entries and whether results were truncated.
 - Search is read-only and does not initialize, repair, truncate, rotate or rewrite the audit log.
+
+
+## Self-family proposal inspection
+
+- CLI: `nexora proposals list [--database PATH] [--limit N]`.
+- CLI: `nexora proposals show PROPOSAL_ID [--database PATH]`.
+- The reader opens an existing SQLite database in read-only mode and never initializes missing storage.
+- Review history is shown as operator-recorded metadata. `REVIEWED` is not an Ed25519 approval, capability lifecycle promotion, or execution grant.
+- Proposal digests are reported as recorded but not recomputed because the stored proposal row does not retain the original complete payload. The output makes this limitation explicit.
