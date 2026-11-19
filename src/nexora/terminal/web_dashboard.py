@@ -170,12 +170,6 @@ def _render_doctor(data_dir: Path) -> str:
     return json.dumps(build_doctor_report(data_dir), ensure_ascii=False, indent=2)
 
 
-def _render_doctor(data_dir: Path) -> str:
-    from nexora.doctor import build_doctor_report
-
-    return json.dumps(build_doctor_report(data_dir), ensure_ascii=False, indent=2)
-
-
 def _render_recovery_readiness(data_dir: Path) -> str:
     from nexora.recovery_readiness import RecoverySettings, build_recovery_readiness
 
