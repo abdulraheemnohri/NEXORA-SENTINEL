@@ -57,7 +57,7 @@ def test_control_plane_rejects_all_mutating_http_methods(tmp_path, method):
 
     with TestClient(app=app, base_url="http://127.0.0.1") as client:
         request = getattr(client, method)
-        response = request("/api/v1/proposals", json={"approve": True})
+        response = request("/api/v1/proposals")
 
     assert response.status_code == 405
     assert not data_dir.exists()
