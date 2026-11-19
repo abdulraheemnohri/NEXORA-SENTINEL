@@ -390,15 +390,15 @@ def main(argv=None):
             return 2
         if args.proposals_cmd == "show":
             if result["status"] == "VALID" and not result["proposals"]:
-                print(json.dumps({
+                result = {
                     "status": "NOT_FOUND",
                     "proposal_id": args.proposal_id,
                     "read_only": True,
                     "execution_enabled": False,
-                }, indent=2))
-                return 3
-            result["proposal"] = result["proposals"][0] if result["proposals"] else None
-            result.pop("proposals", None)
+                }
+            else:
+                result["proposal"] = result["proposals"][0] if result["proposals"] else None
+                result.pop("proposals", None)
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["status"] == "VALID" else 3
     if args.cmd == "audit-search":
