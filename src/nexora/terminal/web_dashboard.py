@@ -278,7 +278,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                         ensure_ascii=False, separators=(",", ":"),
                     ).encode("utf-8")
                     self._send(200, "application/json; charset=utf-8", payload)
-                except (OSError, ValueError, TypeError, sqlite3.Error) as exc:
+                except (OSError, ValueError, TypeError, RuntimeError, sqlite3.Error) as exc:
                     self._send(500, "application/json; charset=utf-8",
                                json.dumps({"error": type(exc).__name__}).encode("utf-8"))
                 return
