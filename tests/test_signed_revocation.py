@@ -5,8 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from nexora.approval import create_receipt, generate_keypair, load_private_key, load_public_key
-from nexora.registry import CapabilityRegistry, RegistryError
 from nexora.lifecycle_chain import verify_lifecycle_chain_file
+from nexora.registry import CapabilityRegistry, RegistryError
 
 
 def _setup(tmp_path):
