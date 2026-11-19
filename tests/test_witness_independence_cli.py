@@ -1,4 +1,5 @@
 import json
+import os
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -14,6 +15,8 @@ def _key(path):
         serialization.PrivateFormat.PKCS8,
         serialization.NoEncryption(),
     ))
+    if os.name == "posix":
+        path.chmod(0o600)
     return path
 
 
