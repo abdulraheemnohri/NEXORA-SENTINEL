@@ -86,7 +86,7 @@ Exact-SHA workflow status must be checked before treating this milestone as veri
 
 - Added `tests/test_lifecycle_chain_recovery.py`: signs a lifecycle-chain head, creates a signed SQLite backup, restores to a new destination, copies witness receipts and the pinned public key into a separate test location, verifies the restored chain as `ANCHORED`, then proves a subsequent lifecycle append makes the checkpoint stale (`ANCHOR_MISMATCH`).
 - Added `docs/LIFECYCLE_WITNESS_RECOVERY.md` with operator transfer, restore, verification, trust-separation and failure-handling steps.
-- Implementation/test/documentation commit before this status entry: `ec985d4e1ffbe576d894544e09f386dea03ebd99` (the test file was committed immediately before the documentation file; see branch history).
+- Test commit: `49e6395c0d5b2221334a3cd57257a6181e7009d1`; runbook commit: `ec985d4e1ffbe576d894544e09f386dea03ebd99`.
 - Local execution was unavailable in this environment because GitHub could not be reached from the container. Ruff, pytest, compileall, packaging and security checks are therefore pending the exact-commit GitHub Actions result; no pass is claimed.
 - This is a same-host portability regression test, not physical cross-device, cross-administrator or remote-attestation evidence.
 - No lifecycle policy, autonomy level, execution permission, capability state, or trust key was changed.
