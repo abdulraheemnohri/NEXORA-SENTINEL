@@ -571,3 +571,8 @@ write, approval, settings-apply, lifecycle-transition, tool-execution or
 network-egress route. Unknown HTTP methods are rejected. Do not expose it
 through a reverse proxy or bind it to a LAN/public interface. The existing
 stdlib dashboard remains available with \`nexora web\`.
+
+
+
+The API's disabled network-egress flag describes only its registered route
+surface; it is not a process-wide or operating-system network firewall.
