@@ -50,12 +50,14 @@ def test_proposals_endpoint_does_not_initialize_missing_storage(tmp_path):
     assert not data_dir.exists()
 
 
-def test_control_plane_has_no_post_handler_or_mutation_route(tmp_path):
+@pytest.mark.parametrize("method", ["post", "put", "patch", "delete"])
+def test_control_plane_rejects_all_mutating_http_methods(tmp_path, method):
     data_dir = tmp_path / "not-created"
     app = create_litestar_app(data_dir)
 
     with TestClient(app=app, base_url="http://127.0.0.1") as client:
-        response = client.post("/api/v1/proposals", json={"approve": True})
+        request = getattr(client, method)
+        response = request("/api/v1/proposals", json={"approve": True})
 
     assert response.status_code == 405
     assert not data_dir.exists()
@@ -112,3 +114,33 @@ def test_api_launcher_hard_binds_to_ipv4_loopback(tmp_path, monkeypatch):
     assert captured["port"] == 8765
     assert captured["access_log"] is False
     assert not (tmp_path / "missing-data").exists()
+
+
+
+def test_proposal_detail_route_reads_one_existing_proposal(tmp_path):
+    from nexora.self_families import SelfFamily, SelfFamilyManager
+    from nexora.self_family_store import SelfFamilyProposalStore
+
+    data_dir = tmp_path / "data"
+    database = data_dir / "registry.sqlite3"
+    proposal = SelfFamilyManager().propose(
+        SelfFamily.OBSERVATION,
+        "Read-only local inventory",
+        evidence=("source:operator",),
+    )
+    submitted = SelfFamilyProposalStore(database).submit(proposal)
+    app = create_litestar_app(data_dir)
+
+    with TestClient(app=app, base_url="http://127.0.0.1") as client:
+        response = client.get(f"/api/v1/proposals/{submitted['proposal_id']}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["read_only"] is True
+    assert payload["view"]["status"] == "VALID"
+    assert payload["view"]["count"] == 1
+    record = payload["view"]["proposals"][0]
+    assert record["proposal_id"] == submitted["proposal_id"]
+    assert record["execution"] == "DISABLED"
+    assert record["authorization"] == "NOT_GRANTED"
+    assert payload["controls"]["tool_execution_enabled"] is False
