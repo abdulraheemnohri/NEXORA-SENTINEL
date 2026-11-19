@@ -17,7 +17,7 @@ NEXORA SENTINEL — READ-ONLY CONTROL DESK
 2. Audit log
 3. Self-family proposals
 4. Capability registry
-5. Evidence freshness\n6. Exit
+5. Evidence freshness\n6. Evidence provenance\n7. Exit
 """
 
 
@@ -156,6 +156,26 @@ def render_evidence_freshness(data_dir: Path) -> str:
     return "\n".join(lines)
 
 
+def render_evidence_provenance(data_dir: Path) -> str:
+    from nexora.evidence_provenance import build_provenance_report
+
+    database = Path(data_dir) / "registry.sqlite3"
+    if not database.is_file():
+        return "EVIDENCE PROVENANCE — ledger not configured"
+    try:
+        report = build_provenance_report(database)
+    except (OSError, ValueError, RuntimeError, sqlite3.Error) as exc:
+        return f"EVIDENCE PROVENANCE — read failed closed ({type(exc).__name__})"
+    lines = [
+        "EVIDENCE PROVENANCE — READ ONLY",
+        f"Ledger integrity: {'VALID' if report['ledger_integrity']['valid'] else 'INVALID'}",
+        f"Records: {report['reported_records']}/{report['total_records']}",
+    ]
+    lines.extend(f"{name}: {count}" for name, count in report["counts"].items())
+    lines.append("Declarations are not independent source authentication.")
+    return "\n".join(lines)
+
+
 def run_read_only_tui(
     data_dir: Path,
     *,
@@ -168,16 +188,16 @@ def run_read_only_tui(
         "2": render_audit,
         "3": render_proposals,
         "4": render_registry,
-        "5": render_evidence_freshness,
+        "5": render_evidence_freshness,\n        "6": render_evidence_provenance,
     }
     while True:
         print(MENU, file=output)
         try:
-            choice = input_fn("Select a view (1-6): ").strip()
+            choice = input_fn("Select a view (1-7): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("Leaving read-only dashboard.", file=output)
             return 0
-        if choice == "6":
+        if choice == "7":
             print("Leaving read-only dashboard.", file=output)
             return 0
         view = views.get(choice)
