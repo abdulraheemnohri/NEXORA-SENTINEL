@@ -242,6 +242,23 @@ The updater requires the manifest commit to equal the current GitHub `main` SHA,
 
 
 
+## Cryptographic lifecycle history and independent checkpoints
+
+New lifecycle, revocation and rollback events are recorded in an ordered SHA-256 hash chain in the same SQLite transaction as their source event. Verification checks sequence continuity, canonical payloads, source-row equality and complete post-activation coverage. Existing records are excluded using activation watermarks bound into the chain genesis; they remain explicitly unverified.
+
+```bash
+nexora lifecycle-history
+nexora lifecycle-chain-attest \
+  --witness-key /secure/lifecycle-witness-private.pem \
+  --witness-log /separate-witness-storage/lifecycle.jsonl \
+  --confirm
+nexora lifecycle-chain-verify \
+  --witness-log /separate-witness-storage/lifecycle.jsonl \
+  --trusted-witness-key /trusted/lifecycle-witness-public.pem
+```
+
+The checkpoint private key, witness log and trusted public key must be retained independently from the registry database. A checkpoint becomes stale whenever new events are appended; verification then fails until a new checkpoint is deliberately created. The local database chain alone is not an independent trust anchor. See `docs/LIFECYCLE_CHAIN.md`.
+
 ## Lifecycle history and regression diagnostics
 
 The read-only lifecycle report replays the existing SQLite lifecycle, revocation and rollback event tables. It detects structural inconsistencies such as non-sequential transitions, replay/current-state divergence and revocation/control-state mismatches. It does not change state or execute capabilities.
