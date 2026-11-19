@@ -27,7 +27,7 @@ def test_report_does_not_invent_l0_l4_or_promote(tmp_path):
     item = report["capabilities"][0]
     assert item["maturity_scale"]["assigned_level"] is None
     assert item["promotion"]["automatic_promotion"] is False
-    assert item["execution_enabled"] is False if "execution_enabled" in item else True
+    assert item["promotion"]["execution_enabled"] is False
     assert report["lifecycle_changed"] is False
 
 
