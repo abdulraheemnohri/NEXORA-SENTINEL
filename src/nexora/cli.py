@@ -813,8 +813,8 @@ def main(argv=None):
             print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
             return 2
     if args.cmd == "settings":
-        from nexora.settings_manager import render_settings, settings_diff_report
         from nexora.readiness import build_settings_policy_status
+        from nexora.settings_manager import render_settings, settings_diff_report
         try:
             if args.settings_cmd == "policy-status":
                 result = build_settings_policy_status(args.policy)
