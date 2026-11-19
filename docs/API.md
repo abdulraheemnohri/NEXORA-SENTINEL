@@ -98,3 +98,12 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
   authorization and rollback policy exists. A file's presence is not approval.
 - Both endpoints expose `read_only: true`; neither grants settings mutation,
   policy mutation, capability activation or execution.
+
+
+## Specification and settings governance readiness
+
+- `GET /api/spec-status`: read-only aggregate of exact-source capability/meta-rule coverage, catalogue integrity, 264 × 264 interaction-matrix coverage, precedence integrity, and settings authorization readiness.
+- `GET /api/settings-policy`: reports whether a policy file exists and lists the per-setting authority and rollback controls still awaiting owner approval.
+- A policy file's existence or arbitrary contents are never treated as approval.
+- Missing source material and unknown interaction pairs remain blockers. Neither endpoint changes policy, writes settings, or enables execution.
+- CLI equivalents: `nexora spec-status` and `nexora settings policy-status`. Exit code 3 means the artifacts were readable but blockers remain.
