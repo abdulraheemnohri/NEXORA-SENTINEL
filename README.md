@@ -406,3 +406,17 @@ nexora settings policy-status
 ```
 
 The reports identify missing source-backed capability definitions and meta-rules, unknown pairs in the 264 × 264 interaction matrix, and settings whose authorization/rollback rules have not been approved. They never reconstruct missing definitions or infer relationships. A policy file is not approval. Settings application and autonomous execution remain disabled.
+
+
+## Audit search
+
+Search the verified local audit history without changing it:
+
+```bash
+nexora audit-search --event policy.decision --limit 100
+nexora audit-search --contains permission --from-sequence 10
+```
+
+The read-only web endpoint is `GET /api/audit-search`. Search verifies the full
+hash chain and sequence before returning filtered results. Corrupt or unsafe
+audit paths fail closed; search never repairs or rotates the log.
