@@ -231,7 +231,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
             if path == "/api/maturity-report":
                 query = parse_qs(urlsplit(self.path).query)
                 values = query.get("capability_id", [])
-                if len(values) > 1 or (values and not values[0].isdigit()):
+                if len(values) > 1 or (values and (not values[0].isdigit() or not 1 <= int(values[0]) <= 264)):
                     self._send(400, "application/json; charset=utf-8",
                                b'{"error":"invalid_capability_id_query_parameter"}')
                     return
