@@ -182,3 +182,26 @@ def test_legacy_event_cannot_be_retroactively_added_to_chain():
         assert str(exc) == "legacy_event_cannot_be_attested"
     else:
         raise AssertionError("legacy_event_must_not_be_attested")
+
+
+
+def test_registry_event_and_chain_append_rollback_together(tmp_path):
+    from nexora.registry import CapabilityRegistry
+
+    database = tmp_path / "registry.sqlite3"
+    registry = CapabilityRegistry(database)
+    with sqlite3.connect(database) as db:
+        db.execute("DROP TABLE lifecycle_chain_events")
+    try:
+        registry.register(9, "Must roll back", "A", source_record=True)
+    except sqlite3.OperationalError:
+        pass
+    else:
+        raise AssertionError("chain_write_failure_must_abort_registry_write")
+    with sqlite3.connect(database) as db:
+        assert db.execute(
+            "SELECT COUNT(*) FROM capabilities WHERE capability_id=9"
+        ).fetchone()[0] == 0
+        assert db.execute(
+            "SELECT COUNT(*) FROM lifecycle_events WHERE capability_id=9"
+        ).fetchone()[0] == 0
