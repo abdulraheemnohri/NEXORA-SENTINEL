@@ -35,3 +35,12 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - CLI: `nexora lifecycle-history` and `nexora regression-report`, with optional `--capability-id` and `--database`.
 - The report detects state/history divergence and malformed transition sequences. Legacy lifecycle history has no cryptographic event chain, so authenticity is explicitly `UNVERIFIED`.
 - No lifecycle mutation, promotion, rollback execution, or tool execution is possible through these reports.
+
+## Cryptographic lifecycle chain
+
+- The registry initializes a SHA-256 event chain for newly created lifecycle, revocation and rollback records.
+- Legacy event IDs are captured as activation watermarks and are never retroactively attested.
+- The activation watermarks are bound into the chain genesis hash.
+- `nexora lifecycle-chain-attest --witness-key PRIVATE --witness-log PATH --confirm` appends a signed external checkpoint.
+- `nexora lifecycle-chain-verify --witness-log PATH --trusted-witness-key PUBLIC` verifies the chain and requires the latest witness receipt to match its current head.
+- The external witness key and log must be held separately from the registry database to provide an independent trust anchor.
