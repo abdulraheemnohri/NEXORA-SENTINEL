@@ -55,3 +55,15 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Terminal dashboard option 5 displays the read-only summary.
 - `UNKNOWN` is the correct status when no operator expiry is declared. `CURRENT` and `EXPIRED` are determined only from an explicit expiry timestamp; failed ledger integrity yields `UNVERIFIED`.
 - This report does not infer missing evidence, invalidate records, alter lifecycle state, authorize actions, or execute tools. See [Evidence Freshness](EVIDENCE_FRESHNESS.md).
+
+
+## Evidence provenance intelligence
+
+- Evidence ledger schema v4 optionally records `source_uri`, `source_revision`, and timezone-aware `collected_at`, all bound into the evidence record hash.
+- Create evidence with `--source-uri`, `--source-revision`, and optional `--collected-at`.
+- CLI report: `nexora evidence provenance [--capability-id 85] [--limit 500]`.
+- Web: `GET /api/evidence-provenance` and optional `?capability_id=85`.
+- Terminal dashboard option 6 displays the read-only provenance summary.
+- Status labels describe declared metadata completeness only; they do not independently authenticate the source, resolve revisions, or detect upstream changes.
+- Legacy records remain unchanged and are reported as UNDECLARED.
+- See [Evidence Freshness and Provenance](EVIDENCE_FRESHNESS.md).
