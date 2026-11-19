@@ -485,13 +485,13 @@ def main(argv=None):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["status"] == "SOURCE_INVENTORY_COMPLETE" else 3
     if args.cmd == "proposals":
-        from nexora.proposals import ProposalReadError, read_proposals
         from nexora.proposal_review import (
             ProposalReviewError,
             create_proposal_review_receipt,
             read_receipt_file,
             record_signed_proposal_review,
         )
+        from nexora.proposals import ProposalReadError, read_proposals
         database = args.database or (args.data_dir / "registry.sqlite3")
         try:
             if args.proposals_cmd == "review-sign":
