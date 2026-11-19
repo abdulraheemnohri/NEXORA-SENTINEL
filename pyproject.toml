@@ -12,7 +12,8 @@ license = "Unlicense"
 dependencies = ["cryptography>=42,<51", "PyYAML>=6,<7"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "ruff>=0.6,<1"]
+dev = ["pytest>=8,<10", "ruff>=0.6,<1", "litestar>=2.25,<3", "httpx>=0.27,<1"]
+control-plane = ["litestar>=2.25,<3", "uvicorn>=0.30,<1"]
 litertlm = ["litert-lm"]
 
 [project.scripts]
