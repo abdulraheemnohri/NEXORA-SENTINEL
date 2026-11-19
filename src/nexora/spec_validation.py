@@ -150,6 +150,7 @@ def _validate_capabilities(
             _error(errors, label, f"conflicting_family_names:{family}")
 
     missing_ids = sorted(set(range(1, 265)) - seen)
+    missing_families = sorted(EXPECTED_FAMILIES - set(family_names))
     declared_ranges = document.get("missing_ranges")
     actual_ranges = _ranges(missing_ids)
     if not isinstance(declared_ranges, list) or declared_ranges != actual_ranges:
@@ -158,6 +159,8 @@ def _validate_capabilities(
         _error(errors, label, "complete_status_with_missing_capabilities")
     if document.get("status") == "complete" and valid_count != 264:
         _error(errors, label, "complete_status_with_invalid_record_count")
+    if document.get("status") == "complete" and missing_families:
+        _error(errors, label, "complete_status_with_missing_families")
 
     return {
         "valid": True,
@@ -168,7 +171,8 @@ def _validate_capabilities(
         "missing_ranges": actual_ranges,
         "families_present": sorted(family_names),
         "family_count_present": len(family_names),
-        "complete": not missing_ids and valid_count == 264,
+        "missing_families": missing_families,
+        "complete": not missing_ids and valid_count == 264 and not missing_families,
     }
 
 
