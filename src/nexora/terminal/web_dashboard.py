@@ -21,7 +21,6 @@ from nexora.terminal.dashboard import (
 
 VIEWS = {
     "/api/overview": render_overview,
-    "/api/settings": lambda root: _render_settings(_SETTINGS_PATH),
     "/api/audit": render_audit,
     "/api/proposals": render_proposals,
     "/api/capabilities": render_registry,
@@ -214,8 +213,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
     if type(port) is not int or not 0 <= port <= 65535:
         raise ValueError("port_out_of_range")
     root = Path(data_dir)
-    global _SETTINGS_PATH
-    _SETTINGS_PATH = Path(settings_path) if settings_path is not None else Path("config/settings.yaml")
+    settings_file = Path(settings_path) if settings_path is not None else Path("config/settings.yaml")
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "NEXORA-ReadOnly/1"
@@ -279,6 +277,13 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     "</body></html>"
                 )
                 self._send(200, "text/html; charset=utf-8", page.encode("utf-8"))
+                return
+            if path == "/api/settings":
+                payload = json.dumps(
+                    {"read_only": True, "view": _render_settings(settings_file)},
+                    ensure_ascii=False, separators=(",", ":"),
+                ).encode("utf-8")
+                self._send(200, "application/json; charset=utf-8", payload)
                 return
             if path == "/api/family-evaluation":
                 query = parse_qs(urlsplit(self.path).query)
