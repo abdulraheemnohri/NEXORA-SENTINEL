@@ -2,6 +2,10 @@
 
 ## 0.2.0 — 2026-11-18
 
+- Added read-only artifact integrity verification against exact evidence-ledger records.
+- Added lifecycle history replay and structural regression diagnostics for lifecycle, revocation and rollback records.
+- Added lifecycle history CLI commands and a loopback GET-only dashboard endpoint; legacy lifecycle authenticity remains explicitly unverified.
+
 - Added modular responsibility-oriented package structure.
 - Added conservative YAML configuration profiles and validated YAML loading.
 - Added SQLite online backup, integrity verification and non-overwriting restore.
