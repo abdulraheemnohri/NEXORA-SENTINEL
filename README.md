@@ -367,3 +367,14 @@ nexora evidence provenance
 ```
 
 The read-only report is also available at `/api/evidence-provenance` and terminal dashboard option 6. These are provenance declarations, not independent source authentication or remote change detection. See `docs/EVIDENCE_FRESHNESS.md`.
+
+
+## Settings change preview (read-only)
+
+Compare a proposed settings file with the current configuration without applying it:
+
+```bash
+nexora settings diff --config config/settings.yaml --candidate proposed-settings.yaml
+```
+
+A changed configuration returns `REVIEW_REQUIRED` (exit code 3), lists changed fields, and marks authorization as `NOT_EVALUATED`. This is intentional: no approved per-setting authorization matrix exists yet. The command cannot write settings, enable features, or grant autonomy. A matching configuration returns `NO_CHANGES`. Invalid or missing candidate files fail closed.
