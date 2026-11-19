@@ -254,3 +254,16 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   hardware-backed storage or independent human identity.
 - Added tests for reused fingerprints, shared directories, symlinks and weak
   POSIX permissions.
+
+
+## Signed trust-anchor rotation — 2026-11-19
+
+- Added `nexora trust-rotate` to create an old-key-signed transition statement
+  for backup, update or witness Ed25519 keys.
+- Added `nexora trust-verify` to verify the statement against the existing
+  pinned old public key and verify the embedded replacement key fingerprint.
+- The workflow does not enroll the new key, change configuration, replace
+  trust pins or activate a new key. Out-of-band operator confirmation remains
+  mandatory.
+- Added tests for valid transitions, wrong old pins, tampering, no-op rotation,
+  output overwrite refusal, symlink refusal and CLI behavior.
