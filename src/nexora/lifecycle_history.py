@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from urllib.parse import quote
 
@@ -36,7 +37,7 @@ def build_lifecycle_history(database: Path, capability_id: int | None = None) ->
     ):
         raise LifecycleHistoryError("capability_id_out_of_range")
     try:
-        with _readonly(database) as db:
+        with closing(_readonly(database)) as db:
             tables = {row["name"] for row in db.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )}
