@@ -21,7 +21,7 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Six provisional self-* domains: observation, diagnostics, repair planning, learning, governance assistance and evolution proposals. Only read-only observation/diagnostics are enabled by default; all self-family outputs are proposals, never execution.
 - Conservative YAML configuration profiles and validated settings loader.
 - Durable local memory with source SHA-256 provenance, deterministic lexical retrieval, append-only records and auditable tombstones; no automatic model writes.
-- Dependency-free read-only terminal dashboard for system status, audit history, self-family proposals and capability registry; it exposes no mutation or execution controls.
+- Dependency-free read-only terminal dashboard for system status, audit history, self-family proposals, capability registry and evidence freshness; it exposes no mutation or execution controls.
 - Loopback-only, GET-only local web dashboard with JSON diagnostic endpoints, Host-header validation and no control or execution endpoints.
 
 ## Repository map
@@ -269,7 +269,7 @@ nexora lifecycle-history --capability-id 85
 nexora regression-report
 ```
 
-The dashboard exposes `/api/lifecycle-history`. Legacy lifecycle rows have append-only SQLite triggers but no cryptographic event hash chain; the report therefore marks history authenticity `UNVERIFIED`. Structural consistency is not proof against a privileged database rewrite. Evidence expiry is not inferred because canonical expiry semantics have not been supplied. See `docs/LIFECYCLE_HISTORY.md`.
+The dashboard exposes `/api/lifecycle-history`. Legacy lifecycle rows have append-only SQLite triggers but no cryptographic event hash chain; the report therefore marks history authenticity `UNVERIFIED`. Structural consistency is not proof against a privileged database rewrite. Canonical expiry semantics have not been supplied, so freshness remains UNKNOWN unless an operator explicitly records a timezone-aware expiry. See `docs/EVIDENCE_FRESHNESS.md`.
 
 Capability evidence ledger: see `docs/CAPABILITY_EVIDENCE.md` for append-only evidence references, hash-chain verification, CLI usage, and security limits.
 
@@ -332,3 +332,20 @@ returns a readiness grant and never enables execution. The loopback dashboard
 also exposes the report at `/api/sandbox-readiness`. See
 `docs/SANDBOX_READINESS.md` for the remaining isolation and adversarial-test
 gates. Android Debian/Termux is not currently qualified.
+
+
+## Evidence freshness intelligence
+
+Evidence records may include an explicit operator-declared expiry. For example:
+
+```bash
+nexora evidence add 85 --type test_report \
+  --reference artifact://reports/test-85.json \
+  --sha256 <64-character-lowercase-sha256> \
+  --operator operator-1 --expires-at 2027-01-01T00:00:00Z --confirm
+
+nexora evidence freshness
+nexora evidence freshness --capability-id 85
+```
+
+The evidence freshness report is available in the web dashboard at `/api/evidence-freshness` and in terminal dashboard option 5. Records without explicit expiry remain UNKNOWN. The feature is read-only and does not infer missing requirements, revoke evidence, or alter lifecycle state. See `docs/EVIDENCE_FRESHNESS.md`.
