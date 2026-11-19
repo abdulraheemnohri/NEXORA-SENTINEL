@@ -99,6 +99,7 @@ def test_spec_status_reports_missing_source_and_unknown_matrix(tmp_path):
     assert {item["id"] for item in report["blockers"]} == {
         "missing_capability_source", "missing_meta_rule_source",
         "interaction_matrix_unknown_pairs", "settings_authorization_and_rollback",
+        "capability_family_coverage",
     }
 
 
@@ -145,3 +146,28 @@ def test_spec_status_does_not_grant_ready_from_complete_sources_if_policy_missin
     report = build_spec_status(catalog, rules, matrix, precedence, tmp_path / "missing-policy.json")
     assert report["status"] == "BLOCKED"
     assert any(x["id"] == "settings_authorization_and_rollback" for x in report["blockers"])
+
+
+
+def test_spec_status_cli_reports_blocked_without_mutation(tmp_path, capsys):
+    from nexora.cli import main
+
+    result = main(["spec-status"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert result == 3
+    assert payload["status"] == "BLOCKED"
+    assert payload["controls"]["execution_enabled"] is False
+    assert payload["controls"]["settings_mutation_enabled"] is False
+
+
+def test_settings_policy_status_cli_is_read_only(tmp_path, capsys):
+    from nexora.cli import main
+
+    policy = tmp_path / "not-created.json"
+    result = main(["settings", "policy-status", "--policy", str(policy)])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert result == 3
+    assert payload["status"] == "POLICY_NOT_APPROVED"
+    assert not policy.exists()
