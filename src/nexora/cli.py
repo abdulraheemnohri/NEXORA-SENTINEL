@@ -355,6 +355,10 @@ def main(argv=None):
         "--policy", type=Path, default=Path("config/settings_authorization.json")
     )
 
+    family_map = sub.add_parser(
+        "family-map", help="Show source-backed capability family inventory read-only"
+    )
+    family_map.add_argument("--catalog", type=Path)
     proposals = sub.add_parser(
         "proposals", help="Inspect self-family proposals without execution authorization"
     )
@@ -371,6 +375,20 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "family-map":
+        from nexora.family_inventory import FamilyInventoryError, build_family_inventory
+        try:
+            result = build_family_inventory(args.catalog) if args.catalog else build_family_inventory()
+        except (FamilyInventoryError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "status": "INVALID",
+                "error": str(exc),
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "SOURCE_INVENTORY_COMPLETE" else 3
     if args.cmd == "proposals":
         from nexora.proposals import ProposalReadError, read_proposals
         database = args.database or (args.data_dir / "registry.sqlite3")
