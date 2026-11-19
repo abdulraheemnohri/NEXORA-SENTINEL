@@ -195,3 +195,16 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   capabilities or executes tools.
 - Exact-head CI results must be checked for the current PR head before this
   increment is considered qualified.
+
+
+## Verified audit search — 2026-11-19
+
+- Added `nexora audit-search` with event, text, sequence-range and bounded
+  result-count filters.
+- Added loopback-only `GET /api/audit-search` and a dashboard search panel.
+- Search verifies the complete SHA-256 audit chain and sequence continuity
+  before returning results; invalid logs fail closed with no partial results.
+- Missing logs are reported as `NOT_CONFIGURED`; no directory or log is created.
+- Symlink and non-regular log paths are refused. Search is read-only and does
+  not repair, rotate, truncate or rewrite audit history.
+- Exact-head CI and platform qualification are pending for this increment.
