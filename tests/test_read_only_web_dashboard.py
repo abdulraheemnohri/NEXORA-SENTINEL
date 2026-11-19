@@ -281,8 +281,8 @@ def test_web_dashboard_maturity_filter_rejects_invalid_id(tmp_path):
         connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
         connection.request("GET", "/api/maturity-report?capability_id=0")
         response = connection.getresponse()
-        assert response.status == 500
-        assert b"MaturityReportError" in response.read()
+        assert response.status == 400
+        assert b"invalid_capability_id_query_parameter" in response.read()
         connection.close()
     finally:
         server.shutdown()
