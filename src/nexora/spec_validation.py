@@ -112,7 +112,8 @@ def _validate_capabilities(
         _error(errors, label, "expected_capability_count_must_be_264")
     if type(document.get("expected_family_count")) is not int or document.get("expected_family_count") != 40:
         _error(errors, label, "expected_family_count_must_be_40")
-    if document.get("status") not in {"partial_source_import", "complete"}:
+    catalogue_status = document.get("status")
+    if not isinstance(catalogue_status, str) or catalogue_status not in {"partial_source_import", "complete"}:
         _error(errors, label, "catalogue_status_invalid")
 
     rows = document.get("capabilities")
@@ -146,11 +147,11 @@ def _validate_capabilities(
         ):
             _error(errors, label, "capability_text_or_source_invalid", identifier)
         family = row.get("family")
-        if family not in EXPECTED_FAMILIES | {"CROSS-CUTTING"}:
+        if not isinstance(family, str) or family not in EXPECTED_FAMILIES | {"CROSS-CUTTING"}:
             _error(errors, label, "capability_family_invalid", identifier)
         elif isinstance(row.get("family_name"), str) and row["family_name"].strip():
             family_names.setdefault(family, set()).add(row["family_name"].strip())
-        if row.get("status") not in VALID_STATUSES:
+        if not isinstance(row.get("status"), str) or row["status"] not in VALID_STATUSES:
             _error(errors, label, "capability_status_invalid", identifier)
         valid_count += 1
 
@@ -164,11 +165,11 @@ def _validate_capabilities(
     actual_ranges = _ranges(missing_ids)
     if not isinstance(declared_ranges, list) or declared_ranges != actual_ranges:
         _error(errors, label, "declared_missing_ranges_do_not_match_records")
-    if document.get("status") == "complete" and missing_ids:
+    if catalogue_status == "complete" and missing_ids:
         _error(errors, label, "complete_status_with_missing_capabilities")
-    if document.get("status") == "complete" and valid_count != 264:
+    if catalogue_status == "complete" and valid_count != 264:
         _error(errors, label, "complete_status_with_invalid_record_count")
-    if document.get("status") == "complete" and missing_families:
+    if catalogue_status == "complete" and missing_families:
         _error(errors, label, "complete_status_with_missing_families")
 
     return {
@@ -194,7 +195,8 @@ def _validate_meta_rules(
         return {"valid": False, "registered": 0, "missing_ids": list(range(1, 46))}
     if type(document.get("expected_rule_count")) is not int or document.get("expected_rule_count") != 45:
         _error(errors, label, "expected_rule_count_must_be_45")
-    if document.get("status") not in {"partial_source_import", "complete"}:
+    rules_status = document.get("status")
+    if not isinstance(rules_status, str) or rules_status not in {"partial_source_import", "complete"}:
         _error(errors, label, "meta_rule_status_invalid")
 
     rows = document.get("rules")
@@ -234,9 +236,9 @@ def _validate_meta_rules(
     actual_ranges = _ranges(missing_ids)
     if not isinstance(declared_ranges, list) or declared_ranges != actual_ranges:
         _error(errors, label, "declared_missing_rule_ranges_do_not_match_records")
-    if document.get("status") == "complete" and missing_ids:
+    if rules_status == "complete" and missing_ids:
         _error(errors, label, "complete_status_with_missing_meta_rules")
-    if document.get("status") == "complete" and valid_count != 45:
+    if rules_status == "complete" and valid_count != 45:
         _error(errors, label, "complete_status_with_invalid_record_count")
 
     return {
@@ -308,7 +310,7 @@ def _validate_matrix(
         seen.add(pair)
         if source not in capability_ids or target not in capability_ids:
             _error(errors, label, "relation_references_missing_capability")
-        if relation not in RELATIONS:
+        if not isinstance(relation, str) or relation not in RELATIONS:
             _error(errors, label, "interaction_relation_invalid")
         if not isinstance(row.get("source_ref"), str) or not row["source_ref"].strip():
             _error(errors, label, "interaction_source_reference_required")
