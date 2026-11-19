@@ -196,3 +196,25 @@ def test_trust_rotation_cli_create_and_verify(tmp_path, capsys):
     assert result == 0
     assert verified["valid"] is True
     assert verified["trust_pin_changed"] is False
+
+
+def test_trust_rotation_rejects_boolean_schema_version(tmp_path):
+    old = Ed25519PrivateKey.generate()
+    new = Ed25519PrivateKey.generate()
+    old_private = _write_private(tmp_path / "old" / "private.pem", old)
+    old_public = _write_public(tmp_path / "old" / "public.pem", old)
+    new_public = _write_public(tmp_path / "new" / "public.pem", new)
+    manifest = tmp_path / "rotation.json"
+    create_rotation_statement(
+        role="update",
+        old_private_key=old_private,
+        new_public_key=new_public,
+        output=manifest,
+        reason="Test strict schema version",
+    )
+    document = json.loads(manifest.read_text(encoding="utf-8"))
+    document["payload"]["schema_version"] = True
+    manifest.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(TrustRotationError, match="context_invalid"):
+        verify_rotation_statement(manifest, trusted_old_public_key=old_public)
