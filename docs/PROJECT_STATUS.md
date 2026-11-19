@@ -1,10 +1,10 @@
 # Project Status — NEXORA Sentinel
 
-Last updated: 2026-11-18
+Last updated: 2026-11-19
 
 ## Current milestone
 
-Safety kernel, durable self-family proposal review, source-backed capability family evidence evaluation, and read-only terminal/web dashboards. This is still a governance/runtime foundation, not a completed autonomous agent.
+Safety kernel, durable self-family proposal review, capability evidence/maturity reporting, artifact integrity verification, lifecycle-history regression diagnostics, and read-only terminal/web dashboards. This is still a governance/runtime foundation, not a completed autonomous agent.
 
 ## Implemented
 
@@ -18,6 +18,7 @@ Safety kernel, durable self-family proposal review, source-backed capability fam
 - Loopback-only GET web dashboard and JSON diagnostic endpoints; Host header is checked, mutation methods are rejected, and the server binds only to 127.0.0.1.
 - Conservative YAML profiles, modular package structure and TLA+ lifecycle model.
 - Built-in GitHub updater: checks the official main-branch commit, previews changed paths, summarizes Actions runs for the exact target SHA, and blocks installation on a known failed CI run. Explicit installation still requires confirmation, official origin, main branch, clean worktree and fast-forward-only history. It reinstalls the local package and attempts source rollback if installation fails. Separate Ed25519 update-manifest signing and verification commands bind repository/ref/commit/version and require an externally supplied trusted public key; a dedicated update-key generator creates non-overwriting key files with restrictive private-key permissions.
+- Read-only lifecycle history and regression diagnostics replay existing lifecycle/revocation/rollback events, detect structural state drift, and expose CLI plus GET-only dashboard output. Legacy lifecycle records are not cryptographically hash-chained; authenticity remains UNVERIFIED.
 - Read-only settings inspection and validation CLI: missing files use safe L0 defaults; existing invalid files and unknown keys fail closed; no settings mutation or execution toggles are exposed.
 - Durable explicit-write memory store with SHA-256 source fingerprints, deterministic AND-term retrieval, append-only record/event tables, tombstone deletion and legacy-store import; read-only search does not create missing storage.
 
@@ -34,13 +35,13 @@ Safety kernel, durable self-family proposal review, source-backed capability fam
 
 ## Next priorities
 
-1. Enroll an independently distributed update-signing public key and wire verified signed manifests into the updater's installation gate; current manifest verification is a separate operator command and is not yet mandatory for installation.
-2. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
-3. Test read-only dashboard behavior on supported Linux and Android Debian terminals.
-4. Validate the read-only web dashboard on Linux and Android Debian; retain loopback-only binding.
+1. Design a versioned cryptographic lifecycle-event chain with an independent trust anchor; legacy rows must remain UNVERIFIED and must not be retroactively attested.
+2. Define source-backed evidence expiry/revocation semantics before implementing evidence freshness monitoring.
+3. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
+4. Test read-only dashboard and CLI behavior on supported Linux and Android Debian terminals.
 5. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
 6. Design OS-enforced sandbox isolation before any execution feature.
-7. Verify the official LiteRT-LM CLI and a small `.litertlm` model on Pixel/Android Debian; only then test Qwen3-4B-Thinking-2507 with memory monitoring, recording CPU/GPU stability, load time and token throughput without making unmeasured performance claims.
+7. Verify the official LiteRT-LM CLI and a small `.litertlm` model on Pixel/Android Debian; only then test Qwen3-4B-Thinking-2507 with measured resource/throughput results.
 
 No merge or release is performed without owner approval.
 
