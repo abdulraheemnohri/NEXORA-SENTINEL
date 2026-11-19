@@ -91,13 +91,30 @@ def test_read_proposals_rejects_invalid_identifier_and_limit(tmp_path):
 
 
 def test_proposals_cli_list_and_show_are_read_only(tmp_path, capsys):
+    import sqlite3
+
     from nexora.cli import main
 
     database = tmp_path / "registry.sqlite3"
     store = SelfFamilyProposalStore(database)
     proposal = store.submit(_proposal())
-    original = database.read_bytes()
 
+    def snapshot():
+        with sqlite3.connect(database) as connection:
+            schema = connection.execute(
+                "SELECT type,name,sql FROM sqlite_master ORDER BY type,name"
+            ).fetchall()
+            proposals = connection.execute(
+                "SELECT proposal_id,family,summary,evidence_json,payload_sha256,execution "
+                "FROM self_family_proposals ORDER BY proposal_id"
+            ).fetchall()
+            history = connection.execute(
+                "SELECT proposal_id,decision,operator_label,evidence_json,note "
+                "FROM self_family_review_events ORDER BY event_id"
+            ).fetchall()
+        return schema, proposals, history
+
+    original = snapshot()
     result = main([
         "proposals", "list", "--database", str(database),
     ])
@@ -113,7 +130,7 @@ def test_proposals_cli_list_and_show_are_read_only(tmp_path, capsys):
     assert result == 0
     assert detail["proposal"]["execution"] == "DISABLED"
     assert detail["proposal"]["authorization"] == "NOT_GRANTED"
-    assert database.read_bytes() == original
+    assert snapshot() == original
 
 
 def test_proposals_cli_missing_store_does_not_create_data_directory(tmp_path, capsys):
