@@ -181,3 +181,17 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - No settings apply, policy mutation, capability activation, autonomy increase
   or execution path was added. The current defaults remain unchanged.
 - Validation and CI are pending for the exact development-branch head.
+
+
+## Read-only diagnostics additions — 2026-11-19
+
+- Added explicit dependency graph reporting from declared `depends_on` edges,
+  including strongly connected cycles and the number of unknown matrix pairs.
+- Added `nexora governance-dependencies` and `GET /api/dependency-graph`.
+- Added read-only `nexora audit-search` and `GET /api/audit-search`; both verify
+  the entire audit hash chain and sequence before filtering by event, text or
+  sequence window.
+- Neither feature infers relationships, repairs audit history, enables
+  capabilities or executes tools.
+- Exact-head CI results must be checked for the current PR head before this
+  increment is considered qualified.
