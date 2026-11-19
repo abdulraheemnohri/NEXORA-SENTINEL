@@ -24,7 +24,7 @@ def _response(view: dict[str, Any]) -> dict[str, Any]:
             "policy_mutation_enabled": False,
             "capability_promotion_enabled": False,
             "tool_execution_enabled": False,
-            "network_egress_enabled": False,
+            "network_egress_route_enabled": False,
         },
         "view": view,
     }
@@ -42,6 +42,7 @@ def create_litestar_app(
     """
     try:
         from litestar import Litestar, get
+        from litestar.params import FromPath
     except ImportError as exc:
         raise ControlPlaneError(
             "Litestar is optional; install nexora-sentinel[control-plane]"
@@ -141,7 +142,7 @@ def create_litestar_app(
         return _response(report)
 
     @get(path="/api/v1/proposals/{proposal_id:str}", sync_to_thread=True)
-    def proposal_detail(proposal_id: str) -> dict[str, Any]:
+    def proposal_detail(proposal_id: FromPath[str]) -> dict[str, Any]:
         from nexora.proposals import ProposalReadError, read_proposals
 
         try:
