@@ -494,7 +494,7 @@ def main(argv=None):
             receipt = IndependentWitness(args.witness_log, args.witness_key).attest(
                 chain["head_hash"], "lifecycle_chain_head",
             )
-        except (LifecycleChainError, OSError, ValueError) as exc:
+        except (LifecycleChainError, OSError, ValueError, RuntimeError) as exc:
             print(json.dumps({"attested": False, "error": str(exc)}, indent=2))
             return 2
         print(json.dumps({
