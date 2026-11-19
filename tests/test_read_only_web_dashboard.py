@@ -557,3 +557,27 @@ def test_web_dashboard_root_links_specification_readiness_panels(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def test_web_dashboard_exposes_read_only_doctor_without_creating_storage(tmp_path):
+    data_dir = tmp_path / "no-data"
+    server = create_read_only_server(data_dir, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        connection.request("GET", "/api/doctor")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["safety"]["read_only"] is True
+        assert report["safety"]["execution_enabled"] is False
+        assert report["checks"]["audit"]["status"] == "NOT_CONFIGURED"
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
