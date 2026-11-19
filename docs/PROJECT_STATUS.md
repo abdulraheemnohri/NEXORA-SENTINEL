@@ -81,3 +81,16 @@ Implemented in the current development line:
 - No evidence mutation, lifecycle transition, authorization or execution is performed by the report.
 
 Exact-SHA workflow status must be checked before treating this milestone as verified. See [EVIDENCE_FRESHNESS.md](EVIDENCE_FRESHNESS.md).
+
+## Atomic settings persistence hardening — 2026-11-19
+
+- `Settings.save()` now serializes before touching the destination, writes a same-directory temporary file, applies owner-only POSIX permissions where supported, flushes and fsyncs file contents, atomically replaces the target, and fsyncs the containing directory on POSIX.
+- Rejects symlink destinations (including dangling links) and existing non-file targets. Temporary files are cleaned after write/replace failures; a failed replacement preserves the previous settings file.
+- Added regression tests for successful replacement/round-trip, replacement failure preserving the old file, temporary-file cleanup, symlink refusal, directory refusal, and POSIX mode 0600.
+- Added `docs/SETTINGS_PERSISTENCE_SAFETY.md`. This does not add a settings editor or policy mutation surface; settings inspection remains read-only, L0 remains default, and scheduler/sandbox/network remain disabled by default.
+- Commits: implementation `0fc0f71236af98eb0ed5585eca4aa86607f81051`; tests `173b2fb25362e27f7038453f83b85c71d7ce78ab`; documentation `c9e0b68b47700403527ab0501f579285e6864752`.
+- Validation on the exact final commit is pending GitHub Actions. No local test result is claimed.
+
+### Next task
+
+After all exact-SHA workflows pass, define the reviewed per-setting authorization and rollback requirements before implementing a controlled settings-change workflow. Do not expose settings mutation until those governance rules are approved.
