@@ -299,6 +299,21 @@ def main(argv=None):
     witness_independence.add_argument("--backup-private-key", type=Path, required=True)
     witness_independence.add_argument("--update-private-key", type=Path, required=True)
     witness_independence.add_argument("--witness-private-key", type=Path, required=True)
+    trust_rotate = sub.add_parser(
+        "trust-rotate",
+        help="Create an old-key-signed trust-anchor transition statement",
+    )
+    trust_rotate.add_argument("--role", choices=("backup", "update", "witness"), required=True)
+    trust_rotate.add_argument("--old-private-key", type=Path, required=True)
+    trust_rotate.add_argument("--new-public-key", type=Path, required=True)
+    trust_rotate.add_argument("--output", type=Path, required=True)
+    trust_rotate.add_argument("--reason", required=True)
+    trust_verify = sub.add_parser(
+        "trust-verify",
+        help="Verify a trust-anchor transition against the old pinned key",
+    )
+    trust_verify.add_argument("manifest", type=Path)
+    trust_verify.add_argument("--trusted-old-public-key", type=Path, required=True)
 
     web = sub.choices["web"]
     web.add_argument("--port", type=int, default=8765)
@@ -382,6 +397,39 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd in {"trust-rotate", "trust-verify"}:
+        from nexora.trust_rotation import (
+            TrustRotationError,
+            create_rotation_statement,
+            verify_rotation_statement,
+        )
+        try:
+            if args.cmd == "trust-rotate":
+                result = create_rotation_statement(
+                    role=args.role,
+                    old_private_key=args.old_private_key,
+                    new_public_key=args.new_public_key,
+                    output=args.output,
+                    reason=args.reason,
+                )
+                exit_code = 0
+            else:
+                result = verify_rotation_statement(
+                    args.manifest,
+                    trusted_old_public_key=args.trusted_old_public_key,
+                )
+                exit_code = 0 if result["valid"] else 2
+        except (TrustRotationError, OSError, ValueError, TypeError) as exc:
+            print(json.dumps({
+                "valid": False,
+                "error": str(exc),
+                "trust_pin_changed": False,
+                "new_key_enrolled": False,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return exit_code
     if args.cmd == "witness-independence":
         from nexora.witness_independence import (
             WitnessIndependenceError,
