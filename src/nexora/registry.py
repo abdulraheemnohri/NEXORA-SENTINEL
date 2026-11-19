@@ -16,6 +16,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from nexora.approval import ApprovalError, ApprovalReceiptStore
 from nexora.lifecycle import validate_transition
+from nexora.lifecycle_chain import append_lifecycle_event, initialize_lifecycle_chain
 
 
 class RegistryError(RuntimeError):
@@ -120,6 +121,7 @@ class CapabilityRegistry:
                 db.execute(
                     "ALTER TABLE capabilities ADD COLUMN control_state TEXT NOT NULL DEFAULT 'ACTIVE'"
                 )
+            initialize_lifecycle_chain(db)
 
     @staticmethod
     def _operator(approver_id: str | None) -> str:
@@ -150,10 +152,11 @@ class CapabilityRegistry:
                     "INSERT INTO capabilities(capability_id,name,family,state) VALUES(?,?,?,'SPECIFIED')",
                     (capability_id, name.strip(), family.strip()),
                 )
-                db.execute(
+                cursor = db.execute(
                     "INSERT INTO lifecycle_events(capability_id,previous_state,requested_state,evidence_json,reason) VALUES(?,NULL,'SPECIFIED',?,'source_record_registered')",
                     (capability_id, json.dumps(["source_record"], separators=(",", ":"))),
                 )
+                append_lifecycle_event(db, "lifecycle_events", cursor.lastrowid)
             except sqlite3.IntegrityError as exc:
                 raise RegistryError("duplicate_or_invalid_capability") from exc
         return self.get(capability_id)
@@ -226,13 +229,14 @@ class CapabilityRegistry:
                 "UPDATE capabilities SET state=?,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE capability_id=?",
                 (requested_state, capability_id),
             )
-            db.execute(
+            cursor = db.execute(
                 """INSERT INTO lifecycle_events(
                     capability_id,previous_state,requested_state,evidence_json,approver_id,reason
                 ) VALUES(?,?,?,?,?,?)""",
                 (capability_id, current, requested_state,
                  json.dumps(supplied, separators=(",", ":")), operator, decision.reason),
             )
+            append_lifecycle_event(db, "lifecycle_events", cursor.lastrowid)
         return self.get(capability_id)
 
     def revoke(
@@ -272,7 +276,7 @@ class CapabilityRegistry:
                 "UPDATE capabilities SET control_state='REVOKED',updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE capability_id=? AND control_state='ACTIVE'",
                 (capability_id,),
             )
-            db.execute(
+            cursor = db.execute(
                 """INSERT INTO revocation_events(
                     capability_id,reason,evidence_json,approver_id,
                     signer_fingerprints_json,receipt_payloads_json
@@ -282,6 +286,7 @@ class CapabilityRegistry:
                  json.dumps([p["key_fingerprint"] for p in payloads], separators=(",", ":")),
                  json.dumps([{"payload": payload, "signature": receipt["signature"]} for payload, receipt in zip(payloads, approval_receipts)], sort_keys=True, separators=(",", ":"))),
             )
+            append_lifecycle_event(db, "revocation_events", cursor.lastrowid)
         return self.get(capability_id)
 
     def record_rollback(
@@ -334,6 +339,7 @@ class CapabilityRegistry:
                  json.dumps([p["key_fingerprint"] for p in payloads], separators=(",", ":")),
                  json.dumps([{"payload": payload, "signature": receipt["signature"]} for payload, receipt in zip(payloads, approval_receipts)], sort_keys=True, separators=(",", ":"))),
             )
+            append_lifecycle_event(db, "rollback_events", cursor.lastrowid)
             row = db.execute(
                 "SELECT * FROM rollback_events WHERE event_id=?", (cursor.lastrowid,)
             ).fetchone()
