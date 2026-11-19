@@ -15,7 +15,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
-from nexora.approval import load_private_key, load_public_key, public_key_fingerprint
+from nexora.approval import ApprovalError, load_private_key, load_public_key, public_key_fingerprint
 
 REPOSITORY = "abdulraheemnohri/NEXORA-SENTINEL"
 ROLES = {"backup", "update", "witness"}
@@ -80,7 +80,7 @@ def create_rotation_statement(
         old_signer = load_private_key(old_path)
         new_public = load_public_key(new_path)
         new_pem = new_path.read_text(encoding="ascii")
-    except (OSError, UnicodeError, ValueError, TypeError) as exc:
+    except (ApprovalError, OSError, UnicodeError, ValueError, TypeError) as exc:
         raise TrustRotationError("trust_rotation_key_invalid") from exc
 
     old_fingerprint = public_key_fingerprint(old_signer.public_key())
@@ -164,7 +164,7 @@ def verify_rotation_statement(
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
         old_public = load_public_key(old_path)
-    except (OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
+    except (ApprovalError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
         raise TrustRotationError("trust_rotation_manifest_or_pin_invalid") from exc
 
     if not isinstance(document, dict) or set(document) != {"payload", "signature"}:
