@@ -60,7 +60,7 @@ nexora update check
 nexora update install --confirm
 ~~~
 
-Installation is an explicit operator action and requires the official Git origin, the `main` branch, a clean working tree and a fast-forward-only update. It fetches the checked GitHub commit, updates the checkout and reinstalls the local package. If package installation fails, it attempts to roll the source checkout back to its previous commit. Keep a separate backup before updating. The updater requires Git, network access and pip; it is intended for a Git checkout, not a standalone wheel/zip installation. It does not bypass GitHub branch protections or verify a release signature. The check output includes a bounded file-change preview and CI state (`success`, `failure`, `pending`, or `unknown`). Installation is blocked when the latest commit has a known failed Actions run. A missing/unavailable CI report is shown as unverified, not as success. Review the preview and CI links before installing; a GitHub commit is not automatically a trusted release.
+Installation is an explicit operator action and requires the official Git origin, the `main` branch, a clean working tree and a fast-forward-only update. It fetches the checked GitHub commit, updates the checkout and reinstalls the local package. If package installation fails, it attempts to roll the source checkout back to its previous commit. Keep a separate backup before updating. The updater requires Git, network access and pip; it is intended for a Git checkout, not a standalone wheel/zip installation. It does not bypass GitHub branch protections. Installation also requires the separately described signed-manifest trust gate. The check output includes a bounded file-change preview and CI state (`success`, `failure`, `pending`, or `unknown`). Installation is blocked when the latest commit has a known failed Actions run. A missing/unavailable CI report is shown as unverified, not as success. Review the preview and CI links before installing; a GitHub commit is not automatically a trusted release.
 
 ### Signed update manifest tooling
 
@@ -206,7 +206,7 @@ The witness key must be different from the backup signing key. Distribute the wi
 
 ## Not yet delivered
 
-Full interactive API/control plane, local model inference runtime, production memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
+Full interactive API/control plane, semantic/embedding memory retrieval, OS-isolated sandbox, permission-controlled tool execution, autonomous self-evolution, complete source catalogue and reviewed interaction matrix. The optional LiteRT-LM CLI adapter exists, but an autonomous inference/tool loop is not enabled. Android Debian/Pixel 6 device verification has not been performed by this remote repository work.
 
 Read CONTRIBUTING.md, SECURITY.md, docs/ARCHITECTURE.md, docs/THREAT_MODEL.md, docs/PROJECT_STATUS.md and docs/SELF_FAMILIES.md.
 
@@ -239,6 +239,20 @@ nexora update install --confirm \
 
 The updater requires the manifest commit to equal the current GitHub `main` SHA, a clean worktree, fast-forward ancestry, and successful CI for that exact commit. Missing, pending, failed, mismatched, or untrusted evidence blocks installation. The repository does not ship a publisher key: operators must verify and pin the public key independently. A locally generated key is not automatically a trusted publisher key.
 
+
+
+
+## Lifecycle history and regression diagnostics
+
+The read-only lifecycle report replays the existing SQLite lifecycle, revocation and rollback event tables. It detects structural inconsistencies such as non-sequential transitions, replay/current-state divergence and revocation/control-state mismatches. It does not change state or execute capabilities.
+
+```bash
+nexora lifecycle-history
+nexora lifecycle-history --capability-id 85
+nexora regression-report
+```
+
+The dashboard exposes `/api/lifecycle-history`. Legacy lifecycle rows have append-only SQLite triggers but no cryptographic event hash chain; the report therefore marks history authenticity `UNVERIFIED`. Structural consistency is not proof against a privileged database rewrite. Evidence expiry is not inferred because canonical expiry semantics have not been supplied. See `docs/LIFECYCLE_HISTORY.md`.
 
 Capability evidence ledger: see `docs/CAPABILITY_EVIDENCE.md` for append-only evidence references, hash-chain verification, CLI usage, and security limits.
 
