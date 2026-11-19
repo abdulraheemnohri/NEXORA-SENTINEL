@@ -4,7 +4,7 @@ Last updated: 2026-11-19
 
 ## Current milestone
 
-Safety kernel, durable self-family proposal review, capability evidence/maturity reporting, artifact integrity verification, lifecycle-history regression diagnostics, and read-only terminal/web dashboards. This is still a governance/runtime foundation, not a completed autonomous agent.
+Safety kernel, durable self-family proposal review, capability evidence/maturity reporting, artifact integrity verification, cryptographic lifecycle event chaining, independent witness checkpoints, lifecycle-history regression diagnostics, and read-only terminal/web dashboards. This is still a governance/runtime foundation, not a completed autonomous agent.
 
 ## Implemented
 
@@ -19,7 +19,9 @@ Safety kernel, durable self-family proposal review, capability evidence/maturity
 - Loopback-only GET web dashboard and JSON diagnostic endpoints; Host header is checked, mutation methods are rejected, and the server binds only to 127.0.0.1.
 - Conservative YAML profiles, modular package structure and TLA+ lifecycle model.
 - Built-in GitHub updater: checks the official main-branch commit, previews changed paths, summarizes Actions runs for the exact target SHA, and blocks installation on a known failed CI run. Explicit installation still requires confirmation, official origin, main branch, clean worktree and fast-forward-only history. It reinstalls the local package and attempts source rollback if installation fails. Separate Ed25519 update-manifest signing and verification commands bind repository/ref/commit/version and require an externally supplied trusted public key; a dedicated update-key generator creates non-overwriting key files with restrictive private-key permissions.
-- Read-only lifecycle history and regression diagnostics replay existing lifecycle/revocation/rollback events, detect structural state drift, and expose CLI plus GET-only dashboard output. Legacy lifecycle records are not cryptographically hash-chained; authenticity remains UNVERIFIED.
+- New lifecycle, revocation and rollback events are appended to a SHA-256 chain in the same SQLite transaction; the verifier checks event order, source-row equality, chain continuity and post-activation coverage. Legacy event IDs are preserved as unverified watermarks bound into the chain genesis.
+- Operator-driven Ed25519 lifecycle-chain checkpoints use the existing independent witness receipt format. Verification requires the latest signed checkpoint to match the current chain head; witness key/log storage must be separate from the registry. A local chain without an external checkpoint is not an independent trust anchor.
+- Read-only lifecycle history and regression diagnostics replay existing lifecycle/revocation/rollback events and expose CLI plus GET-only dashboard output.
 - Read-only settings inspection and validation CLI: missing files use safe L0 defaults; existing invalid files and unknown keys fail closed; no settings mutation or execution toggles are exposed.
 - Durable explicit-write memory store with SHA-256 source fingerprints, deterministic AND-term retrieval, append-only record/event tables, tombstone deletion and legacy-store import; read-only search does not create missing storage.
 
@@ -36,7 +38,7 @@ Safety kernel, durable self-family proposal review, capability evidence/maturity
 
 ## Next priorities
 
-1. Design a versioned cryptographic lifecycle-event chain with an independent trust anchor; legacy rows must remain UNVERIFIED and must not be retroactively attested.
+1. Qualify lifecycle chain and witness checkpoint backup/recovery procedures, and test cross-device external witness storage.
 2. Define source-backed evidence expiry/revocation semantics before implementing evidence freshness monitoring.
 3. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
 4. Test read-only dashboard and CLI behavior on supported Linux and Android Debian terminals.
