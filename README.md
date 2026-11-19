@@ -394,3 +394,15 @@ readiness. Run `nexora settings policy-status` to inspect the missing per-settin
 authorization and rollback requirements. These commands do not populate missing
 specifications, infer relationships, approve settings, or enable execution.
 See [Specification Readiness](docs/SPECIFICATION_READINESS.md).
+
+
+## Specification readiness and authorization gaps
+
+Run the read-only readiness reports:
+
+```bash
+nexora spec-status
+nexora settings policy-status
+```
+
+The reports identify missing source-backed capability definitions and meta-rules, unknown pairs in the 264 × 264 interaction matrix, and settings whose authorization/rollback rules have not been approved. They never reconstruct missing definitions or infer relationships. A policy file is not approval. Settings application and autonomous execution remain disabled.
