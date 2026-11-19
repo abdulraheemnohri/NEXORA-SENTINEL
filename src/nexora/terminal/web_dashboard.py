@@ -22,6 +22,7 @@ from nexora.terminal.dashboard import (
 VIEWS = {
     "/api/overview": render_overview,
     "/api/audit": render_audit,
+    "/api/audit-search": lambda root: _render_audit_search(root),
     "/api/proposals": render_proposals,
     "/api/capabilities": render_registry,
     "/api/memory": lambda root: _render_memory(root),
@@ -41,6 +42,16 @@ VIEWS = {
     "/api/doctor": lambda root: _render_doctor(root),
     "/api/sandbox-readiness": lambda root: _render_sandbox_readiness(),
 }
+
+
+def _render_audit_search(data_dir: Path) -> str:
+    from nexora.audit_search import search_audit_log
+
+    return json.dumps(
+        search_audit_log(Path(data_dir) / "audit.jsonl"),
+        ensure_ascii=False,
+        indent=2,
+    )
 
 
 def _render_memory(data_dir: Path) -> str:
@@ -274,6 +285,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("System overview", "/api/overview"),
                     ("Settings and safety controls — read only", "/api/settings"),
                     ("Audit log", "/api/audit"),
+                    ("Verified audit search", "/api/audit-search"),
                     ("Self-family proposals", "/api/proposals"),
                     ("Capability registry", "/api/capabilities"),
                     ("Local memory", "/api/memory"),
@@ -352,6 +364,45 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                 except (OSError, ValueError, TypeError, RuntimeError, sqlite3.Error) as exc:
                     self._send(500, "application/json; charset=utf-8",
                                json.dumps({"error": type(exc).__name__}).encode("utf-8"))
+                return
+            if path == "/api/audit-search":
+                query = parse_qs(urlsplit(self.path).query, keep_blank_values=True)
+                allowed = {"event", "contains", "from_sequence", "to_sequence", "limit"}
+                if set(query) - allowed or any(len(values) != 1 for values in query.values()):
+                    self._send(400, "application/json; charset=utf-8",
+                               b'{"error":"invalid_audit_search_query"}')
+                    return
+                def _text_filter(name: str):
+                    return query[name][0] if name in query else None
+                def _integer_filter(name: str):
+                    value = _text_filter(name)
+                    if value is None:
+                        return None
+                    if not value.isdigit():
+                        raise ValueError("audit_search_integer_filter_invalid")
+                    return int(value)
+                try:
+                    from nexora.audit_search import search_audit_log
+                    report = search_audit_log(
+                        root / "audit.jsonl",
+                        event=_text_filter("event"),
+                        contains=_text_filter("contains"),
+                        from_sequence=_integer_filter("from_sequence"),
+                        to_sequence=_integer_filter("to_sequence"),
+                        limit=_integer_filter("limit") or 100,
+                    )
+                    payload = json.dumps(
+                        {"read_only": True, "view": report},
+                        ensure_ascii=False, separators=(",", ":"),
+                    ).encode("utf-8")
+                    self._send(200, "application/json; charset=utf-8", payload)
+                except (OSError, ValueError, TypeError) as exc:
+                    self._send(422, "application/json; charset=utf-8",
+                               json.dumps({
+                                   "error": str(exc),
+                                   "read_only": True,
+                                   "execution_enabled": False,
+                               }).encode("utf-8"))
                 return
             if path == "/api/lifecycle-history":
                 query = parse_qs(urlsplit(self.path).query)
