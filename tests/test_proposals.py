@@ -431,7 +431,7 @@ def test_proposals_read_fails_closed_on_partial_signed_review_schema(tmp_path):
 
     from nexora.proposals import ProposalReadError
 
-    database, proposal, reviewers = _signed_review_fixture(tmp_path)
+    database, proposal, _reviewers = _signed_review_fixture(tmp_path)
     with sqlite3.connect(database) as connection:
         connection.execute(
             """
