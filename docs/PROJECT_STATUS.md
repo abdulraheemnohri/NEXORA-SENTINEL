@@ -81,3 +81,12 @@ Implemented in the current development line:
 - No evidence mutation, lifecycle transition, authorization or execution is performed by the report.
 
 Exact-SHA workflow status must be checked before treating this milestone as verified. See [EVIDENCE_FRESHNESS.md](EVIDENCE_FRESHNESS.md).
+
+
+## Kill-switch marker lookup hardening
+
+- The emergency-stop marker is inspected with lstat(), not Path.exists(), so a dangling symlink cannot be mistaken for a clear switch.
+- A genuinely missing marker is the only clear state; permission, I/O and invalid-path inspection errors are treated as engaged.
+- Added regression coverage proving the policy kernel denies a low-risk action when the marker is a dangling symlink, and that lookup errors fail closed.
+- This is a narrow local-filesystem hardening change; it does not claim protection from a privileged local attacker who can alter the data directory.
+- Validation is pending on the new safety branch. No action execution or autonomy level is enabled by this change.
