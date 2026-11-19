@@ -91,13 +91,30 @@ def test_read_proposals_rejects_invalid_identifier_and_limit(tmp_path):
 
 
 def test_proposals_cli_list_and_show_are_read_only(tmp_path, capsys):
+    import sqlite3
+
     from nexora.cli import main
 
     database = tmp_path / "registry.sqlite3"
     store = SelfFamilyProposalStore(database)
     proposal = store.submit(_proposal())
-    original = database.read_bytes()
 
+    def snapshot():
+        with sqlite3.connect(database) as connection:
+            schema = connection.execute(
+                "SELECT type,name,sql FROM sqlite_master ORDER BY type,name"
+            ).fetchall()
+            proposals = connection.execute(
+                "SELECT proposal_id,family,summary,evidence_json,payload_sha256,execution "
+                "FROM self_family_proposals ORDER BY proposal_id"
+            ).fetchall()
+            history = connection.execute(
+                "SELECT proposal_id,decision,operator_label,evidence_json,note "
+                "FROM self_family_review_events ORDER BY event_id"
+            ).fetchall()
+        return schema, proposals, history
+
+    original = snapshot()
     result = main([
         "proposals", "list", "--database", str(database),
     ])
@@ -113,7 +130,8 @@ def test_proposals_cli_list_and_show_are_read_only(tmp_path, capsys):
     assert result == 0
     assert detail["proposal"]["execution"] == "DISABLED"
     assert detail["proposal"]["authorization"] == "NOT_GRANTED"
-    assert database.read_bytes() == original
+    assert detail["proposal"]["signed_review"] is None
+    assert snapshot() == original
 
 
 def test_proposals_cli_missing_store_does_not_create_data_directory(tmp_path, capsys):
@@ -221,9 +239,9 @@ def test_signed_proposal_review_rejects_repeated_signer_and_reviewer_id(tmp_path
     same_key_receipts = [
         create_proposal_review_receipt(
             database, proposal["proposal_id"], reviewers[0][0],
-            decision="REVIEWED", evidence=["review:check"], approver_id=reviewers[0][1],
+            decision="REVIEWED", evidence=["review:check"], approver_id=approver_id,
         )
-        for _ in range(2)
+        for approver_id in ("reviewer-one", "different-claimed-label")
     ]
     with pytest.raises(ProposalReviewError, match="independent_proposal_review_keys"):
         record_signed_proposal_review(database, proposal["proposal_id"], same_key_receipts)
@@ -285,7 +303,13 @@ def test_signed_proposal_review_rejects_receipt_for_another_proposal(tmp_path):
 
     database, proposal, reviewers = _signed_review_fixture(tmp_path)
     receipts = _review_receipts(database, proposal, reviewers)
-    second = SelfFamilyProposalStore(database).submit(_proposal())
+    second_proposal = SelfFamilyManager().propose(
+        SelfFamily.OBSERVATION,
+        "Inspect a distinct second proposal",
+        evidence=("source:operator-supplied",),
+    )
+    second = SelfFamilyProposalStore(database).submit(second_proposal)
+    assert second["proposal_id"] != proposal["proposal_id"]
     with pytest.raises(ProposalReviewError, match="scope_mismatch"):
         record_signed_proposal_review(database, second["proposal_id"], receipts)
 
