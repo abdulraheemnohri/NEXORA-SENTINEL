@@ -459,3 +459,15 @@ The local dashboard also exposes structured proposal history at `GET /api/propos
 ## Witness key separation check
 
 Run `nexora witness-independence --backup-private-key PATH --update-private-key PATH --witness-private-key PATH` to compare the backup, update and witness signing keys. The check is read-only. It can identify duplicate fingerprints, shared files/directories and weak POSIX private-key permissions, but it cannot establish off-device custody or hardware-backed protection.
+
+
+## Signed trust-anchor rotation
+
+Prepare and verify a signed trust transition without automatically trusting the replacement key:
+
+```bash
+nexora trust-rotate --role update --old-private-key OLD.pem --new-public-key NEW.pub.pem --output update-rotation.json --reason "scheduled rotation"
+nexora trust-verify update-rotation.json --trusted-old-public-key OLD.pub.pem
+```
+
+The same commands support the `backup` and `witness` key roles. Verification does not enroll the new key or change any configured trust pin; replacement pinning remains an explicit out-of-band operator action.
