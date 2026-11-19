@@ -208,3 +208,17 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - Symlink and non-regular log paths are refused. Search is read-only and does
   not repair, rotate, truncate or rewrite audit history.
 - Exact-head CI and platform qualification are pending for this increment.
+
+
+## Proposal inspection — 2026-11-19
+
+- Added `nexora proposals list` and `nexora proposals show` for stored
+  self-family proposals and append-only human review history.
+- The reader uses SQLite read-only mode and refuses missing, symlinked,
+  non-regular or invalid stores without initializing storage.
+- Operator-recorded `REVIEWED` labels are explicitly not treated as signed
+  approvals, lifecycle promotion, policy authorization or execution grants.
+- The stored payload digest is labeled recorded-but-not-recomputed because
+  the current proposal table does not retain the original complete payload.
+- Proposal review mutation and signed proposal approvals remain separate
+  follow-up work; execution remains disabled.
