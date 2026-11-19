@@ -94,7 +94,12 @@ def _verify_witness_chain(
                 count += 1
     except OSError as exc:
         raise WitnessVerificationError("witness_log_unreadable") from exc
-    return {"valid": True, "count": count, "last_receipt_hash": previous, "signer_fingerprint": fingerprint}
+    return {
+        "valid": True, "count": count, "last_receipt_hash": previous,
+        "signer_fingerprint": fingerprint,
+        "last_event_hash": payload.get("event_hash") if count else None,
+        "last_event_type": payload.get("event_type") if count else None,
+    }
 
 
 class IndependentWitness:
