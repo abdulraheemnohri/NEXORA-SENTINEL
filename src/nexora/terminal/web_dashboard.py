@@ -38,6 +38,7 @@ VIEWS = {
     "/api/spec-status": lambda root: _render_spec_status(),
     "/api/settings-policy": lambda root: _render_settings_policy(),
     "/api/doctor": lambda root: _render_doctor(root),
+    "/api/doctor": lambda root: _render_doctor(root),
     "/api/sandbox-readiness": lambda root: _render_sandbox_readiness(),
 }
 
@@ -165,6 +166,12 @@ def _render_settings_policy() -> str:
 
 
 def _render_doctor(data_dir: Path) -> str:
+    from nexora.diagnostics import build_doctor_report
+
+    return json.dumps(build_doctor_report(data_dir), ensure_ascii=False, indent=2)
+
+
+def _render_doctor(data_dir: Path) -> str:
     from nexora.doctor import build_doctor_report
 
     return json.dumps(build_doctor_report(data_dir), ensure_ascii=False, indent=2)
@@ -282,6 +289,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("Capability governance validation", "/api/governance"),
                     ("STA-264 specification completeness", "/api/spec-status"),
                     ("Settings authorization and rollback readiness", "/api/settings-policy"),
+                    ("Read-only system doctor", "/api/doctor"),
                     ("Read-only operational doctor", "/api/doctor"),
                     ("OS sandbox readiness (preflight only)", "/api/sandbox-readiness"),
                 ):
