@@ -171,3 +171,14 @@ def test_existing_registry_rows_become_unverified_legacy_on_chain_activation(tmp
     report = verify_lifecycle_chain_file(database)
     assert report["valid"] is True
     assert report["event_count"] == 1
+
+
+
+def test_legacy_event_cannot_be_retroactively_added_to_chain():
+    db = _db()
+    try:
+        append_lifecycle_event(db, "lifecycle_events", 1)
+    except LifecycleChainError as exc:
+        assert str(exc) == "legacy_event_cannot_be_attested"
+    else:
+        raise AssertionError("legacy_event_must_not_be_attested")
