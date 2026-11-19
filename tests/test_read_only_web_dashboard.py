@@ -487,3 +487,73 @@ def test_web_dashboard_root_links_settings_read_only_panel(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+def test_web_dashboard_exposes_specification_readiness_without_creating_storage(tmp_path):
+    data_dir = tmp_path / "no-data"
+    server = create_read_only_server(data_dir, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        connection.request("GET", "/api/spec-status")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["status"] == "BLOCKED"
+        assert report["source_recovery"]["capabilities"]["missing_ids"] == list(range(1, 85))
+        assert report["source_recovery"]["meta_rules"]["missing_ids"] == list(range(1, 16))
+        assert report["interaction_matrix"]["unknown_pairs"] == 264 * 264
+        assert report["controls"]["execution_enabled"] is False
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_web_dashboard_exposes_settings_authorization_readiness(tmp_path):
+    data_dir = tmp_path / "no-data"
+    server = create_read_only_server(data_dir, 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        connection.request("GET", "/api/settings-policy")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["status"] == "POLICY_NOT_APPROVED"
+        assert report["authorization"] == "NOT_EVALUATED"
+        assert report["settings_mutation_enabled"] is False
+        assert report["rollback_supported"] is False
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_web_dashboard_root_links_specification_readiness_panels(tmp_path):
+    server = create_read_only_server(tmp_path / "no-data", 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        body = response.read().decode()
+        assert response.status == 200
+        assert "/api/spec-status" in body
+        assert "/api/settings-policy" in body
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
