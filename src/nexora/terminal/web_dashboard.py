@@ -23,6 +23,7 @@ VIEWS = {
     "/api/overview": render_overview,
     "/api/audit": render_audit,
     "/api/audit-search": lambda root: _render_audit_search(root),
+    "/api/audit-search": lambda root: _render_audit_search(root),
     "/api/proposals": render_proposals,
     "/api/capabilities": render_registry,
     "/api/memory": lambda root: _render_memory(root),
@@ -42,6 +43,16 @@ VIEWS = {
     "/api/doctor": lambda root: _render_doctor(root),
     "/api/sandbox-readiness": lambda root: _render_sandbox_readiness(),
 }
+
+
+def _render_audit_search(data_dir: Path) -> str:
+    from nexora.audit_search import search_audit_log
+
+    return json.dumps(
+        search_audit_log(Path(data_dir) / "audit.jsonl"),
+        ensure_ascii=False,
+        indent=2,
+    )
 
 
 def _render_audit_search(data_dir: Path) -> str:
