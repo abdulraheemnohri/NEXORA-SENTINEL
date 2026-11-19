@@ -44,11 +44,21 @@ class ProviderDescriptor:
             raise ProviderRegistryError("provider_flags_must_be_boolean")
         if type(self.automatic_execution) is not bool or self.automatic_execution:
             raise ProviderRegistryError("automatic_provider_execution_must_remain_disabled")
-        if not self.modalities or len(set(self.modalities)) != len(self.modalities):
+        if (
+            not isinstance(self.modalities, (tuple, list))
+            or not self.modalities
+            or any(not isinstance(item, str) for item in self.modalities)
+            or len(set(self.modalities)) != len(self.modalities)
+        ):
             raise ProviderRegistryError("provider_modalities_invalid")
         if any(item not in _ALLOWED_MODALITIES for item in self.modalities):
             raise ProviderRegistryError("provider_modality_not_qualified")
-        if not self.capabilities or len(set(self.capabilities)) != len(self.capabilities):
+        if (
+            not isinstance(self.capabilities, (tuple, list))
+            or not self.capabilities
+            or any(not isinstance(item, str) for item in self.capabilities)
+            or len(set(self.capabilities)) != len(self.capabilities)
+        ):
             raise ProviderRegistryError("provider_capabilities_invalid")
         if any(item not in _ALLOWED_CAPABILITIES for item in self.capabilities):
             raise ProviderRegistryError("provider_capability_not_qualified")
