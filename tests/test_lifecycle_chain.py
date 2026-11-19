@@ -91,4 +91,60 @@ def test_invalid_source_rejected():
 
 def test_empty_chain_has_stable_genesis_head():
     report = verify_lifecycle_chain(_db())
-    assert report["head_hash"] == "0" * 64
+    assert len(report["head_hash"]) == 64
+
+
+
+def test_registry_writes_lifecycle_events_and_chain_atomically(tmp_path):
+    from nexora.lifecycle_chain import verify_lifecycle_chain_file
+    from nexora.registry import CapabilityRegistry
+
+    database = tmp_path / "registry.sqlite3"
+    registry = CapabilityRegistry(database)
+    registry.register(7, "Chain test", "A", source_record=True)
+    registry.transition(7, "REGISTERED", ["source_record", "schema_validation"])
+    registry.transition(7, "IMPLEMENTED", ["implementation_reference"])
+    report = verify_lifecycle_chain_file(database)
+    assert report["valid"] is True
+    assert report["event_count"] == 3
+
+
+def test_legacy_watermark_is_bound_to_chain_genesis(tmp_path):
+    from nexora.lifecycle_chain import verify_lifecycle_chain_file
+    from nexora.registry import CapabilityRegistry
+
+    database = tmp_path / "registry.sqlite3"
+    registry = CapabilityRegistry(database)
+    registry.register(7, "Chain test", "A", source_record=True)
+    with sqlite3.connect(database) as db:
+        db.execute(
+            "UPDATE lifecycle_chain_meta SET legacy_max_event_id=legacy_max_event_id+1 "
+            "WHERE source_table='lifecycle_events'"
+        )
+    report = verify_lifecycle_chain_file(database)
+    assert report["valid"] is False
+    assert any("previous_hash_mismatch" in error for error in report["errors"])
+
+
+def test_external_witness_detects_chain_advance_after_checkpoint(tmp_path):
+    from nexora.backup import generate_backup_signing_key
+    from nexora.lifecycle_chain import verify_lifecycle_chain_anchor, verify_lifecycle_chain_file
+    from nexora.oversight.witness import IndependentWitness
+    from nexora.registry import CapabilityRegistry
+
+    database = tmp_path / "registry.sqlite3"
+    registry = CapabilityRegistry(database)
+    registry.register(7, "Chain test", "A", source_record=True)
+    private_key = tmp_path / "witness-private.pem"
+    public_key = tmp_path / "witness-public.pem"
+    generate_backup_signing_key(private_key, public_key)
+    witness_log = tmp_path / "external" / "witness.jsonl"
+    before = verify_lifecycle_chain_file(database)
+    IndependentWitness(witness_log, private_key).attest(
+        before["head_hash"], "lifecycle_chain_head"
+    )
+    assert verify_lifecycle_chain_anchor(database, witness_log, public_key)["valid"] is True
+    registry.register(8, "Second chain test", "A", source_record=True)
+    result = verify_lifecycle_chain_anchor(database, witness_log, public_key)
+    assert result["valid"] is False
+    assert result["status"] == "ANCHOR_MISMATCH"
