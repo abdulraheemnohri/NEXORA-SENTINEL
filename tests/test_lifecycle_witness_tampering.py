@@ -32,7 +32,7 @@ def test_modified_witness_signature_blocks_recovery_anchor(tmp_path):
     signature = bytearray(base64.b64decode(receipt["signature"], validate=True))
     signature[0] ^= 0x01
     receipt["signature"] = base64.b64encode(signature).decode("ascii")
-    witness_log.write_text(json.dumps(receipt) + "\\n", encoding="utf-8")
+    witness_log.write_text(json.dumps(receipt) + "\n", encoding="utf-8")
 
     with pytest.raises(WitnessVerificationError, match=r"receipt_signature_invalid:1"):
         verify_lifecycle_chain_anchor(database, witness_log, public_key)
@@ -51,7 +51,7 @@ def test_untrusted_witness_key_blocks_recovery_anchor(tmp_path):
 def test_malformed_trailing_witness_receipt_blocks_recovery_anchor(tmp_path):
     database, witness_log, public_key = _anchored_registry(tmp_path)
     with witness_log.open("a", encoding="utf-8") as stream:
-        stream.write("not-json\\n")
+        stream.write("not-json\n")
 
     with pytest.raises(WitnessVerificationError, match=r"receipt_format_invalid:2"):
         verify_lifecycle_chain_anchor(database, witness_log, public_key)
