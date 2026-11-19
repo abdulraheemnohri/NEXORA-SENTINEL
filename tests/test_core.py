@@ -432,3 +432,33 @@ def test_registry_requires_receipt_even_with_operator_label(tmp_path):
             223, "APPROVED", {"human_approval"}, approver_id="operator:local"
         )
     assert registry.get(223)["state"] == "SHADOWED"
+
+
+
+def test_kill_switch_treats_dangling_marker_symlink_as_engaged(tmp_path):
+    marker = tmp_path / "KILL"
+    marker.symlink_to(tmp_path / "missing-target")
+    stop = KillSwitch(marker)
+
+    assert not marker.exists()
+    assert stop.is_engaged()
+    decision = PolicyKernel(stop).evaluate("system.status", "low")
+    assert not decision.allowed
+    assert decision.reason == "kill_switch_engaged"
+
+
+def test_kill_switch_treats_marker_inspection_errors_as_engaged(tmp_path, monkeypatch):
+    stop = KillSwitch(tmp_path / "KILL")
+
+    def denied(_path):
+        raise PermissionError("marker directory cannot be inspected")
+
+    monkeypatch.setattr(Path, "lstat", denied)
+    assert stop.is_engaged()
+
+
+def test_kill_switch_treats_only_missing_marker_as_clear(tmp_path):
+    stop = KillSwitch(tmp_path / "KILL")
+
+    assert not stop.is_engaged()
+    assert PolicyKernel(stop).evaluate("system.status", "low").allowed
