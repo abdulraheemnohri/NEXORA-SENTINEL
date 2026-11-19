@@ -159,3 +159,13 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - The reader opens an existing SQLite database in read-only mode and never initializes missing storage.
 - Review history is shown as operator-recorded metadata. `REVIEWED` is not an Ed25519 approval, capability lifecycle promotion, or execution grant.
 - Proposal digests are reported as recorded but not recomputed because the stored proposal row does not retain the original complete payload. The output makes this limitation explicit.
+
+
+## Source-backed capability family inventory
+
+- CLI: `nexora family-map [--catalog PATH]`.
+- Web: `GET /api/family-map`.
+- The inventory lists all 40 canonical family slots, showing a family name only when supplied by the source catalogue.
+- Cross-cutting records are reported separately. Conflicting source family names remain flagged rather than silently selected.
+- Missing capability IDs remain unassigned; no family membership is inferred from numbering or neighboring records.
+- The explorer is read-only and provides no capability activation or execution controls.
