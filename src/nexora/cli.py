@@ -427,9 +427,7 @@ def main(argv=None):
                 print(json.dumps(ledger.list(args.capability_id, args.limit), indent=2))
                 return 0
             if args.evidence_cmd == "verify-artifact":
-                from nexora.artifact_integrity import (
-                    ArtifactVerificationError, verify_artifact_file,
-                )
+                from nexora.artifact_integrity import verify_artifact_file
                 result = verify_artifact_file(
                     args.data_dir / "registry.sqlite3",
                     args.capability_id,
