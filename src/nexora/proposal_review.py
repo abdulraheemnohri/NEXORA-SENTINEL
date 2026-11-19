@@ -495,10 +495,10 @@ def record_signed_proposal_review(
                 historical=False,
             )
             approver_id = verified["approver_id"]
-            if approver_id in approvers:
-                raise ProposalReviewError("distinct_proposal_review_approvers_required")
             if fingerprint in fingerprints:
                 raise ProposalReviewError("independent_proposal_review_keys_required")
+            if approver_id in approvers:
+                raise ProposalReviewError("distinct_proposal_review_approvers_required")
             if verified["nonce"] in nonces:
                 raise ProposalReviewError("proposal_review_duplicate_nonce")
             if common_decision is None:
