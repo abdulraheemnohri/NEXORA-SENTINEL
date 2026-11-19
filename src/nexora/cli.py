@@ -108,6 +108,13 @@ def main(argv=None):
     evidence_sub.add_parser("verify")
     evidence_evaluate = evidence_sub.add_parser("evaluate", help="Report evidence readiness without changing lifecycle state")
     evidence_evaluate.add_argument("capability_id", type=int)
+    evidence_verify_artifact = evidence_sub.add_parser(
+        "verify-artifact", help="Hash a local file against one exact evidence ledger record"
+    )
+    evidence_verify_artifact.add_argument("capability_id", type=int)
+    evidence_verify_artifact.add_argument("sequence", type=int)
+    evidence_verify_artifact.add_argument("--path", type=Path, required=True)
+    evidence_verify_artifact.add_argument("--reference")
     registry_transition = sub.add_parser("registry-transition", help="Apply an evidence-gated capability transition")
     registry_transition.add_argument("capability_id", type=int)
     registry_transition.add_argument("state", choices=("REGISTERED", "IMPLEMENTED", "TESTED", "SHADOWED", "APPROVED", "ENABLED"))
@@ -405,7 +412,7 @@ def main(argv=None):
     if args.cmd == "evidence":
         from nexora.evidence import EvidenceError, EvidenceLedger
         ledger = (
-            None if args.evidence_cmd == "evaluate"
+            None if args.evidence_cmd in {"evaluate", "verify-artifact"}
             else EvidenceLedger(args.data_dir / "registry.sqlite3")
         )
         try:
@@ -419,6 +426,19 @@ def main(argv=None):
             if args.evidence_cmd == "list":
                 print(json.dumps(ledger.list(args.capability_id, args.limit), indent=2))
                 return 0
+            if args.evidence_cmd == "verify-artifact":
+                from nexora.artifact_integrity import (
+                    ArtifactVerificationError, verify_artifact_file,
+                )
+                result = verify_artifact_file(
+                    args.data_dir / "registry.sqlite3",
+                    args.capability_id,
+                    args.sequence,
+                    args.path,
+                    expected_reference=args.reference,
+                )
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+                return 0 if result["verified"] else 3
             if args.evidence_cmd == "evaluate":
                 from nexora.capability_evaluation import evaluate_from_ledger
                 result = evaluate_from_ledger(
