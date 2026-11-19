@@ -406,3 +406,84 @@ def test_web_dashboard_rejects_invalid_evidence_provenance_filter(tmp_path):
         server.shutdown()
         server.server_close()
         thread.join(timeout=3)
+
+
+
+def test_web_dashboard_exposes_validated_read_only_settings(tmp_path):
+    data_dir = tmp_path / "no-data"
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text(
+        json.dumps({
+            "autonomy_level": "L0",
+            "scheduler_enabled": False,
+            "sandbox_enabled": False,
+            "network_enabled": False,
+        }),
+        encoding="utf-8",
+    )
+    server = create_read_only_server(data_dir, 0, settings_path=settings_path)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/settings")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["valid"] is True
+        assert report["settings"]["autonomy_level"] == "L0"
+        assert report["settings"]["scheduler_enabled"] is False
+        assert report["safety"]["execution_enabled"] is False
+        assert report["safety"]["policy_mutation_enabled"] is False
+        assert not data_dir.exists()
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_web_dashboard_settings_fail_closed_for_invalid_file(tmp_path):
+    settings_path = tmp_path / "settings.json"
+    settings_path.write_text('{"autonomy_level":"L4"}', encoding="utf-8")
+    server = create_read_only_server(tmp_path / "no-data", 0, settings_path=settings_path)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/api/settings")
+        response = connection.getresponse()
+        payload = json.loads(response.read().decode())
+        report = json.loads(payload["view"])
+        assert response.status == 200
+        assert payload["read_only"] is True
+        assert report["valid"] is False
+        assert report["error"] == "ValueError"
+        assert report["execution_enabled"] is False
+        assert report["policy_mutation_enabled"] is False
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_web_dashboard_root_links_settings_read_only_panel(tmp_path):
+    server = create_read_only_server(tmp_path / "no-data", 0)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        connection = HTTPConnection("127.0.0.1", server.server_port, timeout=3)
+        connection.request("GET", "/")
+        response = connection.getresponse()
+        body = response.read().decode()
+        assert response.status == 200
+        assert "Settings and safety controls — read only" in body
+        assert "/api/settings" in body
+        connection.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -97,8 +98,12 @@ def test_update_keygen_creates_matching_restricted_keypair(tmp_path):
     assert private.exists()
     assert public.exists()
     assert len(fingerprint) == 64
-    if private.stat().st_mode & 0o777 != 0o600:
-        pytest.fail("private key permissions must be 0600")
+    if os.name == "posix":
+        assert private.stat().st_mode & 0o777 == 0o600
+    else:
+        # Windows uses inherited NTFS ACLs; POSIX mode bits are not a valid
+        # security assertion on Windows. Verify the key remains usable.
+        assert private.read_bytes().startswith(b"-----BEGIN PRIVATE KEY-----")
     manifest = tmp_path / "release.json"
     create_manifest(
         commit_sha="f" * 40, version="0.3.0",

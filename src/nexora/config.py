@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -44,10 +46,51 @@ class Settings:
         return cls(**raw).validate()
 
     def save(self, path: Path) -> None:
+        """Atomically persist validated settings without following a target symlink.
+
+        The temporary file is created beside the target, restricted to the
+        current user, flushed before replacement, and removed on failure.
+        This provides crash-safe file replacement, not authorization to change
+        policy or enable any feature.
+        """
         self.validate()
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_symlink():
+            raise ValueError("settings_target_is_symlink")
+        if target.exists() and not target.is_file():
+            raise ValueError("settings_target_not_a_file")
+
         if target.suffix.lower() in {".yaml", ".yml"}:
-            target.write_text(yaml.safe_dump(asdict(self), sort_keys=True), encoding="utf-8")
+            payload = yaml.safe_dump(asdict(self), sort_keys=True)
         else:
-            target.write_text(json.dumps(asdict(self), indent=2) + "\n", encoding="utf-8")
+            payload = json.dumps(asdict(self), indent=2) + "\n"
+
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{target.name}.", suffix=".tmp", dir=target.parent
+        )
+        temporary = Path(temporary_name)
+        try:
+            if hasattr(os, "fchmod"):
+                os.fchmod(descriptor, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
+                descriptor = -1
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+            if target.is_symlink():
+                raise ValueError("settings_target_is_symlink")
+            os.replace(temporary, target)
+            if os.name == "posix":
+                directory_fd = os.open(target.parent, os.O_RDONLY)
+                try:
+                    os.fsync(directory_fd)
+                finally:
+                    os.close(directory_fd)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass

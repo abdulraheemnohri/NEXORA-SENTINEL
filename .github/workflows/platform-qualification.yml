@@ -1,0 +1,39 @@
+name: Platform Qualification
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qualify:
+    name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install project and qualification tools
+        run: python -m pip install --upgrade pip build && python -m pip install -e ".[dev]"
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Lint
+        run: python -m ruff check src tests
+      - name: Run complete test suite
+        run: python -m pytest
+      - name: Compile package
+        run: python -m compileall -q src
+      - name: Build wheel
+        run: python -m build --wheel
+      - name: CLI entry-point smoke test
+        run: nexora --help
+      - name: Settings preview CLI smoke test
+        run: nexora settings diff --help
