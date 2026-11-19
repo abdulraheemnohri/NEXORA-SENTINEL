@@ -101,24 +101,35 @@ def render_audit(data_dir: Path) -> str:
 
 
 def render_proposals(data_dir: Path) -> str:
+    from nexora.proposals import ProposalReadError, read_proposals
+
     try:
-        rows = _read_rows(
-            Path(data_dir) / "registry.sqlite3",
-            """SELECT p.proposal_id,p.family,p.summary,p.execution,
-                      (SELECT decision FROM self_family_review_events e
-                       WHERE e.proposal_id=p.proposal_id ORDER BY event_id DESC LIMIT 1) AS status
-               FROM self_family_proposals p ORDER BY p.created_at DESC LIMIT 50""",
-        )
-    except sqlite3.Error as exc:
+        report = read_proposals(Path(data_dir) / "registry.sqlite3", limit=50)
+    except (ProposalReadError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
         return f"SELF-FAMILY PROPOSALS — read failed closed ({type(exc).__name__})"
+
     lines = ["SELF-FAMILY PROPOSALS — READ ONLY"]
-    if not rows:
+    if report["status"] == "NOT_CONFIGURED":
+        lines.append("(no stored proposals; proposal store not configured)")
+    elif report["status"] != "VALID":
+        lines.append(f"Store status: {report['status']}")
+    elif not report["proposals"]:
         lines.append("(no stored proposals)")
-    for row in rows:
+    for proposal in report.get("proposals", []):
         lines.append(
-            f"{row['proposal_id']} [{row['family']}] {row['status']} "
-            f"execution={row['execution']} — {row['summary']}"
+            f"{proposal['proposal_id']} [{proposal['family']}] "
+            f"{proposal['review_state']} execution={proposal['execution']} "
+            f"— {proposal['summary']}"
         )
+        signed = proposal.get("signed_review")
+        if signed is None:
+            lines.append("  signed review: NOT_RECORDED")
+        else:
+            lines.append(
+                f"  signed review: {signed['status']} / {signed['decision']} "
+                f"({signed['signer_count']} reviewers)"
+            )
+    lines.append("Signed review is not lifecycle approval or execution authorization.")
     return "\n".join(lines)
 
 

@@ -489,3 +489,32 @@ These views do not initialize missing databases, infer source material or
 relationships, approve settings, change policy, enable autonomy, or execute
 tools. Unknown relationships remain blocking. The dashboard is diagnostic,
 not an authorization surface.
+
+
+
+## Signed proposal review
+
+Proposal reviews can be attested with a separate multi-reviewer Ed25519
+workflow. Each reviewer signs a proposal-specific receipt using an enrolled
+key. Two to five distinct signers must agree on the decision and evidence.
+
+    nexora proposals review-sign PROPOSAL_ID \
+      --database data/registry.sqlite3 \
+      --private-key reviewer-1-private.pem \
+      --decision REVIEWED \
+      --evidence review:source-check review:safety-check \
+      --approver-id reviewer-1 \
+      --output reviewer-1-review.json \
+      --confirm
+
+    nexora proposals review-record PROPOSAL_ID \
+      --database data/registry.sqlite3 \
+      --receipt reviewer-1-review.json reviewer-2-review.json \
+      --confirm
+
+    nexora proposals show PROPOSAL_ID
+
+Use distinct enrolled keys and reviewer IDs. Signed reviews are append-only
+and re-verified when proposals are read. They do not grant lifecycle approval,
+settings/policy mutation, capability activation or execution. See
+docs/GOVERNANCE.md.

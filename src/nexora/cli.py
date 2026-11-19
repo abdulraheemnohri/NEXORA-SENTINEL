@@ -391,6 +391,25 @@ def main(argv=None):
     proposals_show = proposals_sub.add_parser("show", help="Inspect one proposal and its review history")
     proposals_show.add_argument("proposal_id")
     proposals_show.add_argument("--database", type=Path)
+    proposals_sign = proposals_sub.add_parser(
+        "review-sign", help="Create a proposal-specific signed review receipt"
+    )
+    proposals_sign.add_argument("proposal_id")
+    proposals_sign.add_argument("--database", type=Path)
+    proposals_sign.add_argument("--private-key", type=Path, required=True)
+    proposals_sign.add_argument("--decision", choices=("REVIEWED", "REJECTED"), required=True)
+    proposals_sign.add_argument("--evidence", nargs="+", required=True)
+    proposals_sign.add_argument("--approver-id", required=True)
+    proposals_sign.add_argument("--ttl-seconds", type=int, default=900)
+    proposals_sign.add_argument("--output", type=Path, required=True)
+    proposals_sign.add_argument("--confirm", action="store_true", required=True)
+    proposals_record = proposals_sub.add_parser(
+        "review-record", help="Verify a reviewer quorum and append its signed review record"
+    )
+    proposals_record.add_argument("proposal_id")
+    proposals_record.add_argument("--database", type=Path)
+    proposals_record.add_argument("--receipt", type=Path, nargs="+", required=True)
+    proposals_record.add_argument("--confirm", action="store_true", required=True)
     memory_delete = sub.add_parser("memory-delete", aliases=["memory-tombstone", "memory-hide"])
     memory_delete.add_argument("memory_id", type=int)
     memory_delete.add_argument("--reason", required=True)
@@ -466,34 +485,77 @@ def main(argv=None):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["status"] == "SOURCE_INVENTORY_COMPLETE" else 3
     if args.cmd == "proposals":
+        from nexora.proposal_review import (
+            MAX_REVIEWERS,
+            MIN_REVIEWERS,
+            ProposalReviewError,
+            create_proposal_review_receipt,
+            read_receipt_file,
+            record_signed_proposal_review,
+        )
         from nexora.proposals import ProposalReadError, read_proposals
         database = args.database or (args.data_dir / "registry.sqlite3")
         try:
-            result = read_proposals(
-                database,
-                proposal_id=args.proposal_id if args.proposals_cmd == "show" else None,
-                limit=args.limit if args.proposals_cmd == "list" else 1,
-            )
-        except (ProposalReadError, OSError, ValueError, TypeError) as exc:
+            if args.proposals_cmd == "review-sign":
+                receipt = create_proposal_review_receipt(
+                    database,
+                    args.proposal_id,
+                    args.private_key,
+                    decision=args.decision,
+                    evidence=args.evidence,
+                    approver_id=args.approver_id,
+                    ttl_seconds=args.ttl_seconds,
+                )
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                with args.output.open("x", encoding="utf-8") as stream:
+                    json.dump(receipt, stream, ensure_ascii=False, sort_keys=True, indent=2)
+                    stream.write("\n")
+                result = {
+                    "status": "SIGNED_RECEIPT_CREATED",
+                    "proposal_id": args.proposal_id,
+                    "decision": args.decision,
+                    "output": str(args.output),
+                    "database_modified": False,
+                    "lifecycle_approval_granted": False,
+                    "execution_enabled": False,
+                }
+            elif args.proposals_cmd == "review-record":
+                if not MIN_REVIEWERS <= len(args.receipt) <= MAX_REVIEWERS:
+                    raise ProposalReviewError("proposal_review_threshold_not_met")
+                receipts = [read_receipt_file(path) for path in args.receipt]
+                result = record_signed_proposal_review(
+                    database, args.proposal_id, receipts
+                )
+            else:
+                result = read_proposals(
+                    database,
+                    proposal_id=args.proposal_id if args.proposals_cmd == "show" else None,
+                    limit=args.limit if args.proposals_cmd == "list" else 1,
+                )
+                if args.proposals_cmd == "show":
+                    if result["status"] == "VALID" and not result["proposals"]:
+                        result = {
+                            "status": "NOT_FOUND",
+                            "proposal_id": args.proposal_id,
+                            "read_only": True,
+                            "execution_enabled": False,
+                        }
+                    else:
+                        result["proposal"] = result["proposals"][0] if result["proposals"] else None
+                        result.pop("proposals", None)
+        except (ProposalReadError, ProposalReviewError, OSError, ValueError, TypeError) as exc:
             print(json.dumps({
                 "status": "INVALID",
                 "error": str(exc),
-                "read_only": True,
+                "read_only": args.proposals_cmd in {"list", "show", "review-sign"},
+                "lifecycle_approval_granted": False,
+                "authorization": "NOT_GRANTED",
                 "execution_enabled": False,
             }, indent=2))
             return 2
-        if args.proposals_cmd == "show":
-            if result["status"] == "VALID" and not result["proposals"]:
-                result = {
-                    "status": "NOT_FOUND",
-                    "proposal_id": args.proposal_id,
-                    "read_only": True,
-                    "execution_enabled": False,
-                }
-            else:
-                result["proposal"] = result["proposals"][0] if result["proposals"] else None
-                result.pop("proposals", None)
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        if args.proposals_cmd in {"review-sign", "review-record"}:
+            return 0
         return 0 if result["status"] == "VALID" else 3
     if args.cmd == "audit-search":
         from nexora.audit_search import AuditSearchError, search_audit_log

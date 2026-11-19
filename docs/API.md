@@ -199,3 +199,14 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - Roles are explicit: `backup`, `update`, or `witness`.
 - Verification checks the old-key signature, role, repository context, embedded new Ed25519 public key and both fingerprints.
 - The command never changes trust pins, enrolls the new key, modifies the existing key files, or activates the new key. Pinning the replacement still requires a separately reviewed, out-of-band operator action.
+
+
+
+## Signed proposal review attestations
+
+- CLI: nexora proposals review-sign PROPOSAL_ID --private-key PATH --decision REVIEWED|REJECTED --evidence TOKEN... --approver-id ID --output PATH --confirm creates a proposal-specific Ed25519 receipt without modifying the registry database.
+- CLI: nexora proposals review-record PROPOSAL_ID --receipt RECEIPT... --confirm verifies and records a quorum of 2–5 receipts in one transaction.
+- Receipts bind a domain identifier, proposal digest, decision, evidence digest, reviewer ID, expiry, nonce and enrolled key fingerprint.
+- Each signer must use a distinct enrolled key and distinct reviewer ID. All signers must attest the same decision and evidence.
+- nexora proposals show and GET /api/proposal-records re-verify stored signatures and nonce consumption.
+- Signed review does not grant lifecycle approval, capability activation, settings/policy mutation or tool execution.

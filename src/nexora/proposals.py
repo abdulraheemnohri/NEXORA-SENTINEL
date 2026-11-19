@@ -142,6 +142,15 @@ def read_proposals(
             latest = history[-1]["decision"] if history else "UNKNOWN"
             if latest not in {"SUBMITTED", "REVIEWED", "REJECTED"}:
                 raise ProposalReadError("proposal_review_state_invalid")
+            from nexora.proposal_review import (
+                ProposalReviewError,
+                read_signed_proposal_review,
+            )
+            try:
+                signed_review = read_signed_proposal_review(connection, row)
+            except ProposalReviewError as exc:
+                raise ProposalReadError(str(exc)) from exc
+
             proposals.append({
                 "proposal_id": row["proposal_id"],
                 "family": row["family"],
@@ -152,6 +161,7 @@ def read_proposals(
                 "created_at": row["created_at"],
                 "review_state": latest,
                 "review_history": history,
+                "signed_review": signed_review,
                 "execution": "DISABLED",
                 "authorization": "NOT_GRANTED",
             })
