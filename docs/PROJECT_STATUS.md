@@ -145,3 +145,19 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - The endpoint and dashboard remain GET-only and read-only. No settings apply form, policy mutation, feature activation or execution control was added. The existing `nexora settings diff` remains a preview only.
 - Added tests for valid settings, invalid settings fail-closed behavior, dashboard panel rendering and absence of data-store creation.
 - Settings path can be injected when creating the server for embedding/tests; default remains `config/settings.yaml`.
+
+
+## Specification readiness audit — 2026-11-19
+
+- Added `nexora spec-status`, a read-only aggregate for exact-source coverage,
+  catalogue integrity, interaction-matrix coverage, precedence integrity and
+  settings authorization readiness.
+- Added `nexora settings policy-status` to report all settings without an
+  approved per-setting authorization policy and the missing rollback controls.
+- A policy file being present is not treated as approval; no policy schema or
+  permission is inferred from arbitrary file contents.
+- Missing capability IDs 1–84 and meta-rule IDs 1–15 remain explicitly missing.
+- Unknown matrix pairs remain blocking; no family-level relationships or
+  compatibility grants are fabricated.
+- No settings mutation, policy mutation, autonomy increase, or execution path
+  was added. See [SPECIFICATION_READINESS.md](SPECIFICATION_READINESS.md).
