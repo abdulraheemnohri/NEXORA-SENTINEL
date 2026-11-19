@@ -12,3 +12,7 @@ The TUI, web dashboard, API, model inference and OS-enforced sandbox remain futu
 
 
 - `litestar_api.py`: optional GET-only loopback diagnostics API. The stdlib dashboard remains the default local UI.
+
+
+- `intelligence/provider_registry.py`: deterministic, metadata-only adapter registry.
+- `intelligence/model_catalog.py`: strict read-only model manifest and artifact integrity checks.
