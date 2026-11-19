@@ -242,3 +242,15 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   parameters, malformed IDs and invalid limits.
 - Proposal review history remains display-only metadata; no signed approval,
   capability lifecycle transition, or execution grant is created.
+
+
+## Witness key independence diagnostic — 2026-11-19
+
+- Added `nexora witness-independence` to inspect backup, update and witness
+  Ed25519 private keys without changing or exposing key material.
+- Compares public fingerprints, file identity, resolved paths, parent
+  directories and POSIX permissions where available.
+- Explicitly does not claim different-host custody, remote witness operation,
+  hardware-backed storage or independent human identity.
+- Added tests for reused fingerprints, shared directories, symlinks and weak
+  POSIX permissions.
