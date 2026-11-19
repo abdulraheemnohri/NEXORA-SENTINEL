@@ -130,3 +130,13 @@ No interactive HTTP control API or runtime execution API is enabled. The local w
 - No dependency is inferred from family membership, numbering, symmetry or
   transitivity. Unknown pairs remain `BLOCK_AND_ESCALATE`.
 - No cycle is repaired, no dependent is revoked, and no capability is enabled.
+
+
+## Verified audit search
+
+- CLI: `nexora audit-search [--event EVENT] [--contains TEXT] [--from-sequence N] [--to-sequence N] [--limit N]`.
+- Web: `GET /api/audit-search` with the same optional query parameters.
+- The complete JSONL file is hash-chain and sequence verified before filtering.
+- Symlink/non-file paths, malformed records, sequence discontinuities and hash mismatches fail closed.
+- Search is read-only; it never repairs, truncates, rotates or exports the audit log.
+- Results are bounded to 1–500 entries. The full chain is verified even when only a subset is returned.
