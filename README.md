@@ -420,3 +420,16 @@ nexora audit-search --contains permission --from-sequence 10
 The read-only web endpoint is `GET /api/audit-search`. Search verifies the full
 hash chain and sequence before returning filtered results. Corrupt or unsafe
 audit paths fail closed; search never repairs or rotates the log.
+
+
+## Verified audit search
+
+Search the audit chain without modifying it:
+
+```bash
+nexora audit-search
+nexora audit-search --event policy.denied
+nexora audit-search --contains "capability_id" --from-sequence 10 --to-sequence 100 --limit 50
+```
+
+The command verifies the entire hash chain before returning results. Corruption, missing sequence numbers, symlinks and non-regular files fail closed. The loopback dashboard exposes the same filters at `GET /api/audit-search`. Searches are read-only; no records are rewritten or deleted.
