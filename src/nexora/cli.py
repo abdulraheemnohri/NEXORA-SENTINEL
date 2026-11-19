@@ -491,8 +491,6 @@ def main(argv=None):
             chain = verify_lifecycle_chain_file(database)
             if not chain.get("valid"):
                 raise LifecycleChainError("lifecycle_chain_not_valid")
-            if chain.get("event_count", 0) < 1:
-                raise LifecycleChainError("lifecycle_chain_has_no_events")
             receipt = IndependentWitness(args.witness_log, args.witness_key).attest(
                 chain["head_hash"], "lifecycle_chain_head",
             )
