@@ -587,11 +587,16 @@ def read_signed_proposal_review(
             "SELECT name FROM sqlite_master WHERE type='table'"
         )
     }
-    if "self_family_signed_reviews" not in tables:
+    signed_tables = {
+        "self_family_signed_reviews",
+        "self_family_signed_review_nonces",
+    }
+    present_signed_tables = signed_tables.intersection(tables)
+    if not present_signed_tables:
         return None
     if (
-        "trusted_signing_keys" not in tables
-        or "self_family_signed_review_nonces" not in tables
+        present_signed_tables != signed_tables
+        or "trusted_signing_keys" not in tables
     ):
         raise ProposalReviewError("proposal_review_verification_store_incomplete")
     proposal = _proposal_record(proposal_row)
@@ -602,6 +607,12 @@ def read_signed_proposal_review(
         (proposal_id,),
     ).fetchone()
     if row is None:
+        orphan_nonces = connection.execute(
+            "SELECT COUNT(*) FROM self_family_signed_review_nonces WHERE proposal_id=?",
+            (proposal_id,),
+        ).fetchone()[0]
+        if orphan_nonces:
+            raise ProposalReviewError("proposal_review_orphan_nonce_ledger")
         return None
 
     try:
