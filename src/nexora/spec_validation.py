@@ -392,10 +392,10 @@ def validate_specification(
 
     error_count = len(errors)
     catalog = _validate_capabilities(catalog_doc, errors)
-    catalog["valid"] = len(errors) == error_count
+    catalog["valid"] = catalog.get("valid", False) and len(errors) == error_count
     error_count = len(errors)
     rules = _validate_meta_rules(rules_doc, errors)
-    rules["valid"] = len(errors) == error_count
+    rules["valid"] = rules.get("valid", False) and len(errors) == error_count
     capability_ids = set(
         range(1, 265)
         if catalog_doc is None
@@ -409,7 +409,7 @@ def validate_specification(
     )
     error_count = len(errors)
     matrix = _validate_matrix(matrix_doc, capability_ids, errors)
-    matrix["valid"] = len(errors) == error_count
+    matrix["valid"] = matrix.get("valid", False) and len(errors) == error_count
     error_count = len(errors)
     precedence = _validate_precedence(precedence_doc, errors)
     precedence["valid"] = precedence.get("valid", False) and len(errors) == error_count
