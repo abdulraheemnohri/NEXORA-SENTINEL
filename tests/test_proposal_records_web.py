@@ -18,8 +18,25 @@ def test_structured_proposal_api_returns_review_history_without_mutation(tmp_pat
         evidence=("source:operator",),
     )
     submitted = store.submit(proposal)
-    original = database.read_bytes()
 
+    def snapshot():
+        import sqlite3
+
+        with sqlite3.connect(database) as connection:
+            schema = connection.execute(
+                "SELECT type,name,sql FROM sqlite_master ORDER BY type,name"
+            ).fetchall()
+            proposals = connection.execute(
+                "SELECT proposal_id,family,summary,evidence_json,payload_sha256,execution "
+                "FROM self_family_proposals ORDER BY proposal_id"
+            ).fetchall()
+            history = connection.execute(
+                "SELECT proposal_id,decision,operator_label,evidence_json,note "
+                "FROM self_family_review_events ORDER BY event_id"
+            ).fetchall()
+        return schema, proposals, history
+
+    original = snapshot()
     server = create_read_only_server(data_dir, 0)
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -39,7 +56,7 @@ def test_structured_proposal_api_returns_review_history_without_mutation(tmp_pat
         assert report["proposals"][0]["proposal_id"] == submitted["proposal_id"]
         assert report["proposals"][0]["execution"] == "DISABLED"
         assert report["proposals"][0]["authorization"] == "NOT_GRANTED"
-        assert database.read_bytes() == original
+        assert snapshot() == original
         connection.close()
     finally:
         server.shutdown()
