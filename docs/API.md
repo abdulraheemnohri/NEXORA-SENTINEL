@@ -17,3 +17,12 @@ CLI commands: `status`, `catalog-check`, `check`, `audit`, `kill`, `resume`, `re
 Backup workflow: initialize the registry with `nexora registry-init`, create a snapshot with `nexora backup`, verify it with `nexora verify-backup PATH`, and restore to a new destination with `nexora restore BACKUP DESTINATION`.
 
 No HTTP API is currently exposed. No runtime execution API is enabled.
+
+
+## Capability maturity report
+
+- `GET /api/maturity-report`: source-backed capability maturity and evidence report.
+- `GET /api/maturity-report?capability_id=85`: one source-backed capability.
+- The report uses the existing lifecycle evidence gates. L0-L4 remains
+  `UNDEFINED_SOURCE_GAP` until canonical definitions and thresholds are supplied.
+- The endpoint is read-only and does not promote capabilities or enable execution.
