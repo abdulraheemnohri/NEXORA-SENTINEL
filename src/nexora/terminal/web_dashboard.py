@@ -261,7 +261,11 @@ def create_read_only_server(data_dir: Path, port: int = 8765, *, settings_path: 
                     ("Capability governance validation", "/api/governance"),
                     ("OS sandbox readiness (preflight only)", "/api/sandbox-readiness"),
                 ):
-                    content = VIEWS[route](root)
+                    content = (
+                        _render_settings(settings_file)
+                        if route == "/api/settings"
+                        else VIEWS[route](root)
+                    )
                     blocks.append(
                         "<section class=\"panel\"><h2>" + escape(title) + "</h2><pre>" +
                         escape(content) + "</pre><p><a href=\"" + route +
