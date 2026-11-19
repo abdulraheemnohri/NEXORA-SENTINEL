@@ -37,3 +37,17 @@ behavior or recovery authorization. Those require separate integration tests.
 
 The loopback-only web dashboard exposes the same diagnostic report at
 `GET /api/doctor`. The endpoint is GET-only and does not initialize storage.
+
+
+
+## Expanded terminal dashboard
+
+Run nexora tui. The read-only menu now includes specification/matrix
+readiness, doctor diagnostics, source-backed family inventory, explicitly
+declared dependency edges and settings authorization readiness in addition
+to the existing system, audit, proposal, registry and evidence views.
+
+All views are diagnostics only. Missing specifications remain missing;
+unknown matrix pairs remain blocking; a policy file is not approval; and
+the dashboard does not initialize storage or expose mutation/execution
+controls.

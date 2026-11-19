@@ -17,7 +17,14 @@ NEXORA SENTINEL — READ-ONLY CONTROL DESK
 2. Audit log
 3. Self-family proposals
 4. Capability registry
-5. Evidence freshness\n6. Evidence provenance\n7. Exit
+5. Evidence freshness
+6. Evidence provenance
+7. Specification and matrix readiness
+8. Doctor diagnostics
+9. Capability family explorer
+10. Explicit dependency graph
+11. Settings authorization readiness
+12. Exit
 """
 
 
@@ -176,6 +183,202 @@ def render_evidence_provenance(data_dir: Path) -> str:
     return "\n".join(lines)
 
 
+
+
+def render_specification_readiness(_data_dir: Path) -> str:
+    """Render exact-source, matrix and settings-policy readiness without mutation."""
+    from nexora.readiness import build_spec_status
+
+    try:
+        report = build_spec_status()
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+        return f"SPECIFICATION READINESS — unavailable ({type(exc).__name__})"
+
+    source = report.get("source_recovery", {})
+    capabilities = source.get("capabilities", {})
+    meta_rules = source.get("meta_rules", {})
+    matrix = report.get("interaction_matrix", {})
+    catalogue = report.get("capability_catalogue", {})
+    settings = report.get("settings_authorization", {})
+    lines = [
+        "SPECIFICATION READINESS — READ ONLY",
+        f"Overall: {report.get('status', 'UNKNOWN')}",
+        (
+            "Capability source: "
+            f"{capabilities.get('source_backed', '?')}/"
+            f"{capabilities.get('expected', 264)}; "
+            f"missing={capabilities.get('missing_count', '?')}"
+        ),
+        (
+            "Meta-rule source: "
+            f"{meta_rules.get('source_backed', '?')}/"
+            f"{meta_rules.get('expected', 45)}; "
+            f"missing={meta_rules.get('missing_count', '?')}"
+        ),
+        (
+            "Catalogue families: "
+            f"{catalogue.get('represented_families', '?')}/"
+            f"{catalogue.get('expected_families', 40)} represented"
+        ),
+        (
+            "Interaction matrix: "
+            f"{matrix.get('declared_pairs', '?')}/"
+            f"{matrix.get('possible_pairs', 264 * 264)} declared; "
+            f"unknown={matrix.get('unknown_pairs', '?')}"
+        ),
+        f"Settings authorization: {settings.get('status', 'UNKNOWN')}",
+        f"Blockers: {len(report.get('blockers', []))}",
+    ]
+    for blocker in report.get("blockers", []):
+        if isinstance(blocker, dict):
+            lines.append(
+                f"- {blocker.get('id', 'unknown')}: "
+                f"{blocker.get('status', 'BLOCKED')}"
+            )
+    lines.append(
+        "Unknown relationships remain BLOCK_AND_ESCALATE; "
+        "no source or policy is inferred."
+    )
+    lines.append("Execution, settings mutation and policy mutation: DISABLED")
+    return "\n".join(lines)
+
+
+def render_doctor(data_dir: Path) -> str:
+    """Render read-only subsystem health diagnostics without initializing storage."""
+    from nexora.diagnostics import build_doctor_report
+
+    try:
+        report = build_doctor_report(Path(data_dir))
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+        return f"DOCTOR — diagnostic failed closed ({type(exc).__name__})"
+
+    lines = [
+        "DOCTOR — READ ONLY",
+        f"Overall: {report.get('status', 'UNKNOWN')}",
+    ]
+    for name, item in report.get("checks", {}).items():
+        if isinstance(item, dict):
+            lines.append(f"{name}: {item.get('status', 'UNKNOWN')}")
+    blockers = report.get("blocking_checks", [])
+    gaps = report.get("known_gaps", [])
+    lines.append(
+        f"Blocking checks: {', '.join(blockers) if blockers else 'none reported'}"
+    )
+    lines.append(f"Known gaps: {', '.join(gaps) if gaps else 'none reported'}")
+    lines.append("Diagnostics do not initialize, repair, enable or execute components.")
+    return "\n".join(lines)
+
+
+def render_family_map(_data_dir: Path) -> str:
+    """Render only source-backed family labels and assignments."""
+    from nexora.family_inventory import build_family_inventory
+
+    try:
+        report = build_family_inventory()
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+        return f"CAPABILITY FAMILY MAP — unavailable ({type(exc).__name__})"
+
+    lines = [
+        "CAPABILITY FAMILY MAP — SOURCE-BACKED, READ ONLY",
+        f"Inventory: {report.get('status', 'UNKNOWN')}",
+        (
+            f"Families represented: {report.get('represented_family_count', 0)}/"
+            f"{report.get('expected_family_count', 40)}"
+        ),
+        (
+            "Source-backed capability records: "
+            f"{report.get('source_backed_capability_count', 0)}"
+        ),
+    ]
+    for family in report.get("families", []):
+        code = family.get("family_code", "?")
+        state = family.get("family_name_status", "UNKNOWN")
+        name = family.get("family_name") or state
+        count = family.get("source_backed_capability_count", 0)
+        lines.append(f"{code}: {name}; source-backed capabilities={count}")
+    lines.append(
+        f"Missing capability IDs: {len(report.get('missing_capability_ids', []))}"
+    )
+    lines.append(
+        "Cross-cutting records: "
+        f"{report.get('cross_cutting_capability_count', 0)}"
+    )
+    lines.append("No missing capability is assigned to a family by inference.")
+    return "\n".join(lines)
+
+
+def render_dependency_graph(_data_dir: Path) -> str:
+    """Render only explicitly declared directed depends_on relationships."""
+    from nexora.governance.validation import build_dependency_graph
+
+    try:
+        report = build_dependency_graph()
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+        return f"DEPENDENCY GRAPH — unavailable ({type(exc).__name__})"
+
+    lines = [
+        "GOVERNANCE DEPENDENCY GRAPH — READ ONLY",
+        f"Status: {report.get('status', 'UNKNOWN')}",
+        f"Nodes: {report.get('nodes', 264)}",
+        f"Declared relation pairs: {report.get('declared_relation_pairs', 0)}",
+        (
+            "Unknown relation pairs: "
+            f"{report.get('unknown_relation_pairs', 264 * 264)}"
+        ),
+        f"Explicit dependency edges: {report.get('dependency_edge_count', 0)}",
+        f"Dependency cycles: {report.get('cycle_count', 0)}",
+    ]
+    edges = report.get("dependency_edges", [])
+    for edge in edges[:20]:
+        lines.append(
+            f"{edge.get('capability_id', '?')} -> "
+            f"requires {edge.get('requires', '?')}"
+        )
+    if len(edges) > 20:
+        lines.append(f"... {len(edges) - 20} more explicit edges omitted")
+    for cycle in report.get("dependency_cycles", [])[:10]:
+        lines.append(f"Cycle requiring review: {cycle}")
+    lines.append(
+        "Only declared directed edges are shown; unknown pairs block and escalate."
+    )
+    lines.append("No dependency is inferred, repaired or used to enable a capability.")
+    return "\n".join(lines)
+
+
+def render_settings_policy(_data_dir: Path) -> str:
+    """Render authorization and rollback gaps without interpreting a policy file."""
+    from nexora.readiness import build_settings_policy_status
+
+    try:
+        report = build_settings_policy_status()
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+        return f"SETTINGS AUTHORIZATION — unavailable ({type(exc).__name__})"
+
+    lines = [
+        "SETTINGS AUTHORIZATION READINESS — READ ONLY",
+        f"Policy status: {report.get('status', 'UNKNOWN')}",
+        f"Policy file present: {report.get('policy_file_present', False)}",
+        (
+            "Settings without approved authorization: "
+            f"{report.get('settings_count', 0)}"
+        ),
+    ]
+    for name in report.get("settings_without_approved_authorization", []):
+        lines.append(f"- {name}: NOT_AUTHORIZED")
+    lines.append("Missing governance controls:")
+    for control in report.get("missing_policy_controls", []):
+        lines.append(f"- {control}")
+    proposed = report.get("proposed_settings_not_implemented", [])
+    lines.append(f"Proposed settings not implemented: {len(proposed)}")
+    for item in proposed:
+        if isinstance(item, dict):
+            lines.append(f"- {item.get('name', 'unknown')}: NOT_IMPLEMENTED")
+    lines.append("Authorization: NOT_EVALUATED; apply: DISABLED; rollback: UNSUPPORTED")
+    lines.append("A policy file's presence is not owner approval.")
+    return "\n".join(lines)
+
+
+
 def run_read_only_tui(
     data_dir: Path,
     *,
@@ -190,15 +393,20 @@ def run_read_only_tui(
         "4": render_registry,
         "5": render_evidence_freshness,
         "6": render_evidence_provenance,
+        "7": render_specification_readiness,
+        "8": render_doctor,
+        "9": render_family_map,
+        "10": render_dependency_graph,
+        "11": render_settings_policy,
     }
     while True:
         print(MENU, file=output)
         try:
-            choice = input_fn("Select a view (1-7): ").strip()
+            choice = input_fn("Select a view (1-12): ").strip()
         except (EOFError, KeyboardInterrupt):
             print("Leaving read-only dashboard.", file=output)
             return 0
-        if choice == "7":
+        if choice == "12":
             print("Leaving read-only dashboard.", file=output)
             return 0
         view = views.get(choice)

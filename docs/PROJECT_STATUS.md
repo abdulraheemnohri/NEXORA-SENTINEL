@@ -267,3 +267,18 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
   mandatory.
 - Added tests for valid transitions, wrong old pins, tampering, no-op rotation,
   output overwrite refusal, symlink refusal and CLI behavior.
+
+
+
+## Expanded terminal diagnostics — 2026-11-19
+
+- Extended the dependency-free TUI with read-only specification/matrix
+  readiness, doctor diagnostics, source-backed family inventory, explicit
+  dependency graph and settings authorization readiness views.
+- Corrected the menu layout and added explicit view/exit numbering.
+- Added regression coverage for all five views and for the invariant that
+  the dashboard does not initialize the registry database.
+- No settings, policy, lifecycle, capability, memory or execution mutation
+  interface was added.
+- Exact-head CI and cross-platform qualification are required before this
+  increment is considered verified.

@@ -21,7 +21,7 @@ NEXORA Sentinel is a local-first safety, governance and agent-runtime foundation
 - Six provisional self-* domains: observation, diagnostics, repair planning, learning, governance assistance and evolution proposals. Only read-only observation/diagnostics are enabled by default; all self-family outputs are proposals, never execution.
 - Conservative YAML configuration profiles and validated settings loader.
 - Durable local memory with source SHA-256 provenance, deterministic lexical retrieval, append-only records and auditable tombstones; no automatic model writes.
-- Dependency-free read-only terminal dashboard for system status, audit history, self-family proposals, capability registry and evidence freshness; it exposes no mutation or execution controls.
+- Dependency-free read-only terminal dashboard for system status, audit history, proposals, capability registry, evidence, specification/matrix readiness, doctor diagnostics, family inventory, dependency graph and settings authorization readiness; it exposes no mutation or execution controls.
 - Loopback-only, GET-only local web dashboard with JSON diagnostic endpoints, Host-header validation and no control or execution endpoints.
 
 ## Repository map
@@ -471,3 +471,21 @@ nexora trust-verify update-rotation.json --trusted-old-public-key OLD.pub.pem
 ```
 
 The same commands support the `backup` and `witness` key roles. Verification does not enroll the new key or change any configured trust pin; replacement pinning remains an explicit out-of-band operator action.
+
+
+
+## Expanded read-only terminal dashboard
+
+Run nexora tui to inspect the local control desk. In addition to system status,
+audit history, proposals, registry and evidence, the menu includes:
+
+- Specification and interaction-matrix readiness.
+- Read-only doctor diagnostics.
+- Source-backed capability family inventory.
+- Explicit directed dependency edges and reported cycles.
+- Per-setting authorization and rollback readiness.
+
+These views do not initialize missing databases, infer source material or
+relationships, approve settings, change policy, enable autonomy, or execute
+tools. Unknown relationships remain blocking. The dashboard is diagnostic,
+not an authorization surface.
