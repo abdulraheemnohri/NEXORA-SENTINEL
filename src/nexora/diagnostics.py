@@ -51,7 +51,7 @@ def _audit_report(path: Path) -> dict[str, Any]:
                     continue
                 item = json.loads(line)
                 if not isinstance(item, dict):
-                    raise ValueError(f"audit_record_not_object:{number}")
+                    raise TypeError(f"audit_record_not_object:{number}")
                 body = {key: value for key, value in item.items() if key != "hash"}
                 expected = hashlib.sha256((previous + canonical(body)).encode("utf-8")).hexdigest()
                 if item.get("previous_hash") != previous or item.get("hash") != expected:
@@ -78,7 +78,7 @@ def _audit_report(path: Path) -> dict[str, Any]:
 def _memory_report(path: Path) -> dict[str, Any]:
     """Verify local memory provenance using SQLite read-only mode only."""
     try:
-        metadata = path.lstat()
+        path.lstat()
     except FileNotFoundError:
         return {"status": "NOT_CONFIGURED", "records": 0, "provenance_valid": None}
     if path.is_symlink() or not path.is_file():
