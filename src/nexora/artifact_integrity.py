@@ -11,7 +11,7 @@ import stat
 from pathlib import Path
 from typing import Any
 
-from nexora.evidence import EvidenceError, EvidenceLedger
+from nexora.evidence import EvidenceLedger
 
 CHUNK_SIZE = 1024 * 1024
 MAX_ARTIFACT_BYTES = 2 * 1024 * 1024 * 1024
