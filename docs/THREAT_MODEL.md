@@ -67,3 +67,16 @@ The API's \`network_egress_route_enabled: false\` flag is descriptive of the
 route set only. It is not a claim that the Python process or host operating
 system cannot initiate network connections. Enforce process/host egress
 restrictions separately when needed.
+
+
+
+### Provider and model catalogue boundary
+
+The provider registry is metadata-only. It exposes the one currently
+source-backed provider adapter (LiteRT-LM text generation) and never
+instantiates it. The model catalogue is strict and read-only: it rejects
+unknown providers, unsupported formats/modalities, duplicate IDs, path
+traversal and symlinked model roots/artifacts. Optional SHA-256 checks prove
+only that the local file matches the operator-declared digest; they do not
+establish publisher authenticity. No model entry is automatically loaded,
+downloaded or executed, and no provider receives tool-execution authority.

@@ -576,3 +576,21 @@ stdlib dashboard remains available with \`nexora web\`.
 
 The API's disabled network-egress flag describes only its registered route
 surface; it is not a process-wide or operating-system network firewall.
+
+
+
+### Provider and model discovery
+
+Inspect registered adapters without loading a model:
+
+    nexora providers
+
+Validate the declared local model catalogue:
+
+    nexora models catalog --config config/models.yaml --model-dir models
+
+The registry currently describes LiteRT-LM text generation only. Provider
+discovery and model-catalogue validation are read-only; they do not load model
+weights, perform downloads, invoke inference or authorize tool execution.
+A model artifact with no configured SHA-256 is reported as UNVERIFIED. A
+matching SHA-256 is an integrity check, not a signature or execution approval.

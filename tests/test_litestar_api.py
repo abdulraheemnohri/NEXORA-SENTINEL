@@ -144,3 +144,40 @@ def test_proposal_detail_route_reads_one_existing_proposal(tmp_path):
     assert record["execution"] == "DISABLED"
     assert record["authorization"] == "NOT_GRANTED"
     assert payload["controls"]["tool_execution_enabled"] is False
+
+
+
+def test_provider_and_model_endpoints_are_read_only(tmp_path, monkeypatch):
+    from nexora.intelligence import model_catalog, provider_registry
+
+    monkeypatch.setattr(
+        provider_registry,
+        "build_provider_report",
+        lambda: {
+            "status": "OK",
+            "automatic_execution": False,
+            "providers": [],
+        },
+    )
+    monkeypatch.setattr(
+        model_catalog,
+        "build_model_catalog_report",
+        lambda: {
+            "status": "EMPTY",
+            "valid": True,
+            "count": 0,
+            "models": [],
+            "execution_enabled": False,
+        },
+    )
+    app = create_litestar_app(tmp_path / "missing-data")
+
+    with TestClient(app=app, base_url="http://127.0.0.1") as client:
+        provider_response = client.get("/api/v1/providers")
+        model_response = client.get("/api/v1/models")
+
+    assert provider_response.status_code == 200
+    assert provider_response.json()["view"]["automatic_execution"] is False
+    assert model_response.status_code == 200
+    assert model_response.json()["view"]["status"] == "EMPTY"
+    assert model_response.json()["controls"]["tool_execution_enabled"] is False

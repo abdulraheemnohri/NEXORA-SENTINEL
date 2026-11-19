@@ -252,3 +252,23 @@ The \`network_egress_route_enabled: false\` response flag describes this API's
 route surface only. It does not disable outbound networking for the Python
 process or the operating system; use OS-level network policy separately where
 that guarantee is required.
+
+
+
+## Provider and model discovery
+
+The read-only API also exposes:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | \`/api/v1/providers\` | Registered adapter metadata and runtime presence |
+| GET | \`/api/v1/models\` | Strict model catalogue validation and declared artifact integrity |
+
+These endpoints never instantiate providers, load model weights, download
+artifacts, invoke inference, or grant execution authority. The current
+source-backed provider is LiteRT-LM for text generation. Vision, audio,
+tool-calling and autonomous execution are not declared as supported provider
+capabilities by this registry. Model catalogue entries require explicit
+metadata; SHA-256 is verified only when supplied. Missing hashes remain
+UNVERIFIED. Even a matching hash is integrity evidence, not a publisher
+signature or authorization to load a model.

@@ -335,3 +335,21 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - This is intentionally not a LAN/public API and is not a control/authorization
   surface. Integration tests exercise read methods, blocked POST, and
   no-storage-creation behavior.
+
+
+
+## Provider registry and model catalogue
+
+- Added a deterministic metadata-only provider registry with a source-backed
+  LiteRT-LM text-generation descriptor.
+- Added strict schema validation for \`config/models.yaml\`, duplicate model
+  ID rejection, provider/format/modality qualification, relative artifact
+  path containment and symlink rejection.
+- When an operator supplies SHA-256, the catalogue computes and compares it.
+  Missing hashes remain UNVERIFIED; hash equality is not treated as a
+  publisher signature or execution approval.
+- Added \`nexora providers\` and \`nexora models catalog\` inspection commands.
+- Added GET-only \`/api/v1/providers\` and \`/api/v1/models\` routes.
+- Provider selection and model inventory remain metadata only. No automatic
+  provider execution, model loading, download, inference or tool invocation
+  is introduced.
