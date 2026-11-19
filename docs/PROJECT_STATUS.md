@@ -104,3 +104,8 @@ After all exact-SHA workflows pass, define the reviewed per-setting authorizatio
 - Added tests for diff output, no-change behavior, invalid/missing candidate files, CLI non-mutation, and symlink rejection.
 - README and `docs/SETTINGS_PERSISTENCE_SAFETY.md` document the preview-only contract.
 - Current branch-head verification is pending after these additions; do not infer it from the earlier persistence-only run.
+
+
+### Validation correction
+
+The first workflow run for the settings-diff increment caught four Ruff F821 errors in the new tests: the `Settings` class was used but not imported. Added the explicit import in commit `0d2d8ccec3b5dd591330f47bd9fac2a27a326240`. The earlier failing run is retained as evidence; all checks must be rerun on this corrected head before the increment is accepted.
