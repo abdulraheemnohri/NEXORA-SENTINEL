@@ -482,7 +482,7 @@ def main(argv=None):
             print(json.dumps({"valid": False, "error": str(exc), "read_only": True}, indent=2))
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0 if result["regression_count"] == 0 else 2
+        return 0 if result["status"] == "STRUCTURALLY_CONSISTENT" else 2
 
     if args.cmd == "lifecycle-chain-attest":
         from nexora.lifecycle_chain import LifecycleChainError, verify_lifecycle_chain_file
