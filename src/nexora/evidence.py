@@ -18,7 +18,7 @@ from nexora.lifecycle import EVIDENCE_FOR
 GENESIS = "0" * 64
 EVIDENCE_TYPES = frozenset().union(*EVIDENCE_FOR.values())
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_CURRENT_SCHEMA_VERSION = 2
+_CURRENT_SCHEMA_VERSION = 3
 
 
 class EvidenceError(RuntimeError):
@@ -41,12 +41,14 @@ def _record_body(row: sqlite3.Row) -> dict[str, Any]:
         "previous_hash": row["previous_hash"],
     }
     version = row["schema_version"]
-    if version == 2:
+    if version in (2, 3):
         body.update({
             "schema_version": version,
             "sequence": row["sequence"],
             "created_at": row["created_at"],
         })
+        if version == 3:
+            body["expires_at"] = row["expires_at"]
     elif version != 1:
         raise EvidenceError("unsupported_evidence_schema_version")
     return body
@@ -91,7 +93,7 @@ class EvidenceLedger:
                 required = {
                     "sequence", "capability_id", "evidence_type", "reference",
                     "artifact_sha256", "operator", "note", "created_at",
-                    "previous_hash", "record_hash", "schema_version",
+                    "previous_hash", "record_hash", "schema_version", "expires_at",
                 }
                 if not columns:
                     raise EvidenceError("evidence_ledger_schema_missing")
@@ -122,6 +124,10 @@ class EvidenceLedger:
                     "ALTER TABLE capability_evidence ADD COLUMN "
                     "schema_version INTEGER NOT NULL DEFAULT 1"
                 )
+            if "expires_at" not in columns:
+                db.execute(
+                    "ALTER TABLE capability_evidence ADD COLUMN expires_at TEXT"
+                )
             db.execute(
                 "CREATE INDEX IF NOT EXISTS capability_evidence_capability_idx "
                 "ON capability_evidence(capability_id, evidence_type)"
@@ -151,7 +157,8 @@ class EvidenceLedger:
         return db
 
     def add(self, capability_id: int, evidence_type: str, reference: str,
-            artifact_sha256: str, operator: str, note: str = "") -> dict[str, Any]:
+            artifact_sha256: str, operator: str, note: str = "",
+            expires_at: str | None = None) -> dict[str, Any]:
         if type(capability_id) is not int or not 1 <= capability_id <= 264:
             raise EvidenceError("capability_id_out_of_range")
         if evidence_type not in EVIDENCE_TYPES:
@@ -163,6 +170,18 @@ class EvidenceLedger:
             raise EvidenceError("artifact_sha256_must_be_64_lowercase_hex")
         if not isinstance(note, str) or len(note) > 4000:
             raise EvidenceError("note_invalid_or_too_long")
+        if expires_at is not None:
+            if not isinstance(expires_at, str) or not expires_at.strip():
+                raise EvidenceError("expires_at_invalid")
+            try:
+                parsed_expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+                if parsed_expiry.tzinfo is None or parsed_expiry.utcoffset() is None:
+                    raise ValueError("timezone_required")
+                expires_at = parsed_expiry.astimezone(UTC).isoformat(
+                    timespec="microseconds"
+                ).replace("+00:00", "Z")
+            except ValueError as exc:
+                raise EvidenceError("expires_at_must_be_timezone_aware_iso8601") from exc
         with self._connect() as db:
             db.execute("BEGIN IMMEDIATE")
             existing_rows = db.execute(
@@ -195,15 +214,17 @@ class EvidenceLedger:
                 "schema_version": _CURRENT_SCHEMA_VERSION,
                 "sequence": sequence,
                 "created_at": created_at,
+                "expires_at": expires_at,
             }
             digest = hashlib.sha256(_canonical(body).encode("utf-8")).hexdigest()
             db.execute(
                 """INSERT INTO capability_evidence
                    (sequence,capability_id,evidence_type,reference,artifact_sha256,operator,note,
-                    created_at,previous_hash,record_hash,schema_version)
-                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                    created_at,previous_hash,record_hash,schema_version,expires_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (sequence, capability_id, evidence_type, reference.strip(), artifact_sha256,
-                 operator.strip(), note, created_at, previous, digest, _CURRENT_SCHEMA_VERSION),
+                 operator.strip(), note, created_at, previous, digest, _CURRENT_SCHEMA_VERSION,
+                 expires_at),
             )
         return {"sequence": sequence, **body, "record_hash": digest}
 
