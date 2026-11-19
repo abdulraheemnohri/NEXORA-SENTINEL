@@ -233,3 +233,12 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - Missing capability IDs remain unassigned and unknown family values are
   counted rather than mapped by inference.
 - No capability status, relationship, authorization or execution state changes.
+
+
+## Structured proposal records API — 2026-11-19
+
+- Added `GET /api/proposal-records` with bounded list and exact-ID lookup.
+- The endpoint uses SQLite read-only mode and rejects duplicate/unknown query
+  parameters, malformed IDs and invalid limits.
+- Proposal review history remains display-only metadata; no signed approval,
+  capability lifecycle transition, or execution grant is created.
