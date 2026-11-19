@@ -30,6 +30,7 @@ VIEWS = {
     "/api/family-evaluation": lambda root: _render_family_evaluation(root),
     "/api/maturity-report": lambda root: _render_maturity_report(root),
     "/api/lifecycle-history": lambda root: _render_lifecycle_history(root),
+    "/api/evidence-freshness": lambda root: _render_evidence_freshness(root),
     "/api/recovery-readiness": lambda root: _render_recovery_readiness(root),
     "/api/recovery-history": lambda root: _render_recovery_history(root),
     "/api/governance": lambda root: _render_governance(),
@@ -91,6 +92,19 @@ def _render_lifecycle_history(data_dir: Path, capability_id: int | None = None) 
             database,
             capability_id=capability_id,
         ),
+        ensure_ascii=False,
+        indent=2,
+    )
+
+
+def _render_evidence_freshness(data_dir: Path, capability_id: int | None = None) -> str:
+    from nexora.evidence_freshness import build_freshness_report
+
+    database = Path(data_dir) / "registry.sqlite3"
+    if not database.is_file():
+        return json.dumps({"status": "NOT_CONFIGURED", "read_only": True})
+    return json.dumps(
+        build_freshness_report(database, capability_id=capability_id),
         ensure_ascii=False,
         indent=2,
     )
@@ -206,6 +220,7 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                     ("Capability family evidence evaluation", "/api/family-evaluation"),
                     ("Capability maturity and L0-L4 source gaps", "/api/maturity-report"),
                     ("Lifecycle history and structural regression diagnostics", "/api/lifecycle-history"),
+                    ("Evidence freshness and operator-declared expiry", "/api/evidence-freshness"),
                     ("Recovery readiness (trust anchor required for verification)", "/api/recovery-readiness"),
                     ("Witnessed recovery simulation history", "/api/recovery-history"),
                     ("Capability governance validation", "/api/governance"),
@@ -258,6 +273,27 @@ def create_read_only_server(data_dir: Path, port: int = 8765) -> ThreadingHTTPSe
                 try:
                     capability_id = int(values[0]) if values else None
                     content = _render_lifecycle_history(root, capability_id)
+                    payload = json.dumps(
+                        {"read_only": True, "view": content},
+                        ensure_ascii=False, separators=(",", ":"),
+                    ).encode("utf-8")
+                    self._send(200, "application/json; charset=utf-8", payload)
+                except (OSError, ValueError, TypeError, sqlite3.Error) as exc:
+                    self._send(500, "application/json; charset=utf-8",
+                               json.dumps({"error": type(exc).__name__}).encode("utf-8"))
+                return
+            if path == "/api/evidence-freshness":
+                query = parse_qs(urlsplit(self.path).query)
+                values = query.get("capability_id", [])
+                if len(values) > 1 or (
+                    values and (not values[0].isdigit() or not 1 <= int(values[0]) <= 264)
+                ):
+                    self._send(400, "application/json; charset=utf-8",
+                               b'{"error":"invalid_capability_id_query_parameter"}')
+                    return
+                try:
+                    capability_id = int(values[0]) if values else None
+                    content = _render_evidence_freshness(root, capability_id)
                     payload = json.dumps(
                         {"read_only": True, "view": content},
                         ensure_ascii=False, separators=(",", ":"),
