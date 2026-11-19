@@ -86,3 +86,22 @@ def test_freshness_does_not_create_missing_database(tmp_path):
     with pytest.raises(EvidenceError, match="evidence_ledger_not_found"):
         build_freshness_report(path)
     assert not path.exists()
+
+
+def test_cli_add_and_freshness_commands(tmp_path, capsys):
+    from nexora.cli import main
+
+    args = [
+        "--data-dir", str(tmp_path), "evidence", "add", "85",
+        "--type", "test_report", "--reference", "artifact://cli-test",
+        "--sha256", HASH, "--operator", "cli-operator",
+        "--expires-at", "2027-01-01T00:00:00Z", "--confirm",
+    ]
+    assert main(args) == 0
+    recorded = __import__("json").loads(capsys.readouterr().out)
+    assert recorded["recorded"] is True
+    assert recorded["expires_at"] == "2027-01-01T00:00:00.000000Z"
+
+    assert main(["--data-dir", str(tmp_path), "evidence", "freshness"]) == 0
+    report = __import__("json").loads(capsys.readouterr().out)
+    assert report["counts"]["CURRENT"] == 1
