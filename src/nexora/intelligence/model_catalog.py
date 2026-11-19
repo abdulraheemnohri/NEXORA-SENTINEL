@@ -29,7 +29,7 @@ class ModelCatalogError(ValueError):
 def _parse(path: Path) -> dict[str, Any]:
     source = Path(path)
     try:
-        metadata = source.lstat()
+        source.lstat()
     except FileNotFoundError:
         raise ModelCatalogError("model_catalog_missing") from None
     if source.is_symlink() or not source.is_file():
@@ -59,7 +59,10 @@ def _artifact_path(root: Path, artifact: str) -> Path:
     relative = PurePosixPath(artifact)
     if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
         raise ModelCatalogError("model_artifact_path_must_be_relative_and_contained")
-    base = Path(root).resolve()
+    model_root = Path(root)
+    if model_root.is_symlink():
+        raise ModelCatalogError("model_root_symlink_rejected")
+    base = model_root.resolve()
     target = base.joinpath(*relative.parts)
     try:
         target.resolve().relative_to(base)
@@ -90,8 +93,11 @@ def build_model_catalog_report(
             if model_id in seen:
                 raise ModelCatalogError("model_id_duplicate")
             seen.add(model_id)
-            descriptor = registry.get(item["provider"])
-            if item["format"] != "litertlm":
+            provider_id = item["provider"]
+            if not isinstance(provider_id, str):
+                raise ModelCatalogError("model_provider_invalid")
+            descriptor = registry.get(provider_id)
+            if not isinstance(item["format"], str) or item["format"] != "litertlm":
                 raise ModelCatalogError("model_format_not_supported_by_provider")
             modalities = item["modalities"]
             if (
