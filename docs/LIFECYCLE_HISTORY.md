@@ -28,12 +28,16 @@ open it in SQLite read-only/query-only mode. They never initialize storage.
 
 ## Trust boundary
 
-The existing lifecycle tables have SQLite update/delete triggers, but legacy
-rows do not contain a cryptographic event hash chain. The report therefore
-returns `history_authenticity=UNVERIFIED` and
-`cryptographic_hash_chain=NOT_IMPLEMENTED_FOR_LEGACY_LIFECYCLE_EVENTS`.
-A database owner or attacker able to rewrite the database file can bypass
-SQLite triggers. Structural consistency is not proof of authenticity.
+New lifecycle, revocation and rollback events are included in the SHA-256 chain
+implemented in `docs/LIFECYCLE_CHAIN.md`. The history report verifies that chain
+and distinguishes `STRUCTURALLY_CONSISTENT`, `CHAIN_NOT_MIGRATED`,
+`CHAIN_INTEGRITY_FAILED` and `REGRESSION_DETECTED`.
+
+Existing records at chain activation watermarks remain explicitly unverified.
+The report never retroactively hashes or attests them. A local chain is not an
+independent trust anchor: a privileged database owner can rewrite local data.
+Use the separate Ed25519 witness checkpoint workflow to anchor the current
+chain head outside the registry database.
 
 This release does not claim evidence expiry monitoring: current evidence
 records do not define a canonical expiry contract. Missing, revoked or
@@ -41,7 +45,6 @@ outdated evidence cannot be reliably inferred without source-backed expiry
 semantics. No automatic repair, promotion, rollback, policy change or execution
 is performed.
 
-A future cryptographic lifecycle ledger requires a separately reviewed,
-versioned migration and an independently retained trust anchor. Existing
-records must remain explicitly unverified; they must not be retroactively
-attested.
+The chain does not define evidence expiry or freshness semantics. Those remain
+blocked until canonical source-backed expiry rules are provided. No automatic
+repair, promotion, rollback, policy change or execution is performed.
