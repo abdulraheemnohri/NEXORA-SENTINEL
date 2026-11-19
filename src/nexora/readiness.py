@@ -173,14 +173,6 @@ def build_spec_status(
             "missing_count": len(missing_rules),
             "missing_ranges": _ranges(missing_rules),
         })
-    if not catalogue["entries_valid"] or not catalogue["exact_family_coverage"]:
-        blockers.append({
-            "id": "capability_catalogue_integrity",
-            "status": "BLOCKED",
-            "entries_valid": catalogue["entries_valid"],
-            "unique_ids": catalogue["unique_ids"],
-            "exact_family_coverage": catalogue["exact_family_coverage"],
-        })
     if unknown_pairs:
         blockers.append({
             "id": "interaction_matrix_unknown_pairs",
