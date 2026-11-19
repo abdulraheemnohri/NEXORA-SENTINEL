@@ -130,7 +130,17 @@ def build_lifecycle_history(database: Path, capability_id: int | None = None) ->
         })
 
     return {
-        "status": "STRUCTURALLY_CONSISTENT" if not regressions else "REGRESSION_DETECTED",
+        "status": (
+            "REGRESSION_DETECTED" if regressions
+            else (
+                "STRUCTURALLY_CONSISTENT" if chain_report and chain_report.get("valid")
+                else (
+                    "CHAIN_NOT_MIGRATED"
+                    if chain_report and chain_report.get("status") == "NOT_MIGRATED"
+                    else "CHAIN_INTEGRITY_FAILED"
+                )
+            )
+        ),
         "capability_count": len(records),
         "lifecycle_event_count": len(events),
         "revocation_event_count": len(revocations),
@@ -147,6 +157,7 @@ def build_lifecycle_history(database: Path, capability_id: int | None = None) ->
             ),
             "chain": chain_report,
             "history_authenticity": "UNVERIFIED_WITHOUT_EXTERNAL_ANCHOR",
+            "verification_required": not bool(chain_report and chain_report.get("valid")),
             "assessment": (
                 "The local hash chain detects changes to post-activation records. "
                 "Legacy records are excluded and remain unverified; a privileged database rewrite "
