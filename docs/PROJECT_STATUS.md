@@ -126,3 +126,8 @@ The first workflow run for the settings-diff increment caught four Ruff F821 err
 - Fixed backup SQLite connection lifetime through a helper that preserves transaction commit/rollback semantics and always closes the connection in `finally`; applied to inspection, backup and restore paths.
 - Updated the update-signing key test to assert POSIX mode 0600 only on POSIX. On Windows, it checks key usability and documents inherited NTFS ACL requirements; no claim of automated Windows ACL verification is made.
 - The first failing matrix run is retained as evidence. A corrected cross-platform matrix run is pending; do not count Windows as qualified until both Python versions and all CLI smoke steps pass.
+
+
+### Follow-up CI correction
+
+The first run after the Windows portability change stopped at Ruff because the new `contextmanager` import was out of order; the Windows pytest jobs had not yet validated that change. Import ordering was corrected in commit `909d8c85269992b9a9085a98fe467847dea8fdb4`. A fresh exact-head CI and platform matrix is required before accepting the fix.
