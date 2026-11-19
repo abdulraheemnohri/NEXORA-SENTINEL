@@ -22,7 +22,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(prog="nexora")
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     sub = parser.add_subparsers(dest="cmd", required=True)
-    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check"):
+    for name in ("status", "catalog-check", "kill", "resume", "audit", "registry-init", "tui", "web", "sandbox-check", "doctor", "kill-switch-test"):
         sub.add_parser(name)
     lifecycle_history = sub.add_parser(
         "lifecycle-history", help="Replay existing lifecycle events read-only"
@@ -348,6 +348,25 @@ def main(argv=None):
     memory_delete.add_argument("--confirm", action="store_true", required=True)
 
     args = parser.parse_args(argv)
+    if args.cmd == "doctor":
+        from nexora.doctor import build_doctor_report
+        try:
+            result = build_doctor_report(args.data_dir)
+        except (OSError, ValueError, TypeError, RuntimeError) as exc:
+            print(json.dumps({
+                "status": "CRITICAL",
+                "error": type(exc).__name__,
+                "read_only": True,
+                "execution_enabled": False,
+            }, indent=2))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 2 if result["status"] == "CRITICAL" else (3 if result["status"] == "BLOCKED" else 0)
+    if args.cmd == "kill-switch-test":
+        from nexora.self_tests import run_kill_switch_self_test
+        result = run_kill_switch_self_test()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "PASS" else 2
     if args.cmd == "sandbox-check":
         from nexora.sandbox_readiness import inspect_sandbox_readiness
         result = inspect_sandbox_readiness()
