@@ -113,6 +113,9 @@ def append_lifecycle_event(db: sqlite3.Connection, source_table: str, event_id: 
     ).fetchone()
     if row is None:
         raise LifecycleChainError("lifecycle_chain_source_event_missing")
+    _, watermarks = _baseline_hash(db)
+    if event_id <= watermarks[source_table]:
+        raise LifecycleChainError("legacy_event_cannot_be_attested")
     payload_json = canonical_json(dict(row))
     previous = db.execute(
         "SELECT sequence,event_hash FROM lifecycle_chain_events ORDER BY sequence DESC LIMIT 1"
@@ -181,6 +184,9 @@ def verify_lifecycle_chain(db: sqlite3.Connection) -> dict:
         source_table = event["source_table"]
         if source_table not in SOURCE_TABLES:
             errors.append(f"source_table_invalid:{expected_sequence}")
+            break
+        if event["source_event_id"] <= metadata[source_table]:
+            errors.append(f"legacy_event_included_in_chain:{expected_sequence}")
             break
         source = db.execute(
             f"SELECT * FROM {source_table} WHERE event_id=?",
