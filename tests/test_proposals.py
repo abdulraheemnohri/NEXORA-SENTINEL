@@ -366,3 +366,36 @@ def test_proposals_cli_signed_review_sign_and_record(tmp_path, capsys):
     shown = json.loads(capsys.readouterr().out)
     assert result == 0
     assert shown["proposal"]["signed_review"]["status"] == "VERIFIED"
+
+
+
+def test_signed_review_blocks_later_unsigned_review_label(tmp_path):
+    from nexora.proposal_review import record_signed_proposal_review
+    from nexora.self_family_store import SelfFamilyStoreError
+
+    database, proposal, reviewers = _signed_review_fixture(tmp_path)
+    receipts = _review_receipts(database, proposal, reviewers)
+    record_signed_proposal_review(database, proposal["proposal_id"], receipts)
+
+    with pytest.raises(SelfFamilyStoreError, match="proposal_has_signed_review_record"):
+        SelfFamilyProposalStore(database).review(
+            proposal["proposal_id"],
+            "REJECTED",
+            operator_label="legacy unsigned reviewer",
+            evidence=["review:after-signed-review"],
+        )
+
+
+def test_receipt_reader_rejects_duplicate_json_keys(tmp_path):
+    from nexora.proposal_review import (
+        ProposalReviewError,
+        read_receipt_file,
+    )
+
+    receipt = tmp_path / "duplicate.json"
+    receipt.write_text(
+        '{"payload":{"decision":"REVIEWED","decision":"REJECTED"},"signature":"x"}',
+        encoding="utf-8",
+    )
+    with pytest.raises(ProposalReviewError, match="duplicate_json_key"):
+        read_receipt_file(receipt)
