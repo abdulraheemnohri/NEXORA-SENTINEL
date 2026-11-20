@@ -100,17 +100,20 @@ def test_kill_and_resume_transitions_are_serialized(tmp_path: Path) -> None:
         target=_engage_and_signal,
         args=(str(marker), str(audit_path), kill_started, kill_entered),
     )
+    started: list[multiprocessing.Process] = []
     resume.start()
-    assert resume_entered.wait(15), "resume did not reach its audit boundary"
-    kill.start()
-    assert kill_started.wait(15), "kill worker did not start"
+    started.append(resume)
     try:
+        assert resume_entered.wait(15), "resume did not reach its audit boundary"
+        kill.start()
+        started.append(kill)
+        assert kill_started.wait(15), "kill worker did not start"
         assert not kill_entered.wait(2), (
             "a concurrent kill entered its transition before resume completed"
         )
     finally:
         release_resume.set()
-    _join([resume, kill])
+    _join(started)
 
     entries = AuditLog(audit_path).entries()
     assert [entry["event"] for entry in entries] == [

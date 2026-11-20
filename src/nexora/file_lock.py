@@ -40,7 +40,7 @@ def exclusive_file_lock(path: Path) -> Iterator[None]:
             import msvcrt
 
             if os.fstat(descriptor).st_size == 0:
-                os.write(descriptor, b"\\0")
+                os.write(descriptor, b"\0")
             os.lseek(descriptor, 0, os.SEEK_SET)
             msvcrt.locking(descriptor, msvcrt.LK_LOCK, 1)
             try:
