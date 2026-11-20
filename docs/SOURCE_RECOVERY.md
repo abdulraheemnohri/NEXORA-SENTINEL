@@ -34,3 +34,28 @@ approval. A human must compare every record with the original source and a
 separately audited approval/import process is still required. The missing
 capability definitions 1-84 and meta-rules 1-15 remain missing until the
 original source text is supplied and reviewed.
+
+
+## Prior-conversation source pointers checked 2026-11-20
+
+A prior-conversation context lookup identified two original user-supplied
+sections from the Self-Terminal AI specification discussion on 2026-11-18
+(approximately 05:21:25 UTC):
+
+- **Self-Terminal AI: Expanded Self-Capability Set** — capability IDs 1–28 and
+  meta-rules 1–8.
+- **Self-Terminal AI: Extended Capability Set (Addendum II)** — capability IDs
+  29–84 and meta-rules 9–15.
+
+This confirms that the original source sections existed in the earlier
+conversation. However, the available retrieval returned only the headings,
+ranges and a summary of their contents, not the complete original message
+bodies. A separate Library search did not locate an exact source artifact.
+Therefore no capability or meta-rule records have been imported from memory,
+summaries or inferred wording.
+
+**Blocking input:** provide an export, attachment or exact text of those two
+original sections. Once available, compare every record to the source, run
+`nexora source-import-preview`, record the source hash and review evidence,
+and only then prepare a separately reviewed import. The current preview path
+does not itself approve or mutate the canonical catalogue.

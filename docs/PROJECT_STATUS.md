@@ -353,3 +353,53 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - Provider selection and model inventory remain metadata only. No automatic
   provider execution, model loading, download, inference or tool invocation
   is introduced.
+
+
+## Cross-process audit and emergency-stop serialization — 2026-11-20
+
+- Added a shared POSIX/Windows advisory sidecar-lock helper. It rejects observed
+  symlink and non-regular lock paths; runtime lock files remain persistent and
+  are excluded from Git.
+- Audit appends now hold one lock across chain verification, sequence allocation,
+  append, flush and fsync. This prevents cooperating writers from allocating the
+  same sequence or forking the hash chain.
+- Kill-switch direct operations and the CLI's combined state-plus-audit
+  transitions now share a per-marker lock. Resume records its decision before
+  marker removal; if the audit append fails, the marker remains engaged.
+- The signed witness stream and recovery-history writer now use the shared lock
+  helper instead of a duplicated private implementation.
+- Added regression coverage for 80 concurrent audit records across four spawned
+  processes, a forced kill/resume interleaving, and POSIX symlink lock refusal.
+- Threat-model notes now explicitly state that these are advisory locks for
+  cooperating processes, not protection against direct writes, lock-file
+  deletion, privileged tampering or non-cooperating writers.
+
+**Code commits:** `88d913f7e51b1e8069ce7732a957bc1f0b77116f`,
+`c0c262e1b7055aa4750b4aa7c6f9bd7274de2ff6`,
+`f02af6a9b50afdfc8387e6b72a63944dd2a4bd2b`,
+`449ba468212240597822cec765a27d84aa271357`.
+
+**Exact code-head verification** (`449ba468212240597822cec765a27d84aa271357`):
+- Tests workflow: Ruff passed; pytest **484 passed in 29.02s**; compileall passed.
+- Security workflow: pip check reported no broken requirements; Ruff passed;
+  compileall passed; pytest **484 passed in 31.15s**.
+- Build workflow: `python -m build` succeeded.
+- Formal Verification workflow: TLC lifecycle safety model check succeeded.
+- Initial CI attempts exposed a stale private-lock import and one Ruff import
+  ordering issue; both were fixed before the successful exact-head runs.
+
+**Repository state:** PR #1 was already merged into `main` on 2026-11-18
+(merge commit `5667510fd14797da68e369f3bbb4fd124e0ba3de`), so it cannot be kept
+open or used as an active review target. This increment is in draft PR #22,
+stacked on PR #21. No open GitHub issues were found during this run.
+
+**Not verified:** this stacked PR did not trigger the main-targeted
+Windows/macOS platform-qualification matrix. No Windows/macOS execution,
+Android device test, or on-device recovery test was performed. No execution
+capability or higher autonomy level was enabled.
+
+**Next priority:** recover the exact original capability definitions 1–84 and
+meta-rules 1–15 from the user's source messages before importing them. The
+source-recovery lookup identified the original message headings and ID ranges,
+but did not return the complete source text; see `docs/SOURCE_RECOVERY.md`.
+Do not fabricate or import summaries as canonical definitions.
