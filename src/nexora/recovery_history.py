@@ -16,12 +16,12 @@ from pathlib import Path
 from typing import Any
 
 from nexora.backup import BackupError
+from nexora.file_lock import exclusive_file_lock
 from nexora.oversight.witness import (
     IndependentWitness,
     WitnessVerificationError,
     verify_witness_chain,
 )
-from nexora.file_lock import exclusive_file_lock
 from nexora.recovery_planner import RecoveryPlanningError, simulate_recovery
 
 
