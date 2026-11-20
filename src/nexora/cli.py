@@ -1217,13 +1217,11 @@ def main(argv=None):
         print(json.dumps(result, indent=2))
         return 0 if result["complete"] else 2
     if args.cmd == "kill":
-        stop.engage()
-        log.append("kill.engaged", {"source": "cli"})
+        stop.engage_and_record(log, reason="operator", payload={"source": "cli"})
         print("Emergency stop engaged.")
         return 0
     if args.cmd == "resume":
-        log.append("kill.cleared", {"human_initiated": True})
-        stop.clear()
+        stop.clear_and_record(log, payload={"human_initiated": True})
         print("Emergency stop cleared.")
         return 0
     if args.cmd == "audit":

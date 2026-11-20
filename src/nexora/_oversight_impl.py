@@ -13,6 +13,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from nexora.file_lock import exclusive_file_lock
+
 GENESIS = "0" * 64
 
 
@@ -35,7 +37,10 @@ class KillSwitch:
             return True
         return True
 
-    def engage(self, reason: str = "operator") -> None:
+    def _transition_lock(self):
+        return self.marker.with_name(self.marker.name + ".transition.lock")
+
+    def _engage_unlocked(self, reason: str = "operator") -> None:
         self.marker.parent.mkdir(parents=True, exist_ok=True)
         fd, temporary = tempfile.mkstemp(prefix=".KILL.", dir=self.marker.parent)
         try:
@@ -49,8 +54,36 @@ class KillSwitch:
             if os.path.exists(temporary):
                 os.unlink(temporary)
 
-    def clear(self) -> None:
+    def _clear_unlocked(self) -> None:
         self.marker.unlink(missing_ok=True)
+
+    def engage(self, reason: str = "operator") -> None:
+        with exclusive_file_lock(self._transition_lock()):
+            self._engage_unlocked(reason)
+
+    def clear(self) -> None:
+        with exclusive_file_lock(self._transition_lock()):
+            self._clear_unlocked()
+
+    def engage_and_record(
+        self, audit_log: Any, reason: str = "operator", payload: dict | None = None
+    ) -> None:
+        """Engage first, then record while excluding concurrent kill/resume transitions."""
+        with exclusive_file_lock(self._transition_lock()):
+            self._engage_unlocked(reason)
+            audit_log.append(
+                "kill.engaged",
+                payload if payload is not None else {"source": "operator"},
+            )
+
+    def clear_and_record(self, audit_log: Any, payload: dict | None = None) -> None:
+        """Record the clear decision before removing the marker, under the same lock."""
+        with exclusive_file_lock(self._transition_lock()):
+            audit_log.append(
+                "kill.cleared",
+                payload if payload is not None else {"human_initiated": True},
+            )
+            self._clear_unlocked()
 
 
 def canonical(value: Any) -> str:
@@ -95,23 +128,27 @@ class AuditLog:
             return False
 
     def append(self, event: str, payload: dict) -> dict:
-        if not self.verify():
-            raise RuntimeError("Audit integrity failure; append refused")
-        rows = self.entries()
-        previous = rows[-1]["hash"] if rows else GENESIS
-        body = {
-            "sequence": len(rows) + 1, "event": event,
-            "payload": payload, "previous_hash": previous,
-        }
-        record = {
-            **body,
-            "hash": hashlib.sha256((previous + canonical(body)).encode()).hexdigest(),
-        }
-        with self.path.open("a", encoding="utf-8") as stream:
-            stream.write(canonical(record) + "\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        return record
+        # Verification, sequence allocation and durable append must be one
+        # critical section; otherwise concurrent writers can fork the chain.
+        lock_path = self.path.with_name(self.path.name + ".lock")
+        with exclusive_file_lock(lock_path):
+            if not self.verify():
+                raise RuntimeError("Audit integrity failure; append refused")
+            rows = self.entries()
+            previous = rows[-1]["hash"] if rows else GENESIS
+            body = {
+                "sequence": len(rows) + 1, "event": event,
+                "payload": payload, "previous_hash": previous,
+            }
+            record = {
+                **body,
+                "hash": hashlib.sha256((previous + canonical(body)).encode()).hexdigest(),
+            }
+            with self.path.open("a", encoding="utf-8") as stream:
+                stream.write(canonical(record) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            return record
 
 
 class Witness:

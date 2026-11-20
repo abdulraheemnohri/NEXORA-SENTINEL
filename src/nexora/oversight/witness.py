@@ -10,14 +10,13 @@ import hashlib
 import json
 import os
 import time
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
 from nexora.backup import _fingerprint, _load_private, _load_public
+from nexora.file_lock import exclusive_file_lock
 
 
 def _canonical(value: dict[str, Any]) -> bytes:
@@ -26,35 +25,6 @@ def _canonical(value: dict[str, Any]) -> bytes:
 
 def _receipt_hash(receipt: dict[str, Any]) -> str:
     return hashlib.sha256(_canonical(receipt)).hexdigest()
-
-
-@contextmanager
-def _exclusive_file_lock(path: Path) -> Iterator[None]:
-    """Serialize cooperating processes on POSIX and Windows using a sidecar lock file."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+b") as lock_stream:
-        if os.name == "nt":
-            import msvcrt
-
-            lock_stream.seek(0, os.SEEK_END)
-            if lock_stream.tell() == 0:
-                lock_stream.write(bytes([0]))
-                lock_stream.flush()
-            lock_stream.seek(0)
-            msvcrt.locking(lock_stream.fileno(), msvcrt.LK_LOCK, 1)
-            try:
-                yield
-            finally:
-                lock_stream.seek(0)
-                msvcrt.locking(lock_stream.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-
-            fcntl.flock(lock_stream.fileno(), fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(lock_stream.fileno(), fcntl.LOCK_UN)
 
 
 class WitnessVerificationError(RuntimeError):
@@ -126,7 +96,7 @@ class IndependentWitness:
         # The lock covers verification, sequence allocation, signing and durable append.
         # Every process must use this API and the same sidecar lock path.
         lock_path = self.path.with_name(self.path.name + ".lock")
-        with _exclusive_file_lock(lock_path):
+        with exclusive_file_lock(lock_path):
             previous = "0" * 64
             sequence = 1
             if self.path.stat().st_size:
@@ -159,7 +129,7 @@ def verify_witness_chain(
     path = Path(path)
     public = _load_public(trusted_public_key)
     lock_path = path.with_name(path.name + ".lock")
-    with _exclusive_file_lock(lock_path):
+    with exclusive_file_lock(lock_path):
         return _verify_witness_chain(path, public)
 
 
