@@ -353,3 +353,97 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - Provider selection and model inventory remain metadata only. No automatic
   provider execution, model loading, download, inference or tool invocation
   is introduced.
+
+
+## Cross-process audit and emergency-stop serialization — 2026-11-20
+
+- Added a shared POSIX/Windows advisory sidecar-lock helper. It rejects observed
+  symlink and non-regular lock paths; runtime lock files remain persistent and
+  are excluded from Git.
+- Audit appends now hold one lock across chain verification, sequence allocation,
+  append, flush and fsync. This prevents cooperating writers from allocating the
+  same sequence or forking the hash chain.
+- Kill-switch direct operations and the CLI's combined state-plus-audit
+  transitions now share a per-marker lock. Resume records its decision before
+  marker removal; if the audit append fails, the marker remains engaged.
+- The signed witness stream and recovery-history writer now use the shared lock
+  helper instead of a duplicated private implementation.
+- Added regression coverage for 80 concurrent audit records across four spawned
+  processes, a forced kill/resume interleaving, and POSIX symlink lock refusal.
+- Threat-model notes now explicitly state that these are advisory locks for
+  cooperating processes, not protection against direct writes, lock-file
+  deletion, privileged tampering or non-cooperating writers.
+
+**Code commits:** `88d913f7e51b1e8069ce7732a957bc1f0b77116f`,
+`c0c262e1b7055aa4750b4aa7c6f9bd7274de2ff6`,
+`f02af6a9b50afdfc8387e6b72a63944dd2a4bd2b`,
+`449ba468212240597822cec765a27d84aa271357`.
+
+**Exact code-head verification** (`449ba468212240597822cec765a27d84aa271357`):
+- Tests workflow: Ruff passed; pytest **484 passed in 29.02s**; compileall passed.
+- Security workflow: pip check reported no broken requirements; Ruff passed;
+  compileall passed; pytest **484 passed in 31.15s**.
+- Build workflow: `python -m build` succeeded.
+- Formal Verification workflow: TLC lifecycle safety model check succeeded.
+- Initial CI attempts exposed a stale private-lock import and one Ruff import
+  ordering issue; both were fixed before the successful exact-head runs.
+
+**Repository state:** PR #1 was already merged into `main` on 2026-11-18
+(merge commit `5667510fd14797da68e369f3bbb4fd124e0ba3de`), so it cannot be kept
+open or used as an active review target. This increment is in draft PR #22,
+stacked on PR #21. No open GitHub issues were found during this run.
+
+**Not verified:** this stacked PR did not trigger the main-targeted
+Windows/macOS platform-qualification matrix. No Windows/macOS execution,
+Android device test, or on-device recovery test was performed. No execution
+capability or higher autonomy level was enabled.
+
+**Next priority:** recover the exact original capability definitions 1–84 and
+meta-rules 1–15 from the user's source messages before importing them. The
+source-recovery lookup identified the original message headings and ID ranges,
+but did not return the complete source text; see `docs/SOURCE_RECOVERY.md`.
+Do not fabricate or import summaries as canonical definitions.
+
+## Audit state-file path hardening — 2026-11-21
+
+- Added a shared regular-file opener that checks the leaf path before and after
+  opening, rejects symlinks and non-regular files, and compares the opened
+  descriptor identity with the path identity. POSIX uses `O_NOFOLLOW` where
+  available; other platforms use pre/post metadata checks.
+- Audit log initialization no longer follows a symlink or changes permissions
+  on its target. Audit reads and the read-only audit-search endpoint use the
+  checked descriptor.
+- Audit append now verifies the chain, allocates the next sequence and appends
+  through one checked descriptor. The audit file is not silently recreated if
+  it disappears after initialization. Sequence continuity is verified before
+  a new record is appended.
+- Preserved the established fail-closed `RuntimeError` contract for corrupt
+  audit data, so resume cannot clear the kill marker when the audit is invalid.
+- Added regression tests for symlinked audit destinations, path replacement
+  with a symlink, non-regular destinations and unchanged symlink targets.
+- The first exact-head attempt (`adf54072f040986fe061d01f6a463655877a2bf9`)
+  exposed two regressions: corrupt JSON surfaced as `ValueError` instead of
+  the established `RuntimeError`. Corrected in
+  `4e050a8987b5c778e5e541ae9af173dce2c3e3a2`.
+
+**Exact code-head verification** (`4e050a8987b5c778e5e541ae9af173dce2c3e3a2`):
+- Tests workflow: Ruff passed; pytest **487 passed in 29.00s**; compileall passed.
+- Security workflow: pip check, Ruff, compileall and pytest **487 passed in 31.19s**.
+- Build workflow: wheel build passed.
+- Formal Verification workflow: TLC lifecycle safety model check passed.
+- [Tests run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768580), [Security run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768708), [Build run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768575), and [Formal Verification run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768573).
+
+**Not verified:** Windows/macOS execution of the new regular-file helper,
+Android Debian installation, physical-device recovery or cross-device witness
+custody. The stacked PR does not trigger the main-targeted platform matrix.
+
+**Specification blocker:** a fresh prior-conversation lookup again returned
+only the original section headings and ID ranges for capability definitions
+1–84 and meta-rules 1–15, not the exact source text. No canonical records were
+invented or imported. The source-recovery blocker remains documented in
+`docs/SOURCE_RECOVERY.md`.
+
+**Next safety task:** apply checked regular-file opening and descriptor-bound
+verification/appends to the signed independent witness log and legacy witness
+stream. These still use path-based `touch()`/`open()` operations. Keep
+execution disabled and autonomy at L0/L1.

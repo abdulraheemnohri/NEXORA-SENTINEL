@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Any
 
 from nexora.backup import BackupError
+from nexora.file_lock import exclusive_file_lock
 from nexora.oversight.witness import (
     IndependentWitness,
     WitnessVerificationError,
-    _exclusive_file_lock,
     verify_witness_chain,
 )
 from nexora.recovery_planner import RecoveryPlanningError, simulate_recovery
@@ -78,7 +78,7 @@ def record_recovery_simulation(
             raise RecoveryHistoryError("history_or_receipt_log_symlink_refused")
         # A single append write prevents interleaving. The witness chain is the
         # authority; unreceipted history rows are ignored by the reader.
-        with _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")):
+        with exclusive_file_lock(history_path.with_name(history_path.name + ".lock")):
             history_path.parent.mkdir(parents=True, exist_ok=True)
             fd = os.open(history_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
             try:
@@ -143,7 +143,7 @@ def read_recovery_history(
         events = []
         if history_path.is_file():
             with (
-                _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")),
+                exclusive_file_lock(history_path.with_name(history_path.name + ".lock")),
                 history_path.open(encoding="utf-8") as stream,
             ):
                 for number, line in enumerate(stream, 1):

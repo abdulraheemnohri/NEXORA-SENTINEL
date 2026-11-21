@@ -18,7 +18,8 @@ NEXORA-SENTINEL v0.2.0 is a local-first governance and runtime foundation, not a
 
 - Unknown actions and unknown governance relationships fail closed; runtime policy mutation is disabled.
 - Emergency stop blocks policy decisions.
-- Audit append refuses a broken local hash chain.
+- Audit append serializes chain verification, sequence allocation and durable writes across cooperating processes using a persistent sidecar lock. Audit state paths are opened as regular non-symlink files, and append verification plus write use one checked descriptor; read-only audit search uses the same path check. Kill-switch engage/resume plus their audit records use a separate transition lock.
+- A failed audit append during resume leaves the kill marker in place. The locks coordinate callers using these APIs; they do not prevent direct file edits or privileged/non-cooperating writers.
 - APPROVED and ENABLED lifecycle transitions require scoped Ed25519 receipts and one-time nonce consumption in the same SQLite transaction as the state change. ENABLED, revocation and rollback authorization use multiple distinct enrolled signing keys as documented in GOVERNANCE.md.
 - SQLite backups use the online backup API, signed canonical manifests, externally supplied trusted public keys, integrity checks and non-overwriting restore.
 - Witness receipts use a separate Ed25519 key, signed sequence numbers and a previous-receipt hash chain. The append API serializes cooperating processes with POSIX `flock` or Windows `msvcrt` sidecar locking.

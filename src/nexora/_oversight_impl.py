@@ -13,6 +13,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from nexora.file_lock import exclusive_file_lock, open_regular_file
+
 GENESIS = "0" * 64
 
 
@@ -35,7 +37,10 @@ class KillSwitch:
             return True
         return True
 
-    def engage(self, reason: str = "operator") -> None:
+    def _transition_lock(self):
+        return self.marker.with_name(self.marker.name + ".transition.lock")
+
+    def _engage_unlocked(self, reason: str = "operator") -> None:
         self.marker.parent.mkdir(parents=True, exist_ok=True)
         fd, temporary = tempfile.mkstemp(prefix=".KILL.", dir=self.marker.parent)
         try:
@@ -49,8 +54,36 @@ class KillSwitch:
             if os.path.exists(temporary):
                 os.unlink(temporary)
 
-    def clear(self) -> None:
+    def _clear_unlocked(self) -> None:
         self.marker.unlink(missing_ok=True)
+
+    def engage(self, reason: str = "operator") -> None:
+        with exclusive_file_lock(self._transition_lock()):
+            self._engage_unlocked(reason)
+
+    def clear(self) -> None:
+        with exclusive_file_lock(self._transition_lock()):
+            self._clear_unlocked()
+
+    def engage_and_record(
+        self, audit_log: Any, reason: str = "operator", payload: dict | None = None
+    ) -> None:
+        """Engage first, then record while excluding concurrent kill/resume transitions."""
+        with exclusive_file_lock(self._transition_lock()):
+            self._engage_unlocked(reason)
+            audit_log.append(
+                "kill.engaged",
+                payload if payload is not None else {"source": "operator"},
+            )
+
+    def clear_and_record(self, audit_log: Any, payload: dict | None = None) -> None:
+        """Record the clear decision before removing the marker, under the same lock."""
+        with exclusive_file_lock(self._transition_lock()):
+            audit_log.append(
+                "kill.cleared",
+                payload if payload is not None else {"human_initiated": True},
+            )
+            self._clear_unlocked()
 
 
 def canonical(value: Any) -> str:
@@ -61,57 +94,95 @@ class AuditLog:
     def __init__(self, path: Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.touch(exist_ok=True)
+        descriptor = open_regular_file(
+            self.path, os.O_CREAT | os.O_RDWR, 0o600
+        )
         try:
-            os.chmod(self.path, 0o600)
-        except OSError:
-            pass
+            if os.name == "posix":
+                os.fchmod(descriptor, 0o600)
+        finally:
+            os.close(descriptor)
 
-    def entries(self) -> list[dict]:
+    @staticmethod
+    def _read_entries(stream) -> list[dict]:
         result = []
-        with self.path.open(encoding="utf-8") as stream:
-            for number, line in enumerate(stream, 1):
-                if line.strip():
-                    try:
-                        item = json.loads(line)
-                    except json.JSONDecodeError as exc:
-                        raise ValueError(f"Corrupt audit line {number}") from exc
-                    if not isinstance(item, dict):
-                        raise ValueError(f"Invalid audit line {number}")
-                    result.append(item)
+        for number, line in enumerate(stream, 1):
+            if line.strip():
+                try:
+                    item = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Corrupt audit line {number}") from exc
+                if not isinstance(item, dict):
+                    raise ValueError(f"Invalid audit line {number}")
+                result.append(item)
         return result
 
-    def verify(self) -> bool:
+    @staticmethod
+    def _verify_entries(rows: list[dict]) -> bool:
         previous = GENESIS
+        for sequence, item in enumerate(rows, 1):
+            body = {key: value for key, value in item.items() if key != "hash"}
+            expected = hashlib.sha256(
+                (previous + canonical(body)).encode()
+            ).hexdigest()
+            if (
+                item.get("sequence") != sequence
+                or item.get("previous_hash") != previous
+                or item.get("hash") != expected
+            ):
+                return False
+            previous = expected
+        return True
+
+    def entries(self) -> list[dict]:
+        descriptor = open_regular_file(self.path, os.O_RDONLY)
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+            return self._read_entries(stream)
+
+    def verify(self) -> bool:
         try:
-            for item in self.entries():
-                body = {key: value for key, value in item.items() if key != "hash"}
-                expected = hashlib.sha256((previous + canonical(body)).encode()).hexdigest()
-                if item.get("previous_hash") != previous or item.get("hash") != expected:
-                    return False
-                previous = expected
-            return True
+            return self._verify_entries(self.entries())
         except (OSError, ValueError, TypeError):
             return False
 
     def append(self, event: str, payload: dict) -> dict:
-        if not self.verify():
-            raise RuntimeError("Audit integrity failure; append refused")
-        rows = self.entries()
-        previous = rows[-1]["hash"] if rows else GENESIS
-        body = {
-            "sequence": len(rows) + 1, "event": event,
-            "payload": payload, "previous_hash": previous,
-        }
-        record = {
-            **body,
-            "hash": hashlib.sha256((previous + canonical(body)).encode()).hexdigest(),
-        }
-        with self.path.open("a", encoding="utf-8") as stream:
-            stream.write(canonical(record) + "\n")
-            stream.flush()
-            os.fsync(stream.fileno())
-        return record
+        # Keep verification, sequence allocation and append on one checked
+        # descriptor so a path swap cannot redirect the write after validation.
+        lock_path = self.path.with_name(self.path.name + ".lock")
+        with exclusive_file_lock(lock_path):
+            descriptor = open_regular_file(
+                self.path, os.O_RDWR | os.O_APPEND
+            )
+            with os.fdopen(descriptor, "r+", encoding="utf-8") as stream:
+                try:
+                    stream.seek(0)
+                    rows = self._read_entries(stream)
+                    if not self._verify_entries(rows):
+                        raise RuntimeError("Audit integrity failure; append refused")
+                except RuntimeError:
+                    raise
+                except (OSError, ValueError, TypeError) as exc:
+                    raise RuntimeError(
+                        "Audit integrity failure; append refused"
+                    ) from exc
+                previous = rows[-1]["hash"] if rows else GENESIS
+                body = {
+                    "sequence": len(rows) + 1,
+                    "event": event,
+                    "payload": payload,
+                    "previous_hash": previous,
+                }
+                record = {
+                    **body,
+                    "hash": hashlib.sha256(
+                        (previous + canonical(body)).encode()
+                    ).hexdigest(),
+                }
+                stream.seek(0, os.SEEK_END)
+                stream.write(canonical(record) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            return record
 
 
 class Witness:
