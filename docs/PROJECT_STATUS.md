@@ -431,6 +431,7 @@ Do not fabricate or import summaries as canonical definitions.
 - Security workflow: pip check, Ruff, compileall and pytest **487 passed in 31.19s**.
 - Build workflow: wheel build passed.
 - Formal Verification workflow: TLC lifecycle safety model check passed.
+- [Tests run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768580), [Security run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768708), [Build run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768575), and [Formal Verification run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768573).
 
 **Not verified:** Windows/macOS execution of the new regular-file helper,
 Android Debian installation, physical-device recovery or cross-device witness
