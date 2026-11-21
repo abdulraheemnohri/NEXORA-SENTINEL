@@ -154,10 +154,17 @@ class AuditLog:
                 self.path, os.O_RDWR | os.O_APPEND
             )
             with os.fdopen(descriptor, "r+", encoding="utf-8") as stream:
-                stream.seek(0)
-                rows = self._read_entries(stream)
-                if not self._verify_entries(rows):
-                    raise RuntimeError("Audit integrity failure; append refused")
+                try:
+                    stream.seek(0)
+                    rows = self._read_entries(stream)
+                    if not self._verify_entries(rows):
+                        raise RuntimeError("Audit integrity failure; append refused")
+                except RuntimeError:
+                    raise
+                except (OSError, ValueError, TypeError) as exc:
+                    raise RuntimeError(
+                        "Audit integrity failure; append refused"
+                    ) from exc
                 previous = rows[-1]["hash"] if rows else GENESIS
                 body = {
                     "sequence": len(rows) + 1,
