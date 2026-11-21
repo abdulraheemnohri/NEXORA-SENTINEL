@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import stat
+import os
 from pathlib import Path
 from typing import Any
+
+from nexora.file_lock import UnsafeFilePathError, open_regular_file
 
 
 class AuditSearchError(ValueError):
@@ -53,7 +55,7 @@ def search_audit_log(
 
     source = Path(path)
     try:
-        metadata = source.lstat()
+        descriptor = open_regular_file(source, os.O_RDONLY)
     except FileNotFoundError:
         return {
             "status": "NOT_CONFIGURED",
@@ -71,15 +73,15 @@ def search_audit_log(
             "read_only": True,
             "execution_enabled": False,
         }
+    except UnsafeFilePathError as exc:
+        raise AuditSearchError("audit_log_path_unsafe") from exc
     except OSError as exc:
         raise AuditSearchError("audit_log_unreadable") from exc
-    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-        raise AuditSearchError("audit_log_path_unsafe")
 
     previous = "0" * 64
     verified: list[dict[str, Any]] = []
     try:
-        with source.open("r", encoding="utf-8") as stream:
+        with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
             for line_number, line in enumerate(stream, 1):
                 if not line.strip():
                     continue

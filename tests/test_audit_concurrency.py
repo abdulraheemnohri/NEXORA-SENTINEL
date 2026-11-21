@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -138,3 +139,51 @@ def test_audit_append_rejects_symlinked_lock_sidecar(tmp_path: Path) -> None:
         log.append("must.not.append", {})
 
     assert log.entries() == []
+
+@pytest.mark.skipif(
+    os.name == "nt" or not hasattr(os, "O_NOFOLLOW"),
+    reason="symlink audit-path rejection requires POSIX O_NOFOLLOW",
+)
+def test_audit_log_refuses_symlink_destination_without_touching_target(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "unrelated"
+    target.write_text("keep-me\n", encoding="utf-8")
+    target.chmod(0o644)
+    original_mode = stat.S_IMODE(target.stat().st_mode)
+    link = tmp_path / "audit.jsonl"
+    link.symlink_to(target)
+
+    with pytest.raises(OSError, match="regular non-symlink"):
+        AuditLog(link)
+
+    assert target.read_text(encoding="utf-8") == "keep-me\n"
+    assert stat.S_IMODE(target.stat().st_mode) == original_mode
+
+
+@pytest.mark.skipif(
+    os.name == "nt" or not hasattr(os, "O_NOFOLLOW"),
+    reason="symlink audit-path rejection requires POSIX O_NOFOLLOW",
+)
+def test_audit_append_refuses_path_replaced_by_symlink(tmp_path: Path) -> None:
+    path = tmp_path / "audit.jsonl"
+    log = AuditLog(path)
+    log.append("before.swap", {"safe": True})
+    target = tmp_path / "unrelated"
+    target.write_text("untouched\n", encoding="utf-8")
+    path.unlink()
+    path.symlink_to(target)
+
+    with pytest.raises(OSError, match="regular non-symlink"):
+        log.append("must.not.append", {})
+
+    assert target.read_text(encoding="utf-8") == "untouched\n"
+    assert log.verify() is False
+
+
+def test_audit_log_refuses_non_regular_destination(tmp_path: Path) -> None:
+    path = tmp_path / "audit.jsonl"
+    path.mkdir()
+
+    with pytest.raises(OSError):
+        AuditLog(path)
