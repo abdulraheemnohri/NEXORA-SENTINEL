@@ -447,3 +447,55 @@ invented or imported. The source-recovery blocker remains documented in
 verification/appends to the signed independent witness log and legacy witness
 stream. These still use path-based `touch()`/`open()` operations. Keep
 execution disabled and autonomy at L0/L1.
+
+## Signed and legacy witness file hardening — 2026-11-22
+
+- The Ed25519 `IndependentWitness` now creates and opens its receipt log through
+  the shared checked regular-file helper. Symlink and non-regular leaf paths are
+  rejected; POSIX file permissions are applied to the opened descriptor.
+- Signed witness verification reads through a checked descriptor. Attestation
+  holds the witness sidecar lock across chain verification, sequence allocation,
+  signing and append, and uses the same checked descriptor for verification and
+  writing rather than reopening the pathname.
+- The legacy local `Witness` stream now uses the same checked-file boundary and
+  a cross-process sidecar lock for append. This legacy stream remains a local
+  hash receipt, not a cryptographically signed or remote witness.
+- Added seven regression tests covering signed-log symlink creation, symlink
+  replacement on append, symlink verification, non-regular destinations,
+  40 concurrent signed receipts, legacy symlink refusal and 40 concurrent
+  legacy appends.
+- The first CI attempt found Ruff TRY004 on the new invalid-event-type guard.
+  The guard now raises `TypeError` and the corrected code was rechecked.
+
+**Code commits:** `9f775eeaaa1850557595e45779051bff2f575843` and
+`5d8adc13dba3e4f78e5542402ec086245aa1de62`.
+
+**Exact code-head verification** (`5d8adc13dba3e4f78e5542402ec086245aa1de62`):
+- Tests workflow: Ruff passed; pytest **494 passed in 27.72s**; compileall passed.
+- Security workflow: pip check reported no broken requirements; Ruff and
+  compileall passed; pytest **494 passed in 33.16s**.
+- Build workflow: `python -m build` succeeded.
+- Formal Verification workflow: TLC lifecycle safety model check succeeded.
+- [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414744),
+  [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414796),
+  [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414831),
+  and [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414810).
+
+**Not verified:** Windows/macOS platform execution, Android installation/device
+recovery, parent-directory tampering, remote witness custody or hardware-backed
+key custody. The new path helper protects the leaf file path and cooperating
+writers; it is not an OS isolation boundary or protection against a privileged
+attacker controlling the host.
+
+**Specification recovery status:** targeted conversation-linked retrieval now
+confirms the original user messages and returned the exact first capability
+(Self-Explaining) and meta-rule 1 (Proposal, not mutation), plus partial exact
+excerpts for capabilities 2–5. The complete verbatim set for capabilities
+1–84 and meta-rules 1–15 has not yet been assembled and checked into a source
+artifact. No partial summary or inferred definition has been imported into the
+canonical catalogue.
+
+**Next safety task:** harden the recovery-history JSONL writer and reader, which
+still use direct path-based opens for the history and witness receipt streams.
+Then continue exact-source recovery in bounded, source-verifiable chunks.
+Keep autonomy at L0/L1 and execution disabled.
