@@ -59,3 +59,67 @@ original sections. Once available, compare every record to the source, run
 `nexora source-import-preview`, record the source hash and review evidence,
 and only then prepare a separately reviewed import. The current preview path
 does not itself approve or mutate the canonical catalogue.
+
+
+## Targeted conversation retrieval excerpts — 2026-11-22
+
+Source: the user's original message at approximately 2026-11-18 05:21:25 UTC,
+titled **Self-Terminal AI: Expanded Self-Capability Set**, followed by
+**Self-Terminal AI: Extended Capability Set (Addendum II)**. The excerpts below
+were returned by targeted conversation-linked retrieval. Preserve them as
+source excerpts; do not treat this incomplete note as the full specification.
+
+### Capability excerpts
+
+1. **Self-Explaining** — Generates human-readable rationales for its actions,
+   plans, and self-modifications. · Mechanism: causal trace capture +
+   counterfactual generation ("what would I have done without X?"). · Gate:
+   explanation must match the actual decision path (consistency check against
+   audit log). · Why it matters: auditability, trust, and a signal for detecting
+   deception/drift.
+
+2. **Self-Critiquing** — Evaluates its own outputs and plans before committing
+   them. · Mechanism: critic model / adversarial self-review; rubric-based
+   scoring; "red-team yourself" pass. · Output: accept / revise / escalate. ·
+   Gate: critic is a separate model instance so it can't collude with the
+   generator.
+
+3. **Self-Correcting** — Detects and repairs its own errors post-hoc. ·
+   Mechanism: outcome monitoring vs. intent; automatic rollback of bad actions;
+   error taxonomy that feeds learning. · Gate: corrections to irreversible
+   actions require human approval.
+
+4. **Self-Calibrating** — Keeps its confidence estimates honest. · Mechanism:
+   reliability diagrams, temperature scaling, abstention policies, OOD
+   detection. · Gate: calibration drift beyond threshold triggers retraining
+   proposal.
+
+5. **Self-Prioritizing** — Ranks goals/tasks by value, urgency, cost, and risk. ·
+   Mechanism: utility model + constraint solver; explicit trade-off logging. ·
+   Gate: cannot override top-level human goals.
+
+6. **Self-Reflecting** — Periodic meta-review of its own behavior over time. ·
+   Mechanism: scheduled "retrospective" passes over logs → insights →
+   learning/growth proposals. · Gate: reflections are proposals, never direct
+   actions.
+
+The retrieval also identified names for items 7–10 as Self-Healing,
+Self-Optimizing, Self-Scaling and Self-Scheduling, but did not return their
+complete original descriptions, mechanisms or gates in that query. They are
+not reconstructed here.
+
+### Meta-rule excerpt
+
+1. **Proposal, not mutation.** Every self-change is a proposal routed through
+   the validation pipeline (static check → sandbox → shadow → canary → promote).
+
+### Completeness and import gate
+
+This is a partial transcription, not a canonical source artifact. The exact
+full text for capability definitions 1–84 and meta-rules 1–15 has not yet been
+assembled and independently checked against the original user message.
+Definitions 7–84 and meta-rules 2–15 remain incomplete in this note. Do not
+create canonical records, infer omitted clauses, or populate unknown
+interaction-matrix cells from these fragments. Once the full original text is
+available, compare each record to it, hash the source artifact, and use the
+preview-only import workflow before any separately approved canonical import.
