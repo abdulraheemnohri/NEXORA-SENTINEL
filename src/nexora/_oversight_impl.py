@@ -204,7 +204,7 @@ class Witness:
         ):
             raise ValueError("Expected lowercase SHA-256 digest")
         if not isinstance(event_type, str):
-            raise ValueError("Expected string event type")
+            raise TypeError("Expected string event type")
         body = {"event_hash": event_hash, "event_type": event_type}
         receipt = {
             **body,
