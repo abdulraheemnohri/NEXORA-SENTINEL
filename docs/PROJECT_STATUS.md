@@ -489,8 +489,8 @@ attacker controlling the host.
 
 **Specification recovery status:** targeted conversation-linked retrieval now
 confirms the original user messages and returned the exact first capability
-(Self-Explaining) and meta-rule 1 (Proposal, not mutation), plus partial exact
-excerpts for capabilities 2–5. The complete verbatim set for capabilities
+(Self-Explaining through Self-Reflecting) and meta-rule 1 (Proposal, not mutation).
+The recovered capability excerpts cover IDs 1–6. The complete verbatim set for capabilities
 1–84 and meta-rules 1–15 has not yet been assembled and checked into a source
 artifact. No partial summary or inferred definition has been imported into the
 canonical catalogue.
