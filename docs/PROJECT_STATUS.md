@@ -1,6 +1,6 @@
 # Project Status — NEXORA Sentinel
 
-Last updated: 2026-11-19
+Last updated: 2026-11-22
 
 ## Current milestone
 

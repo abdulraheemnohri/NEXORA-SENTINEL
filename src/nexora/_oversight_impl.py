@@ -187,23 +187,36 @@ class AuditLog:
 
 class Witness:
     """Separate local receipt stream; not a remote or hardware trust anchor."""
+
     def __init__(self, path: Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.touch(exist_ok=True)
+        descriptor = open_regular_file(self.path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            if os.name == "posix":
+                os.fchmod(descriptor, 0o600)
+        finally:
+            os.close(descriptor)
 
     def attest(self, event_hash: str, event_type: str) -> dict:
-        if len(event_hash) != 64 or any(char not in "0123456789abcdef" for char in event_hash):
+        if not isinstance(event_hash, str) or len(event_hash) != 64 or any(
+            char not in "0123456789abcdef" for char in event_hash
+        ):
             raise ValueError("Expected lowercase SHA-256 digest")
+        if not isinstance(event_type, str):
+            raise ValueError("Expected string event type")
         body = {"event_hash": event_hash, "event_type": event_type}
         receipt = {
             **body,
             "witness_hash": hashlib.sha256(canonical(body).encode()).hexdigest(),
         }
-        with self.path.open("a", encoding="utf-8") as stream:
-            stream.write(canonical(receipt) + "\n")
-            stream.flush()
-            os.fsync(stream.fileno())
+        lock_path = self.path.with_name(self.path.name + ".lock")
+        with exclusive_file_lock(lock_path):
+            descriptor = open_regular_file(self.path, os.O_WRONLY | os.O_APPEND)
+            with os.fdopen(descriptor, "a", encoding="utf-8") as stream:
+                stream.write(canonical(receipt) + "\n")
+                stream.flush()
+                os.fsync(stream.fileno())
         return receipt
 
 
