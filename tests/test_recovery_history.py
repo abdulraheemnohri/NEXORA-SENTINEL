@@ -99,3 +99,95 @@ def test_history_limit_is_bounded(tmp_path):
     with pytest.raises(RecoveryHistoryError, match="history_limit_out_of_range"):
         read_recovery_history(tmp_path / "history.jsonl", tmp_path / "receipts.jsonl",
                               trusted_witness_public_key=public, limit=0)
+
+
+
+def _symlink_or_skip(target: Path, link: Path) -> None:
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+
+def _valid_recovery_inputs(tmp_path: Path):
+    backup_private, backup_public = _keys(tmp_path, "backup")
+    witness_private, witness_public = _keys(tmp_path, "witness")
+    backup = tmp_path / "backup.sqlite3"
+    create_backup(
+        _database(tmp_path / "source.sqlite3"),
+        backup,
+        signing_key=backup_private,
+    )
+    return backup, backup_public, witness_private, witness_public
+
+
+def test_history_reader_rejects_symlinked_history_path(tmp_path):
+    _, witness_public = _keys(tmp_path, "witness")
+    receipts = tmp_path / "receipts.jsonl"
+    receipts.write_text("", encoding="utf-8")
+    target = tmp_path / "target.jsonl"
+    target.write_text("", encoding="utf-8")
+    history = tmp_path / "history.jsonl"
+    _symlink_or_skip(target, history)
+
+    with pytest.raises(RecoveryHistoryError, match="recovery_history_verification_failed"):
+        read_recovery_history(
+            history,
+            receipts,
+            trusted_witness_public_key=witness_public,
+        )
+    assert target.read_text(encoding="utf-8") == ""
+
+
+def test_history_reader_rejects_symlinked_receipt_path(tmp_path):
+    _, witness_public = _keys(tmp_path, "witness")
+    target = tmp_path / "target-receipts.jsonl"
+    target.write_text("", encoding="utf-8")
+    receipts = tmp_path / "receipts.jsonl"
+    _symlink_or_skip(target, receipts)
+
+    with pytest.raises(RecoveryHistoryError, match="recovery_history_verification_failed"):
+        read_recovery_history(
+            tmp_path / "history.jsonl",
+            receipts,
+            trusted_witness_public_key=witness_public,
+        )
+    assert target.read_text(encoding="utf-8") == ""
+
+
+def test_history_writer_rejects_symlinked_history_without_touching_target(tmp_path):
+    backup, backup_public, witness_private, _ = _valid_recovery_inputs(tmp_path)
+    target = tmp_path / "target-history.jsonl"
+    target.write_text("preserve-me", encoding="utf-8")
+    history = tmp_path / "history.jsonl"
+    _symlink_or_skip(target, history)
+
+    with pytest.raises(RecoveryHistoryError, match="recovery_simulation_recording_failed"):
+        record_recovery_simulation(
+            backup,
+            backup_trusted_key=backup_public,
+            witness_private_key=witness_private,
+            witness_receipt_log=tmp_path / "receipts.jsonl",
+            history_log=history,
+        )
+    assert target.read_text(encoding="utf-8") == "preserve-me"
+
+
+def test_history_writer_rejects_symlinked_receipt_without_writing_history(tmp_path):
+    backup, backup_public, witness_private, _ = _valid_recovery_inputs(tmp_path)
+    target = tmp_path / "target-receipts.jsonl"
+    target.write_text("", encoding="utf-8")
+    receipts = tmp_path / "receipts.jsonl"
+    _symlink_or_skip(target, receipts)
+    history = tmp_path / "history.jsonl"
+
+    with pytest.raises(RecoveryHistoryError, match="recovery_simulation_recording_failed"):
+        record_recovery_simulation(
+            backup,
+            backup_trusted_key=backup_public,
+            witness_private_key=witness_private,
+            witness_receipt_log=receipts,
+            history_log=history,
+        )
+    assert not history.exists()
+    assert target.read_text(encoding="utf-8") == ""

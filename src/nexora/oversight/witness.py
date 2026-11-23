@@ -31,12 +31,18 @@ class WitnessVerificationError(RuntimeError):
     """Raised when a witness chain cannot be independently verified."""
 
 
-def _verify_witness_stream(stream, public: Ed25519PublicKey) -> dict[str, Any]:
+def _verify_witness_stream(
+    stream,
+    public: Ed25519PublicKey,
+    *,
+    collect_event_type: str | None = None,
+) -> dict[str, Any]:
     """Verify a witness stream already opened through a checked file descriptor."""
     fingerprint = _fingerprint(public)
     previous = "0" * 64
     count = 0
     payload: dict[str, Any] = {}
+    event_hashes: set[str] = set()
     try:
         stream.seek(0)
         for line_number, line in enumerate(stream, 1):
@@ -60,11 +66,15 @@ def _verify_witness_stream(stream, public: Ed25519PublicKey) -> dict[str, Any]:
                 public.verify(signature, _canonical(payload))
             except Exception as exc:
                 raise WitnessVerificationError(f"receipt_signature_invalid:{line_number}") from exc
+            if collect_event_type is not None and payload.get("event_type") == collect_event_type:
+                event_hash = payload.get("event_hash")
+                if isinstance(event_hash, str):
+                    event_hashes.add(event_hash)
             previous = _receipt_hash(receipt)
             count += 1
     except (OSError, UnicodeError) as exc:
         raise WitnessVerificationError("witness_log_unreadable") from exc
-    return {
+    report = {
         "valid": True,
         "count": count,
         "last_receipt_hash": previous,
@@ -72,6 +82,9 @@ def _verify_witness_stream(stream, public: Ed25519PublicKey) -> dict[str, Any]:
         "last_event_hash": payload.get("event_hash") if count else None,
         "last_event_type": payload.get("event_type") if count else None,
     }
+    if collect_event_type is not None:
+        report["_event_hashes"] = event_hashes
+    return report
 
 
 def _verify_witness_chain(path: Path, public: Ed25519PublicKey) -> dict[str, Any]:
@@ -84,6 +97,39 @@ def _verify_witness_chain(path: Path, public: Ed25519PublicKey) -> dict[str, Any
         raise
     except (OSError, UnicodeError) as exc:
         raise WitnessVerificationError("witness_log_unreadable") from exc
+
+
+def verify_witness_chain_event_hashes(
+    path: Path,
+    trusted_public_key: Ed25519PublicKey | Path,
+    *,
+    event_type: str,
+) -> tuple[dict[str, Any], frozenset[str]]:
+    """Verify a witness chain and collect one event type from the same locked read.
+
+    The returned event hashes are derived only from receipts whose sequence,
+    predecessor hash, signer fingerprint and Ed25519 signature were verified.
+    Keeping verification and extraction in one descriptor pass avoids a
+    verify-then-reopen pathname race in evidence consumers.
+    """
+    if not isinstance(event_type, str) or not event_type.strip():
+        raise WitnessVerificationError("event_type_required")
+    path = Path(path)
+    public = _load_public(trusted_public_key)
+    lock_path = path.with_name(path.name + ".lock")
+    with exclusive_file_lock(lock_path):
+        try:
+            descriptor = open_regular_file(path, os.O_RDONLY)
+            with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+                report = _verify_witness_stream(
+                    stream, public, collect_event_type=event_type,
+                )
+        except WitnessVerificationError:
+            raise
+        except (OSError, UnicodeError) as exc:
+            raise WitnessVerificationError("witness_log_unreadable") from exc
+    event_hashes = report.pop("_event_hashes", set())
+    return report, frozenset(event_hashes)
 
 
 class IndependentWitness:
@@ -152,4 +198,9 @@ def verify_witness_chain(
         return _verify_witness_chain(path, public)
 
 
-__all__ = ["IndependentWitness", "WitnessVerificationError", "verify_witness_chain"]
+__all__ = [
+    "IndependentWitness",
+    "WitnessVerificationError",
+    "verify_witness_chain",
+    "verify_witness_chain_event_hashes",
+]
