@@ -123,3 +123,27 @@ create canonical records, infer omitted clauses, or populate unknown
 interaction-matrix cells from these fragments. Once the full original text is
 available, compare each record to it, hash the source artifact, and use the
 preview-only import workflow before any separately approved canonical import.
+
+
+## Additional conversation-linked source search — 2026-11-23
+
+A further prior-conversation retrieval identified a separate user message titled
+**Self-Terminal AI — Complete Project Specification** (around 2026-11-18
+05:02:54 UTC), described in the retrieval result as containing 264 capability
+entries and 45 meta-rules. The retrieval did **not** return its verbatim body,
+and did not establish that its wording is identical to the two specifically
+requested sections:
+
+- **Self-Terminal AI: Expanded Self-Capability Set** (IDs 1–28; meta-rules 1–8)
+- **Self-Terminal AI: Extended Self-Capability Set (Addendum II)** (IDs 29–84; meta-rules 9–15)
+
+A second targeted retrieval for the complete specification's exact text returned
+no matching conversation. A Library search for the exact titles and distinctive
+phrases returned no matching specification artifact. Therefore the separate
+264-capability/45-rule reference is a source lead only; it is not a substitute
+for the exact 1–84 / 1–15 source set and has not been imported.
+
+The partial excerpts for capabilities 1–6 and meta-rule 1 recorded above remain
+partial excerpts from the earlier targeted retrieval. They are not a complete
+source artifact and do not authorize canonical import. No definitions,
+mechanisms, gates, meta-rules or interaction-matrix cells have been inferred.

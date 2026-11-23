@@ -1,6 +1,6 @@
 # Project Status — NEXORA Sentinel
 
-Last updated: 2026-11-22
+Last updated: 2026-11-23
 
 ## Current milestone
 
@@ -499,3 +499,17 @@ canonical catalogue.
 still use direct path-based opens for the history and witness receipt streams.
 Then continue exact-source recovery in bounded, source-verifiable chunks.
 Keep autonomy at L0/L1 and execution disabled.
+
+
+## Recovery-history path and receipt-snapshot hardening — 2026-11-23
+
+- Recovery-simulation history writes now use the shared checked regular-file opener while holding the persistent history sidecar lock. The signed witness destination is validated/initialized before a history row is written; successful history appends are flushed and fsynced.
+- Recovery-history reads now hold the same history lock and read through one checked descriptor. A missing history file remains an empty history; symlink and non-regular leaf paths fail closed.
+- Added `verify_witness_chain_event_hashes`: it verifies the full Ed25519 receipt sequence, predecessor hashes, signer fingerprint and signatures while collecting `recovery_simulation` event hashes from the same locked, checked descriptor pass. The previous verify-then-reopen receipt-path race is removed.
+- History rows must be JSON objects with a dictionary event and matching string SHA-256 digest. Only hashes present in the verified signed receipt snapshot are returned as trusted events; unwitnessed rows remain excluded.
+- Added four regressions for symlinked history/receipt paths on read and write. Tests assert the symlink targets remain unchanged and a symlinked receipt destination does not create a history row.
+- Code commit: `c7d62f2562336b53970a32787ac73c5cf48f925c`.
+- Exact-code-head CI: Ruff passed; pytest **498 passed** in Tests and Security; compileall passed; Security `pip check` passed; wheel build passed; TLC formal verification passed. See [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209833), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209824), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209915), and [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209827).
+- Not verified: Windows/macOS execution of these paths, Android Debian/device recovery, parent-directory tampering, privileged/non-cooperating writers or independent remote witness custody. Advisory locks coordinate cooperating processes only; checked leaf-file descriptors are not an OS isolation boundary.
+
+**Next safety task:** qualify lifecycle-chain and independent-witness checkpoint backup/recovery, including interrupted and cross-device recovery procedures. Then resume exact-source recovery. Keep autonomy at L0/L1 and execution disabled.
