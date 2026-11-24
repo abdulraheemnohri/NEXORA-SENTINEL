@@ -22,6 +22,7 @@ NEXORA-SENTINEL v0.2.0 is a local-first governance and runtime foundation, not a
 - A failed audit append during resume leaves the kill marker in place. The locks coordinate callers using these APIs; they do not prevent direct file edits or privileged/non-cooperating writers.
 - APPROVED and ENABLED lifecycle transitions require scoped Ed25519 receipts and one-time nonce consumption in the same SQLite transaction as the state change. ENABLED, revocation and rollback authorization use multiple distinct enrolled signing keys as documented in GOVERNANCE.md.
 - SQLite backups use the online backup API, signed canonical manifests, externally supplied trusted public keys, integrity checks and non-overwriting restore.
+- Backup verification opens the database and manifest as checked regular-file descriptors, rejects symlink/non-regular leaf paths, copies the database into a private temporary snapshot, and verifies the signed digest, byte count and SQLite metadata against that copy. Restore consumes the exact same verified snapshot rather than reopening the original pathname, closing the verify-then-reopen substitution window; the destination is checked with `lstat` and published without replacement.
 - Witness receipts use a separate Ed25519 key, signed sequence numbers and a previous-receipt hash chain. The signed witness stream rejects symlink/non-regular leaf paths and verifies/appends through one checked descriptor while a POSIX `flock` or Windows `msvcrt` sidecar lock is held. The legacy local witness stream uses the same checked-file and cross-process append boundary; neither stream is a remote or hardware trust anchor.
 - Recovery-history JSONL writes and reads use checked regular-file descriptors under a persistent history lock. The reader verifies the signed receipt chain and extracts recovery-event hashes in one locked descriptor pass, avoiding a verify-then-reopen race; only history rows whose digest appears in that verified receipt snapshot are returned. Symlink/non-regular history paths fail closed.
 - Update manifests bind the repository, main ref, exact commit SHA, version, timestamp and signer fingerprint. Installation requires an independently pinned public key and successful CI for the exact commit.
@@ -82,3 +83,8 @@ traversal and symlinked model roots/artifacts. Optional SHA-256 checks prove
 only that the local file matches the operator-declared digest; they do not
 establish publisher authenticity. No model entry is automatically loaded,
 downloaded or executed, and no provider receives tool-execution authority.
+
+
+### Backup snapshot boundary
+
+The checked-file controls protect the backup and manifest leaf paths and bind verification to the bytes restored. They do not secure attacker-controlled parent directories, defend against a privileged process with access to the temporary directory, or establish off-device witness custody. Backup creation from a live registry remains a separate source-path and filesystem trust boundary.
