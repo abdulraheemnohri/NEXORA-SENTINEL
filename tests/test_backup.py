@@ -366,3 +366,94 @@ def test_backup_and_restore_are_standalone_sqlite_files(tmp_path):
         assert not Path(str(database) + "-shm").exists()
         with sqlite3.connect(database) as connection:
             assert connection.execute("PRAGMA journal_mode").fetchone()[0].lower() == "delete"
+
+
+def _symlink_or_skip(target: Path, link: Path) -> None:
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+
+
+def test_verify_backup_rejects_symlinked_database_without_following(tmp_path):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, public, _ = _keys(tmp_path)
+    create_backup(source, backup, signing_key=private)
+    original = backup.read_bytes()
+
+    linked_backup = tmp_path / "linked.sqlite3"
+    _symlink_or_skip(backup, linked_backup)
+    linked_manifest = Path(str(linked_backup) + ".manifest.json")
+    linked_manifest.write_bytes(Path(str(backup) + ".manifest.json").read_bytes())
+
+    with pytest.raises(BackupError, match="backup_or_manifest_unsafe"):
+        verify_backup(linked_backup, trusted_public_key=public)
+    assert backup.read_bytes() == original
+
+
+def test_verify_backup_rejects_symlinked_manifest_without_following(tmp_path):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, public, _ = _keys(tmp_path)
+    create_backup(source, backup, signing_key=private)
+    manifest = Path(str(backup) + ".manifest.json")
+    original_manifest = tmp_path / "trusted-manifest.json"
+    manifest.rename(original_manifest)
+    original = original_manifest.read_bytes()
+    _symlink_or_skip(original_manifest, manifest)
+
+    with pytest.raises(BackupError, match="backup_or_manifest_unsafe"):
+        verify_backup(backup, trusted_public_key=public)
+    assert original_manifest.read_bytes() == original
+
+
+def test_restore_rejects_existing_dangling_symlink_destination(tmp_path):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, public, _ = _keys(tmp_path)
+    create_backup(source, backup, signing_key=private)
+    destination = tmp_path / "restore-link.sqlite3"
+    _symlink_or_skip(tmp_path / "missing-target.sqlite3", destination)
+
+    with pytest.raises(BackupError, match="restore_destination_exists"):
+        restore_backup(backup, destination, trusted_public_key=public)
+    assert destination.is_symlink()
+
+
+def test_restore_uses_exact_verified_snapshot_after_backup_path_swap(tmp_path, monkeypatch):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    private, public, _ = _keys(tmp_path)
+    create_backup(source, backup, signing_key=private)
+
+    replacement_source = _database(tmp_path / "replacement-source.sqlite3")
+    with sqlite3.connect(replacement_source) as db:
+        db.execute("INSERT INTO records VALUES('replacement after verification')")
+    replacement_backup = tmp_path / "replacement.sqlite3"
+    create_backup(replacement_source, replacement_backup, signing_key=private)
+
+    original_inspect = backup_module._inspect
+    held_backup = tmp_path / "verified-original.sqlite3"
+    swapped = False
+
+    def replace_path_after_snapshot_inspection(database):
+        nonlocal swapped
+        result = original_inspect(database)
+        path = Path(database)
+        if not swapped and (
+            path == backup or path.name.startswith(".nexora-verified-backup-")
+        ):
+            backup.rename(held_backup)
+            replacement_backup.rename(backup)
+            swapped = True
+        return result
+
+    monkeypatch.setattr(backup_module, "_inspect", replace_path_after_snapshot_inspection)
+    destination = tmp_path / "restored.sqlite3"
+    restore_backup(backup, destination, trusted_public_key=public)
+
+    assert swapped is True
+    with sqlite3.connect(destination) as db:
+        rows = db.execute("SELECT value FROM records ORDER BY value").fetchall()
+    assert rows == [("committed in WAL",)]
