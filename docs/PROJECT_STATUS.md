@@ -1,6 +1,6 @@
 # Project Status — NEXORA Sentinel
 
-Last updated: 2026-11-23
+Last updated: 2026-11-24
 
 ## Current milestone
 
@@ -12,6 +12,7 @@ Safety kernel, durable self-family proposal review, capability evidence/maturity
 - Evidence-gated lifecycle registry, signed Ed25519 approvals, append-only lifecycle/revocation/rollback records.
 - Persistent budget ledger, review-only scheduler and tool proposal queue.
 - WAL-safe signed SQLite backups, external trust-key verification, non-overwriting restore, independent witness receipts.
+- Backup verification and restore reject symlink/non-regular backup or manifest leaf paths, verify a private snapshot against the signed digest/size/SQLite metadata, and restore from that exact snapshot to avoid a verify-then-reopen pathname race. Restore destinations are checked with `lstat` and published without replacement.
 - Backup-first transactional migrations and recovery-copy workflow.
 - Six provisional self-* domains; typed L0/L1 settings, deterministic proposals and durable append-only review records.
 - Read-only terminal dashboard: overview, audit chain, proposals and capability registry. SQLite dashboard views open the database in read-only mode and do not initialize or mutate it.
@@ -38,11 +39,11 @@ Safety kernel, durable self-family proposal review, capability evidence/maturity
 
 ## Next priorities
 
-1. Qualify lifecycle chain and witness checkpoint backup/recovery procedures, and test cross-device external witness storage.
-2. Define source-backed evidence expiry/revocation semantics before implementing evidence freshness monitoring.
-3. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
-4. Test read-only dashboard and CLI behavior on supported Linux and Android Debian terminals.
-5. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
+1. Obtain the exact verbatim source for capability definitions 1–84 and meta-rules 1–15. Conversation-linked retrieval found a different 264-capability/45-rule specification and partial excerpts only; it is not a substitute. Canonical import remains blocked and no missing text may be inferred.
+2. Perform an actual off-device/off-administrator witness transfer and restore qualification. Current automated tests prove same-host portability only; physical custody and cross-device behavior remain unverified.
+3. Define source-backed evidence expiry/revocation semantics before implementing evidence freshness monitoring.
+4. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
+5. Test read-only dashboard and CLI behavior on supported Linux and Android Debian terminals.
 6. Design OS-enforced sandbox isolation before any execution feature.
 7. Verify the official LiteRT-LM CLI and a small `.litertlm` model on Pixel/Android Debian; only then test Qwen3-4B-Thinking-2507 with measured resource/throughput results.
 
@@ -513,3 +514,19 @@ Keep autonomy at L0/L1 and execution disabled.
 - Not verified: Windows/macOS execution of these paths, Android Debian/device recovery, parent-directory tampering, privileged/non-cooperating writers or independent remote witness custody. Advisory locks coordinate cooperating processes only; checked leaf-file descriptors are not an OS isolation boundary.
 
 **Next safety task:** qualify lifecycle-chain and independent-witness checkpoint backup/recovery, including interrupted and cross-device recovery procedures. Then resume exact-source recovery. Keep autonomy at L0/L1 and execution disabled.
+
+
+## Signed backup verification and restore snapshot hardening — 2026-11-24
+
+- `verify_backup` now opens the backup and manifest through the shared checked regular-file helper. Symlink and non-regular leaf paths fail closed.
+- The database is copied from the already-open descriptor into a private temporary snapshot. The signed manifest, digest, byte count and SQLite metadata are checked against that snapshot.
+- `restore_backup` consumes the exact verified snapshot rather than reopening the original backup path after verification. This closes the verify-then-reopen pathname substitution window.
+- Restore destination detection uses `lstat`, including dangling symlinks, and publication remains atomic/no-replace.
+- Added four regression tests for symlinked backup/manifest paths, dangling-symlink restore destinations and backup-path replacement between verification and restore.
+- Code commit: `cc4c8bf42bd443f05b1705b170a01e0a7ca345cb`; regression tests: `d8637860b644c52d46f9393a98e8e8e5f3ac7769`; Ruff import correction: `874212e05b9737564baf8a15d24852cf041ff37b`.
+- Exact-head CI on `874212e05b9737564baf8a15d24852cf041ff37b`: Ruff passed; pytest **502 passed** in Tests and Security; compileall passed; Security `pip check` passed; wheel build passed; TLC lifecycle model check passed.
+- [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317366960), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317367113), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317367061), and [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317367644).
+- Not verified: Windows/macOS execution of the new backup-path code, actual off-device witness custody, Android restore, privileged parent-directory tampering or hardware-backed key custody. The automated witness-copy test remains same-host only.
+- The first test workflow on commit `d8637860b644c52d46f9393a98e8e8e5f3ac7769` failed at Ruff because the contextmanager import was duplicated. The duplicate was removed in `874212e05b9737564baf8a15d24852cf041ff37b`; the corrected exact-head workflow suite passed.
+
+**Next task:** obtain the exact original capability/meta-rule source text before canonical import; separately schedule physical off-device witness qualification when two independently controlled storage environments are available. Do not infer source definitions or claim same-host tests prove independent custody.
