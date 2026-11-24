@@ -39,8 +39,8 @@ Safety kernel, durable self-family proposal review, capability evidence/maturity
 
 ## Next priorities
 
-1. Obtain the exact verbatim source for capability definitions 1–84 and meta-rules 1–15. Conversation-linked retrieval found a different 264-capability/45-rule specification and partial excerpts only; it is not a substitute. Canonical import remains blocked and no missing text may be inferred.
-2. Perform an actual off-device/off-administrator witness transfer and restore qualification. Current automated tests prove same-host portability only; physical custody and cross-device behavior remain unverified.
+1. Continue the safety gate: harden backup creation's source/temp/manifest path handling, then perform actual off-device/off-administrator witness transfer and restore qualification. Current automated witness-copy tests prove same-host portability only; physical custody and cross-device behavior remain unverified.
+2. Obtain the exact verbatim source for capability definitions 1–84 and meta-rules 1–15. Conversation-linked retrieval found a different 264-capability/45-rule specification and partial excerpts only; it is not a substitute. Canonical import remains blocked and no missing text may be inferred.
 3. Define source-backed evidence expiry/revocation semantics before implementing evidence freshness monitoring.
 4. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
 5. Test read-only dashboard and CLI behavior on supported Linux and Android Debian terminals.
