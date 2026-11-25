@@ -530,3 +530,18 @@ Keep autonomy at L0/L1 and execution disabled.
 - The first test workflow on commit `d8637860b644c52d46f9393a98e8e8e5f3ac7769` failed at Ruff because the contextmanager import was duplicated. The duplicate was removed in `874212e05b9737564baf8a15d24852cf041ff37b`; the corrected exact-head workflow suite passed.
 
 **Next task:** obtain the exact original capability/meta-rule source text before canonical import; separately schedule physical off-device witness qualification when two independently controlled storage environments are available. Do not infer source definitions or claim same-host tests prove independent custody.
+
+
+## Backup creation source and staging hardening — 2026-11-25
+
+- create_backup now opens the source database through the shared checked regular-file helper and rejects symlink/non-regular leaf paths.
+- The source descriptor identity is checked around read-only SQLite pathname operations. The online SQLite backup API remains in use so committed WAL data is retained.
+- Destination and manifest preflight uses lstat, including dangling symlinks.
+- Temporary database and manifest artifacts are created inside a private staging directory with exclusive creation and O_NOFOLLOW where supported.
+- Temporary artifacts remain descriptor-checked, are flushed before publication, and are published with the existing no-replace mechanism.
+- Failure cleanup removes published files only when the path still identifies the retained descriptor inode.
+- Added five regression tests for symlinked/non-regular source paths, dangling destination/manifest symlinks, and source-path replacement before SQLite snapshotting.
+- Verification pending: this commit has not yet completed GitHub Actions. Do not treat this increment as qualified until Ruff, pytest, compileall, dependency/security checks, wheel build and formal verification finish on the exact branch head.
+- Limitations: stdlib sqlite3 still opens a database by pathname; descriptor identity checks narrow but do not eliminate a same-user swap-and-restore race. Parent-directory manipulation, privileged attackers and Windows/macOS/Android execution are not established by this change.
+
+Next task: after exact-head CI passes, qualify backup creation and restore on the supported OS/Python matrix, then perform real off-device/off-administrator witness transfer only when independently controlled storage and keys are available. Exact original capability definitions 1–84 and meta-rules 1–15 remain blocked by missing verbatim source.

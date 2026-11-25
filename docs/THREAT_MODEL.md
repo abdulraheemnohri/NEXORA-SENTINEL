@@ -88,3 +88,29 @@ downloaded or executed, and no provider receives tool-execution authority.
 ### Backup snapshot boundary
 
 The checked-file controls protect the backup and manifest leaf paths and bind verification to the bytes restored. They do not secure attacker-controlled parent directories, defend against a privileged process with access to the temporary directory, or establish off-device witness custody. Backup creation from a live registry remains a separate source-path and filesystem trust boundary.
+
+
+### Backup creation source and staging boundary
+
+Backup creation now rejects symlink/non-regular source database leaf paths through
+the shared checked-file opener and checks the open descriptor's identity around
+SQLite pathname operations. The source SQLite connection is read-only and the
+online backup API is retained so committed WAL contents are included. Python's
+standard sqlite3 API accepts a pathname rather than an existing file
+descriptor; therefore the descriptor checks narrow the substitution window but
+do not prove immunity to a same-user attacker who can replace and restore a
+pathname between checks. Parent-directory and privileged-host attacks remain
+outside this helper's boundary.
+
+Temporary backup artifacts are created inside a private staging directory in
+the destination parent. The database and manifest leaf files use exclusive
+creation and O_NOFOLLOW where available, remain descriptor-checked through
+publication, and are flushed before the no-replace hard-link publication.
+Destination and manifest occupancy checks use lstat, so dangling symlinks
+are not mistaken for absent paths. Failed partial publication removes only
+published regular files whose inode still matches the retained descriptor.
+
+These controls reduce accidental and unprivileged leaf-path substitution; they
+are not an OS sandbox or protection against privileged parent-directory
+manipulation. Cross-platform behavior must be qualified by the platform CI
+matrix and target-device tests.

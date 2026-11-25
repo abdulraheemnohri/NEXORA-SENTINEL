@@ -457,3 +457,81 @@ def test_restore_uses_exact_verified_snapshot_after_backup_path_swap(tmp_path, m
     with sqlite3.connect(destination) as db:
         rows = db.execute("SELECT value FROM records ORDER BY value").fetchall()
     assert rows == [("committed in WAL",)]
+
+
+def test_create_backup_rejects_symlinked_source_without_following(tmp_path):
+    source = _database(tmp_path / "source.sqlite3")
+    linked_source = tmp_path / "linked-source.sqlite3"
+    _symlink_or_skip(source, linked_source)
+    private, _, _ = _keys(tmp_path)
+
+    with pytest.raises(BackupError, match="source_database_unsafe"):
+        create_backup(linked_source, tmp_path / "snapshot.sqlite3", signing_key=private)
+    assert source.is_file()
+    assert linked_source.is_symlink()
+    assert not (tmp_path / "snapshot.sqlite3").exists()
+
+
+def test_create_backup_rejects_non_regular_source(tmp_path):
+    source_directory = tmp_path / "source-directory"
+    source_directory.mkdir()
+    private, _, _ = _keys(tmp_path)
+
+    with pytest.raises(BackupError, match="source_database_unsafe"):
+        create_backup(source_directory, tmp_path / "snapshot.sqlite3", signing_key=private)
+    assert not (tmp_path / "snapshot.sqlite3").exists()
+
+
+def test_create_backup_rejects_dangling_destination_symlink(tmp_path):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    _symlink_or_skip(tmp_path / "missing-database.sqlite3", backup)
+    private, _, _ = _keys(tmp_path)
+
+    with pytest.raises(BackupError, match="backup_destination_exists"):
+        create_backup(source, backup, signing_key=private)
+    assert backup.is_symlink()
+    assert not Path(str(backup) + ".manifest.json").exists()
+
+
+def test_create_backup_rejects_dangling_manifest_symlink(tmp_path):
+    source = _database(tmp_path / "source.sqlite3")
+    backup = tmp_path / "snapshot.sqlite3"
+    manifest = Path(str(backup) + ".manifest.json")
+    _symlink_or_skip(tmp_path / "missing-manifest.json", manifest)
+    private, _, _ = _keys(tmp_path)
+
+    with pytest.raises(BackupError, match="backup_destination_exists"):
+        create_backup(source, backup, signing_key=private)
+    assert manifest.is_symlink()
+    assert not backup.exists()
+
+
+def test_create_backup_aborts_when_source_path_changes_after_open(tmp_path, monkeypatch):
+    source = _database(tmp_path / "source.sqlite3")
+    original_source = tmp_path / "source-original.sqlite3"
+    backup = tmp_path / "snapshot.sqlite3"
+    private, _, _ = _keys(tmp_path)
+    original_check = backup_module._assert_path_matches_descriptor
+    source_checks = 0
+
+    def replace_source_before_sqlite_backup(path, descriptor, error_code):
+        nonlocal source_checks
+        if Path(path) == source:
+            source_checks += 1
+            if source_checks == 3:
+                source.rename(original_source)
+                _symlink_or_skip(original_source, source)
+        return original_check(path, descriptor, error_code)
+
+    monkeypatch.setattr(
+        backup_module, "_assert_path_matches_descriptor", replace_source_before_sqlite_backup,
+    )
+    with pytest.raises(BackupError, match="source_database_changed"):
+        create_backup(source, backup, signing_key=private)
+
+    assert original_source.is_file()
+    assert source.is_symlink()
+    assert not backup.exists()
+    assert not Path(str(backup) + ".manifest.json").exists()
+    assert not list(tmp_path.glob(".nexora-backup-stage-*"))
