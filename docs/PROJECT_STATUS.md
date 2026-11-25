@@ -534,20 +534,28 @@ Keep autonomy at L0/L1 and execution disabled.
 
 ## Backup creation source and staging hardening — 2026-11-25
 
-- create_backup now opens the source database through the shared checked regular-file helper and rejects symlink/non-regular leaf paths.
+- create_backup opens the source database through the shared checked regular-file helper and rejects symlink/non-regular leaf paths.
 - The source descriptor identity is checked around read-only SQLite pathname operations. The online SQLite backup API remains in use so committed WAL data is retained.
 - Destination and manifest preflight uses lstat, including dangling symlinks.
 - Temporary database and manifest artifacts are created inside a private staging directory with exclusive creation and O_NOFOLLOW where supported.
 - Temporary artifacts remain descriptor-checked, are flushed before publication, and are published with the existing no-replace mechanism.
 - Failure cleanup removes published files only when the path still identifies the retained descriptor inode.
-- Added five regression tests for symlinked/non-regular source paths, dangling destination/manifest symlinks, and source-path replacement before SQLite snapshotting.
-- Verification pending: this commit has not yet completed GitHub Actions. Do not treat this increment as qualified until Ruff, pytest, compileall, dependency/security checks, wheel build and formal verification finish on the exact branch head.
-- Limitations: stdlib sqlite3 still opens a database by pathname; descriptor identity checks narrow but do not eliminate a same-user swap-and-restore race. Parent-directory manipulation, privileged attackers and Windows/macOS/Android execution are not established by this change.
+- Added five regressions for symlinked/non-regular source paths, dangling destination/manifest symlinks, and source-path replacement before SQLite snapshotting.
+- Implementation commit: [d233eaafd0eac95acb75869ad8aaf543f39dddd9](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/commit/d233eaafd0eac95acb75869ad8aaf543f39dddd9).
+- Ruff correction commits: [a59724d861af55458d2fd54f8d52e94127f3a344](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/commit/a59724d861af55458d2fd54f8d52e94127f3a344) and [5da843ee708f984d3141efded9906a8972601d0d](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/commit/5da843ee708f984d3141efded9906a8972601d0d).
+- Exact branch-head verification on 5da843ee708f984d3141efded9906a8972601d0d:
+  - Ruff: passed.
+  - Tests workflow: **507 passed in 29.47s**.
+  - Security workflow: **507 passed in 30.72s**; pip check reported no broken requirements.
+  - Python compileall: passed in Tests and Security.
+  - Wheel build: passed.
+  - TLC lifecycle formal verification: passed.
+- Workflow evidence: [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629747), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629716), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629763), [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629726).
+- Initial CI attempts caught an invalid context-manager form and then Ruff SIM117; both were investigated and corrected in the two follow-up commits above. All four workflows passed on the final exact code head.
+- Not verified: Windows/macOS qualification of these changes, Android/device backup execution, physical off-device/off-administrator witness custody, parent-directory manipulation or privileged-host attacks. The new source identity checks narrow but do not eliminate a same-user swap-and-restore race because stdlib sqlite3 opens source databases by pathname.
 
-Next task: after exact-head CI passes, qualify backup creation and restore on the supported OS/Python matrix, then perform real off-device/off-administrator witness transfer only when independently controlled storage and keys are available. Exact original capability definitions 1–84 and meta-rules 1–15 remain blocked by missing verbatim source.
-
-
-**CI correction:** the first run on the implementation commit caught invalid parenthesized context-manager syntax in the new SQLite source/destination block (Ruff parser failure). Replaced it with nested context managers. The initial failing run was investigated; exact-head verification is being rerun on the correction commit.
-
-
-**CI correction 2:** Ruff then reported SIM117 on nested context managers. Replaced them with the PEP 617 parenthesized multi-context form supported by the project's Python 3.11+ baseline. Re-running the full exact-head workflow suite; no feature work is being started until CI is clean.
+**Next blockers and work:**
+1. Perform off-device/off-administrator witness transfer and restore only when two independently controlled storage environments, keys and administrators are available. Same-host tests are not independent-custody evidence.
+2. Qualify backup creation and restore on Windows/macOS and Android Debian/device targets. This PR is stacked on PR #21; the main-targeted platform matrix is not triggered for this stacked base.
+3. Recover the exact original capability definitions 1–84 and meta-rules 1–15 before canonical import. Existing partial excerpts and the separate 264/45 source lead are not substitutes.
+4. Keep autonomy at L0/L1, execution disabled, and unknown interaction relationships blocked/escalated.
