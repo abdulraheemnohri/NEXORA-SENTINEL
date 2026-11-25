@@ -545,3 +545,6 @@ Keep autonomy at L0/L1 and execution disabled.
 - Limitations: stdlib sqlite3 still opens a database by pathname; descriptor identity checks narrow but do not eliminate a same-user swap-and-restore race. Parent-directory manipulation, privileged attackers and Windows/macOS/Android execution are not established by this change.
 
 Next task: after exact-head CI passes, qualify backup creation and restore on the supported OS/Python matrix, then perform real off-device/off-administrator witness transfer only when independently controlled storage and keys are available. Exact original capability definitions 1–84 and meta-rules 1–15 remain blocked by missing verbatim source.
+
+
+**CI correction:** the first run on the implementation commit caught invalid parenthesized context-manager syntax in the new SQLite source/destination block (Ruff parser failure). Replaced it with nested context managers. The initial failing run was investigated; exact-head verification is being rerun on the correction commit.
