@@ -548,3 +548,6 @@ Next task: after exact-head CI passes, qualify backup creation and restore on th
 
 
 **CI correction:** the first run on the implementation commit caught invalid parenthesized context-manager syntax in the new SQLite source/destination block (Ruff parser failure). Replaced it with nested context managers. The initial failing run was investigated; exact-head verification is being rerun on the correction commit.
+
+
+**CI correction 2:** Ruff then reported SIM117 on nested context managers. Replaced them with the PEP 617 parenthesized multi-context form supported by the project's Python 3.11+ baseline. Re-running the full exact-head workflow suite; no feature work is being started until CI is clean.

@@ -275,13 +275,15 @@ def create_backup(
         # descriptors. Keep a checked source descriptor open and verify its
         # identity immediately before/after each SQLite pathname operation.
         source_uri = f"file:{source}?mode=ro"
-        with _database_connection(source_uri, timeout=10, uri=True) as src:
-            with _database_connection(temporary, timeout=10) as dst:
-                _assert_path_matches_descriptor(
-                    source, source_fd, "source_database_changed",
-                )
-                src.backup(dst, pages=256, sleep=0.01)
-                _set_delete_journal_mode(dst)
+        with (
+            _database_connection(source_uri, timeout=10, uri=True) as src,
+            _database_connection(temporary, timeout=10) as dst,
+        ):
+            _assert_path_matches_descriptor(
+                source, source_fd, "source_database_changed",
+            )
+            src.backup(dst, pages=256, sleep=0.01)
+            _set_delete_journal_mode(dst)
 
         _assert_path_matches_descriptor(source, source_fd, "source_database_changed")
         _assert_path_matches_descriptor(
