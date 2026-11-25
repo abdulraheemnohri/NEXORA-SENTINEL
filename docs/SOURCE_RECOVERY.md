@@ -147,3 +147,18 @@ The partial excerpts for capabilities 1–6 and meta-rule 1 recorded above remai
 partial excerpts from the earlier targeted retrieval. They are not a complete
 source artifact and do not authorize canonical import. No definitions,
 mechanisms, gates, meta-rules or interaction-matrix cells have been inferred.
+
+
+## Provenance correction — 2026-11-25
+
+A fresh targeted conversation-context retrieval supersedes the earlier source-pointer claims above:
+
+- The retrieved context confirms the user supplied a separate message titled “Self-Terminal AI — Complete Project Specification,” described as containing 264 capabilities and 45 meta-rules.
+- The exact body of that 264/45 message was not returned by the retrieval, and a targeted follow-up search for its verbatim body returned no matching conversation.
+- The retrieval does not verify that the user supplied separate messages titled “Self-Terminal AI: Expanded Self-Capability Set” or “Self-Terminal AI: Extended Self-Capability Set (Addendum II)” with the previously recorded 1–28 / 29–84 and 1–8 / 9–15 ranges.
+- The earlier partial transcriptions for capabilities 1–6 and meta-rule 1 are not independently authenticated against a user-supplied original message body. Treat them as unverified assistant-context excerpts, not canonical source text.
+- The separate 264-capability/45-rule source is not a substitute unless its exact original body is recovered and every relevant record is checked against it.
+
+**Current import decision:** capability definitions 1–84 and meta-rules 1–15 remain unavailable as verifiable verbatim source material. Do not import, normalize, paraphrase or infer them. The canonical import gate remains closed.
+
+**Required source artifact:** an export, attachment or pasted verbatim copy of the user-supplied specification that contains the exact records and rules. Once available, hash it, preserve the original wording, run the preview-only import validator, and require separate human review/approval before any canonical mutation.

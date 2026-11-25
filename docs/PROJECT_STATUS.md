@@ -559,3 +559,12 @@ Keep autonomy at L0/L1 and execution disabled.
 2. Qualify backup creation and restore on Windows/macOS and Android Debian/device targets. This PR is stacked on PR #21; the main-targeted platform matrix is not triggered for this stacked base.
 3. Recover the exact original capability definitions 1–84 and meta-rules 1–15 before canonical import. Existing partial excerpts and the separate 264/45 source lead are not substitutes.
 4. Keep autonomy at L0/L1, execution disabled, and unknown interaction relationships blocked/escalated.
+
+
+## Capability-source provenance correction — 2026-11-25
+
+- A fresh targeted conversation-context retrieval confirms a separate user-supplied “Self-Terminal AI — Complete Project Specification,” described as 264 capabilities and 45 meta-rules, but did not return its exact message body. A targeted follow-up search for that verbatim body returned no matching conversation.
+- The retrieval does not authenticate the previously cited separate “Expanded Self-Capability Set” and “Extended Self-Capability Set (Addendum II)” messages as user-supplied source documents.
+- Earlier partial transcriptions of capabilities 1–6 and meta-rule 1 are not independently authenticated against the original user message and must not be treated as canonical source.
+- Exact, verifiable source text for capabilities 1–84 and meta-rules 1–15 remains blocked. No records were imported or inferred. See the provenance correction in docs/SOURCE_RECOVERY.md.
+- Required input: an export, attachment or verbatim text of the original source containing the exact records and rules. Canonical import remains disabled pending source verification and separate human approval.
