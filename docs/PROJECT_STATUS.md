@@ -568,3 +568,13 @@ Keep autonomy at L0/L1 and execution disabled.
 - Earlier partial transcriptions of capabilities 1–6 and meta-rule 1 are not independently authenticated against the original user message and must not be treated as canonical source.
 - Exact, verifiable source text for capabilities 1–84 and meta-rules 1–15 remains blocked. No records were imported or inferred. See the provenance correction in docs/SOURCE_RECOVERY.md.
 - Required input: an export, attachment or verbatim text of the original source containing the exact records and rules. Canonical import remains disabled pending source verification and separate human approval.
+
+
+## Backup signing-key path hardening — 2026-11-26
+
+- Key loading uses the shared checked regular-file opener, descriptor-based POSIX private-key permission checks, and bounded reads for PEM files.
+- Key-pair creation rejects identical paths and pre-existing leaf paths (including dangling symlinks), uses exclusive/no-follow creation where supported, flushes through retained descriptors, and checks file identity before returning.
+- Failure cleanup removes only files that still match retained descriptors, avoiding deletion of a replaced path.
+- Added seven regression tests for symlinked private/public loaders, private-key permissions, oversized public-key files, identical output paths, dangling public symlinks and cleanup after a private-path replacement.
+- Local checkout/testing was unavailable in this run because the execution environment could not resolve GitHub. CI will be used as the full-suite verification source; do not treat local tests as executed.
+- Next: verify final branch-head CI and continue independent witness/platform qualification.

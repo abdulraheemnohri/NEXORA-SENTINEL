@@ -21,6 +21,7 @@ from nexora.file_lock import open_regular_file
 
 FORMAT_VERSION = 2
 MANIFEST_SUFFIX = ".manifest.json"
+_MAX_KEY_FILE_BYTES = 64 * 1024
 
 
 class BackupError(RuntimeError):
@@ -72,12 +73,26 @@ def _manifest_path(backup: Path) -> Path:
 def _load_private(key: Ed25519PrivateKey | Path) -> Ed25519PrivateKey:
     if isinstance(key, Ed25519PrivateKey):
         return key
+    descriptor: int | None = None
     try:
-        if os.name == "posix" and Path(key).stat().st_mode & 0o077:
+        descriptor = open_regular_file(Path(key), os.O_RDONLY)
+        metadata = os.fstat(descriptor)
+        if os.name == "posix" and metadata.st_mode & 0o077:
             raise BackupError("backup_private_key_permissions_too_open")
-        loaded = serialization.load_pem_private_key(Path(key).read_bytes(), password=None)
+        if metadata.st_size > _MAX_KEY_FILE_BYTES:
+            raise BackupError("backup_private_key_too_large")
+        with os.fdopen(os.dup(descriptor), "rb") as stream:
+            data = stream.read(_MAX_KEY_FILE_BYTES + 1)
+        if len(data) > _MAX_KEY_FILE_BYTES:
+            raise BackupError("backup_private_key_too_large")
+        loaded = serialization.load_pem_private_key(data, password=None)
+    except BackupError:
+        raise
     except (OSError, ValueError, TypeError) as exc:
         raise BackupError("backup_private_key_invalid") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     if not isinstance(loaded, Ed25519PrivateKey):
         raise BackupError("backup_ed25519_key_required")
     return loaded
@@ -86,22 +101,48 @@ def _load_private(key: Ed25519PrivateKey | Path) -> Ed25519PrivateKey:
 def _load_public(key: Ed25519PublicKey | Path) -> Ed25519PublicKey:
     if isinstance(key, Ed25519PublicKey):
         return key
+    descriptor: int | None = None
     try:
-        loaded = serialization.load_pem_public_key(Path(key).read_bytes())
+        descriptor = open_regular_file(Path(key), os.O_RDONLY)
+        if os.fstat(descriptor).st_size > _MAX_KEY_FILE_BYTES:
+            raise BackupError("trusted_backup_public_key_too_large")
+        with os.fdopen(os.dup(descriptor), "rb") as stream:
+            data = stream.read(_MAX_KEY_FILE_BYTES + 1)
+        if len(data) > _MAX_KEY_FILE_BYTES:
+            raise BackupError("trusted_backup_public_key_too_large")
+        loaded = serialization.load_pem_public_key(data)
+    except BackupError:
+        raise
     except (OSError, ValueError, TypeError) as exc:
         raise BackupError("trusted_backup_public_key_invalid") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     if not isinstance(loaded, Ed25519PublicKey):
         raise BackupError("trusted_backup_ed25519_key_required")
     return loaded
 
 
 def generate_backup_signing_key(private_path: Path, public_path: Path) -> str:
-    """Create a non-overwriting Ed25519 key pair; public key is the trust anchor."""
+    """Create a non-overwriting Ed25519 key pair with identity-bound cleanup."""
     private_path, public_path = Path(private_path), Path(public_path)
-    if private_path.exists() or public_path.exists():
+    if os.path.normcase(os.path.abspath(private_path)) == os.path.normcase(
+        os.path.abspath(public_path)
+    ):
+        raise BackupError("backup_signing_key_paths_must_differ")
+
+    for parent in {private_path.parent, public_path.parent}:
+        try:
+            parent.mkdir(parents=True, exist_ok=True)
+            parent_stat = parent.lstat()
+        except OSError as exc:
+            raise BackupError("backup_signing_key_parent_unsafe") from exc
+        if stat.S_ISLNK(parent_stat.st_mode) or not stat.S_ISDIR(parent_stat.st_mode):
+            raise BackupError("backup_signing_key_parent_unsafe")
+
+    if _path_occupied(private_path) or _path_occupied(public_path):
         raise BackupError("backup_signing_key_exists")
-    private_path.parent.mkdir(parents=True, exist_ok=True)
-    public_path.parent.mkdir(parents=True, exist_ok=True)
+
     key = Ed25519PrivateKey.generate()
     private_data = key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
@@ -110,25 +151,58 @@ def generate_backup_signing_key(private_path: Path, public_path: Path) -> str:
     public_data = key.public_key().public_bytes(
         serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
     )
-    created_private = False
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    private_fd: int | None = None
+    public_fd: int | None = None
+    succeeded = False
+
+    def write_and_sync(descriptor: int, data: bytes) -> None:
+        with os.fdopen(os.dup(descriptor), "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+
     try:
-        fd = os.open(private_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        created_private = True
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(private_data)
-            stream.flush()
-            os.fsync(stream.fileno())
-        fd = os.open(public_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(public_data)
-            stream.flush()
-            os.fsync(stream.fileno())
-    except Exception:
-        if created_private:
-            private_path.unlink(missing_ok=True)
-        public_path.unlink(missing_ok=True)
+        private_fd = os.open(private_path, flags, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(private_fd, 0o600)
+        write_and_sync(private_fd, private_data)
+        _assert_path_matches_descriptor(
+            private_path, private_fd, "backup_private_key_path_changed",
+        )
+
+        public_fd = os.open(public_path, flags, 0o644)
+        if hasattr(os, "fchmod"):
+            os.fchmod(public_fd, 0o644)
+        write_and_sync(public_fd, public_data)
+        _assert_path_matches_descriptor(
+            public_path, public_fd, "backup_public_key_path_changed",
+        )
+        succeeded = True
+        return _fingerprint(key.public_key())
+    except BackupError:
         raise
-    return _fingerprint(key.public_key())
+    except FileExistsError as exc:
+        raise BackupError("backup_signing_key_exists") from exc
+    except OSError as exc:
+        raise BackupError("backup_signing_key_creation_failed") from exc
+    finally:
+        if not succeeded:
+            if public_fd is not None:
+                _unlink_if_same_file(public_path, public_fd)
+            if private_fd is not None:
+                _unlink_if_same_file(private_path, private_fd)
+        for descriptor in (public_fd, private_fd):
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
 
 
 def _publish_no_replace(source: Path, destination: Path) -> None:

@@ -114,3 +114,16 @@ These controls reduce accidental and unprivileged leaf-path substitution; they
 are not an OS sandbox or protection against privileged parent-directory
 manipulation. Cross-platform behavior must be qualified by the platform CI
 matrix and target-device tests.
+
+
+### Backup signing-key file boundary
+
+Private and trusted public backup-key loading now uses checked regular-file
+descriptors, rejects symlink/non-regular leaf paths, and bounds PEM file
+reads. Private-key permissions are checked on the opened descriptor rather
+than a pathname stat. Key-pair creation uses exclusive leaf creation,
+descriptor-bound writes, and identity-checked cleanup so failure cleanup
+does not unlink a path that has been replaced. These controls do not protect
+against malicious parent-directory control, privileged host attacks, or
+compromise of the key itself; key storage and trust-anchor custody remain
+operator responsibilities.
