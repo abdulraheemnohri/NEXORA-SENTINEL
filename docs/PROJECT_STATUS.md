@@ -578,3 +578,23 @@ Keep autonomy at L0/L1 and execution disabled.
 - Added seven regression tests for symlinked private/public loaders, private-key permissions, oversized public-key files, identical output paths, dangling public symlinks and cleanup after a private-path replacement.
 - Local checkout/testing was unavailable in this run because the execution environment could not resolve GitHub. CI will be used as the full-suite verification source; do not treat local tests as executed.
 - Next: verify final branch-head CI and continue independent witness/platform qualification.
+
+
+## Backup signing-key path hardening — 2026-11-26 (verified)
+
+- Private and trusted public key files are opened through the shared checked regular-file helper; symlink/non-regular leaf paths fail closed.
+- Private-key mode bits are checked from the opened descriptor on POSIX, and both PEM reads are bounded to 64 KiB.
+- Key-pair creation rejects identical normalized output paths and pre-existing destinations, including dangling symlinks. Files are created exclusively, with no-follow/binary flags where supported, written and flushed through retained descriptors, and checked against their path before success.
+- Failure cleanup unlinks only paths still identifying the descriptors created by this operation. A replacement path is left untouched.
+- Added seven regressions: private/public key-loader symlink rejection, descriptor-based private permissions, oversized public-key rejection, same-path rejection, dangling public symlink preservation, and cleanup after private-path replacement.
+- Exact code commit: \`a0aa53616f44f15243f907fc686e1ba23ae668b7\`.
+- [x] Ruff passed.
+- [x] Tests workflow: **514 passed in 28.12s**.
+- [x] Security workflow: **514 passed in 28.02s**; pip check clean.
+- [x] Compileall passed.
+- [x] Wheel build passed.
+- [x] TLC lifecycle safety model check passed.
+- Workflow evidence: [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813817), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813950), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813800), [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813791).
+- Local repository checkout was unavailable because the environment could not resolve \`github.com\`; full-suite verification was therefore performed by the repository's GitHub Actions workflows, not local execution.
+- Limitations: parent-directory/privileged-host attacks, OS-specific key custody and Windows/macOS/Android qualification remain unverified. Private keys remain unencrypted PEM files; restrictive local permissions are not equivalent to hardware-backed or independently administered key custody.
+- Next: review key rotation and recovery procedures, then qualify independent witness custody and target platforms.
