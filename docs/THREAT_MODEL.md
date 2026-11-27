@@ -127,3 +127,11 @@ does not unlink a path that has been replaced. These controls do not protect
 against malicious parent-directory control, privileged host attacks, or
 compromise of the key itself; key storage and trust-anchor custody remain
 operator responsibilities.
+
+
+
+### Trust-rotation statement file boundary
+
+Trust-rotation statements now read old private keys, replacement public keys, trusted old pins and manifests through bounded checked regular-file descriptors. Symlink and non-regular leaf paths are rejected; private-key permissions are checked on the opened descriptor on POSIX. The reader checks file identity and metadata before and after the bounded read, and verification uses the captured bytes rather than reopening the path. Statement output is created exclusively with no-follow flags where supported, flushed through a retained descriptor, and failure cleanup checks that the path still identifies the file created by the operation.
+
+A signed transition remains a proposal: it does not change trust pins, enroll the replacement key, activate it or authorize execution. These file checks do not protect against a privileged attacker, hostile parent-directory manipulation, all same-user filesystem races, compromised key custody or cross-platform behavior not qualified by CI/device tests.
