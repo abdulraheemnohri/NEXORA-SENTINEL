@@ -2,10 +2,10 @@ import json
 import os
 
 import pytest
-
-import nexora.trust_rotation as rotation_module
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+import nexora.trust_rotation as rotation_module
 
 from nexora.trust_rotation import (
     TrustRotationError,
