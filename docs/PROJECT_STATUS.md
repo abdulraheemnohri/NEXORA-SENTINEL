@@ -598,3 +598,16 @@ Keep autonomy at L0/L1 and execution disabled.
 - Local repository checkout was unavailable because the environment could not resolve \`github.com\`; full-suite verification was therefore performed by the repository's GitHub Actions workflows, not local execution.
 - Limitations: parent-directory/privileged-host attacks, OS-specific key custody and Windows/macOS/Android qualification remain unverified. Private keys remain unencrypted PEM files; restrictive local permissions are not equivalent to hardware-backed or independently administered key custody.
 - Next: review key rotation and recovery procedures, then qualify independent witness custody and target platforms.
+
+
+
+## Trust-rotation statement file hardening — 2026-11-27 (CI pending)
+
+- Trust-rotation old private keys, replacement public keys, trusted old public pins and rotation manifests now use bounded regular-file descriptor reads; symlink/non-regular paths fail closed.
+- Private-key mode bits are checked from the opened descriptor on POSIX. Key and manifest reads are bounded and compare the opened-file identity and metadata against the path before and after reading.
+- Rotation statement creation uses exclusive/no-follow output creation where supported, retains the descriptor through flush and identity verification, and only attempts failure cleanup when the current path still identifies the created file.
+- Trust-pin enrollment/activation remains outside this statement workflow. A verified transition still reports `NOT_APPLIED` and requires out-of-band review.
+- Added six regressions for symlinked key inputs, private-key permissions, non-regular/oversized manifest inputs, path replacement during manifest reading, and replacement-path preservation after write failure.
+- Verification pending: full exact-head Ruff, pytest, compileall, packaging, security and TLC workflows.
+- Limitations: parent-directory and privileged-host manipulation, independent key custody, OS/device qualification and actual trust-pin activation/recovery remain unverified.
+- Next: check final exact-head CI evidence; then review the shared approval-key file boundary and key revocation/compromise recovery semantics.
