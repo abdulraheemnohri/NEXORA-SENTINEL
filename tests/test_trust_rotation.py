@@ -6,12 +6,11 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from nexora.trust_rotation import (
+    _MAX_MANIFEST_BYTES,
     TrustRotationError,
     create_rotation_statement,
     verify_rotation_statement,
 )
-
-import nexora.trust_rotation as rotation_module
 
 
 def _write_private(path, key):
@@ -282,7 +281,7 @@ def test_trust_rotation_verification_bounds_manifest_size(tmp_path):
     old = Ed25519PrivateKey.generate()
     old_public = _write_public(tmp_path / "old-public.pem", old)
     manifest = tmp_path / "oversized.json"
-    manifest.write_bytes(b"x" * (rotation_module._MAX_MANIFEST_BYTES + 1))
+    manifest.write_bytes(b"x" * (_MAX_MANIFEST_BYTES + 1))
     with pytest.raises(TrustRotationError, match="trust_rotation_manifest_too_large"):
         verify_rotation_statement(manifest, trusted_old_public_key=old_public)
 
@@ -315,7 +314,7 @@ def test_trust_rotation_manifest_path_swap_during_read_fails_closed(tmp_path, mo
             replaced = True
         return data
 
-    monkeypatch.setattr(rotation_module.os, "read", swap_after_read)
+    monkeypatch.setattr(os, "read", swap_after_read)
     with pytest.raises(TrustRotationError, match="trust_rotation_manifest_path_changed"):
         verify_rotation_statement(manifest, trusted_old_public_key=old_public)
     assert replaced
@@ -356,7 +355,7 @@ def test_trust_rotation_failure_cleanup_preserves_replacement_path(tmp_path, mon
             raise OSError("injected_fsync_failure")
         return real_fsync(descriptor)
 
-    monkeypatch.setattr(rotation_module.os, "fsync", replace_output_and_fail)
+    monkeypatch.setattr(os, "fsync", replace_output_and_fail)
     with pytest.raises(TrustRotationError, match="statement_write_failed"):
         create_rotation_statement(
             role="witness", old_private_key=old_private,
