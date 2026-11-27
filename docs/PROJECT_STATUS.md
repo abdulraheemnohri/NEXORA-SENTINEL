@@ -601,13 +601,22 @@ Keep autonomy at L0/L1 and execution disabled.
 
 
 
-## Trust-rotation statement file hardening — 2026-11-27 (CI pending)
+## Trust-rotation statement file hardening — 2026-11-27 (verified)
 
-- Trust-rotation old private keys, replacement public keys, trusted old public pins and rotation manifests now use bounded regular-file descriptor reads; symlink/non-regular paths fail closed.
-- Private-key mode bits are checked from the opened descriptor on POSIX. Key and manifest reads are bounded and compare the opened-file identity and metadata against the path before and after reading.
-- Rotation statement creation uses exclusive/no-follow output creation where supported, retains the descriptor through flush and identity verification, and only attempts failure cleanup when the current path still identifies the created file.
-- Trust-pin enrollment/activation remains outside this statement workflow. A verified transition still reports `NOT_APPLIED` and requires out-of-band review.
-- Added six regressions for symlinked key inputs, private-key permissions, non-regular/oversized manifest inputs, path replacement during manifest reading, and replacement-path preservation after write failure.
-- Verification pending: full exact-head Ruff, pytest, compileall, packaging, security and TLC workflows.
+- Trust-rotation old private keys, replacement public keys, trusted old public pins and manifests now use bounded checked regular-file descriptor reads; symlink/non-regular leaf paths fail closed.
+- POSIX private-key mode bits are checked from the opened descriptor. Reads compare opened-file identity and metadata before and after reading, and verification consumes the captured byte snapshot without reopening the pathname.
+- Rotation statement output uses exclusive/no-follow creation where supported, retains the descriptor through flush and identity checks, and attempts failure cleanup only if the current path still identifies the created file.
+- A signed rotation statement remains a proposal: it does not enroll a replacement, change trust pins, activate a key or authorize execution.
+- Added six regressions for symlinked key inputs, private-key permissions, non-regular/oversized manifest inputs, path replacement during manifest read and replacement-path preservation on write failure.
+- Final code/test head: `525cd19e094ad997e5ef7df37856f8a12ea1e584`.
+- [x] Ruff passed.
+- [x] Tests workflow — **520 passed**.
+- [x] Security workflow — **520 passed**, pip check clean.
+- [x] Compileall passed.
+- [x] Wheel build passed.
+- [x] TLC lifecycle model check passed.
+- CI evidence: [Tests — 45937133480](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133480), [Security — 45937133529](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133529), [Build — 45937133482](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133482), [Formal Verification — 45937133527](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133527).
+- Initial CI attempts exposed Ruff import-ordering errors and a regression assertion that expected a different fail-closed error code. Both were investigated and corrected; the final four workflows passed on the code/test head.
+- Local checkout and test execution were unavailable in this run. The evidence above is from GitHub-hosted Actions, not local execution.
 - Limitations: parent-directory and privileged-host manipulation, independent key custody, OS/device qualification and actual trust-pin activation/recovery remain unverified.
-- Next: check final exact-head CI evidence; then review the shared approval-key file boundary and key revocation/compromise recovery semantics.
+- Next: review the shared approval-key file boundary and key revocation/compromise recovery semantics.
