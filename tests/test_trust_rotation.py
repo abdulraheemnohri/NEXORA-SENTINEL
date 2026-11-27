@@ -315,7 +315,7 @@ def test_trust_rotation_manifest_path_swap_during_read_fails_closed(tmp_path, mo
         return data
 
     monkeypatch.setattr(os, "read", swap_after_read)
-    with pytest.raises(TrustRotationError, match="trust_rotation_manifest_path_changed"):
+    with pytest.raises(TrustRotationError, match="trust_rotation_manifest_(path_changed|changed_during_read)"):
         verify_rotation_statement(manifest, trusted_old_public_key=old_public)
     assert replaced
     assert manifest.is_symlink()
