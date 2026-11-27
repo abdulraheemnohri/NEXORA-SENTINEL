@@ -2,6 +2,8 @@ import json
 import os
 
 import pytest
+
+import nexora.trust_rotation as rotation_module
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -217,3 +219,150 @@ def test_trust_rotation_rejects_boolean_schema_version(tmp_path):
 
     with pytest.raises(TrustRotationError, match="context_invalid"):
         verify_rotation_statement(manifest, trusted_old_public_key=old_public)
+
+
+
+def test_trust_rotation_refuses_symlinked_key_files(tmp_path):
+    old = Ed25519PrivateKey.generate()
+    new = Ed25519PrivateKey.generate()
+    old_private = _write_private(tmp_path / "old-private.pem", old)
+    new_public = _write_public(tmp_path / "new-public.pem", new)
+    private_link = tmp_path / "private-link.pem"
+    public_link = tmp_path / "public-link.pem"
+    try:
+        private_link.symlink_to(old_private)
+        public_link.symlink_to(new_public)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+
+    with pytest.raises(TrustRotationError, match="old_private_key_symlink_refused"):
+        create_rotation_statement(
+            role="backup", old_private_key=private_link,
+            new_public_key=new_public, output=tmp_path / "private-refused.json",
+            reason="Symlink test",
+        )
+    with pytest.raises(TrustRotationError, match="new_public_key_symlink_refused"):
+        create_rotation_statement(
+            role="backup", old_private_key=old_private,
+            new_public_key=public_link, output=tmp_path / "public-refused.json",
+            reason="Symlink test",
+        )
+
+
+def test_trust_rotation_checks_private_key_permissions_on_opened_file(tmp_path):
+    import os
+
+    if os.name != "posix":
+        pytest.skip("private-key mode-bit test requires POSIX")
+    old = Ed25519PrivateKey.generate()
+    new = Ed25519PrivateKey.generate()
+    private = _write_private(tmp_path / "old-private.pem", old)
+    new_public = _write_public(tmp_path / "new-public.pem", new)
+    private.chmod(0o644)
+    with pytest.raises(TrustRotationError, match="old_private_key_permissions_too_open"):
+        create_rotation_statement(
+            role="update", old_private_key=private,
+            new_public_key=new_public, output=tmp_path / "rotation.json",
+            reason="Permission test",
+        )
+
+
+def test_trust_rotation_verification_rejects_non_regular_manifest(tmp_path):
+    old = Ed25519PrivateKey.generate()
+    old_public = _write_public(tmp_path / "old-public.pem", old)
+    manifest_directory = tmp_path / "manifest-directory"
+    manifest_directory.mkdir()
+    with pytest.raises(TrustRotationError, match="trust_rotation_manifest_not_a_regular_file"):
+        verify_rotation_statement(
+            manifest_directory, trusted_old_public_key=old_public,
+        )
+
+
+def test_trust_rotation_verification_bounds_manifest_size(tmp_path):
+    old = Ed25519PrivateKey.generate()
+    old_public = _write_public(tmp_path / "old-public.pem", old)
+    manifest = tmp_path / "oversized.json"
+    manifest.write_bytes(b"x" * (rotation_module._MAX_MANIFEST_BYTES + 1))
+    with pytest.raises(TrustRotationError, match="trust_rotation_manifest_too_large"):
+        verify_rotation_statement(manifest, trusted_old_public_key=old_public)
+
+
+def test_trust_rotation_manifest_path_swap_during_read_fails_closed(tmp_path, monkeypatch):
+    old = Ed25519PrivateKey.generate()
+    new = Ed25519PrivateKey.generate()
+    old_private = _write_private(tmp_path / "old-private.pem", old)
+    old_public = _write_public(tmp_path / "old-public.pem", old)
+    new_public = _write_public(tmp_path / "new-public.pem", new)
+    manifest = tmp_path / "rotation.json"
+    create_rotation_statement(
+        role="update", old_private_key=old_private, new_public_key=new_public,
+        output=manifest, reason="Path swap test",
+    )
+    target = tmp_path / "target.json"
+    target.write_text("untouched", encoding="utf-8")
+    real_read = os.read
+    replaced = False
+
+    def swap_after_read(descriptor, count):
+        nonlocal replaced
+        data = real_read(descriptor, count)
+        if data and not replaced:
+            manifest.unlink()
+            try:
+                manifest.symlink_to(target)
+            except (OSError, NotImplementedError):
+                pytest.skip("symlink creation unavailable")
+            replaced = True
+        return data
+
+    monkeypatch.setattr(rotation_module.os, "read", swap_after_read)
+    with pytest.raises(TrustRotationError, match="trust_rotation_manifest_path_changed"):
+        verify_rotation_statement(manifest, trusted_old_public_key=old_public)
+    assert replaced
+    assert manifest.is_symlink()
+    assert target.read_text(encoding="utf-8") == "untouched"
+
+
+def test_trust_rotation_failure_cleanup_preserves_replacement_path(tmp_path, monkeypatch):
+    import os
+
+    if os.name != "posix":
+        pytest.skip("replacement symlink cleanup test requires POSIX")
+    old = Ed25519PrivateKey.generate()
+    new = Ed25519PrivateKey.generate()
+    old_private = _write_private(tmp_path / "old-private.pem", old)
+    new_public = _write_public(tmp_path / "new-public.pem", new)
+    output = tmp_path / "rotation.json"
+    target = tmp_path / "target.txt"
+    target.write_text("untouched", encoding="utf-8")
+    real_fsync = os.fsync
+    replaced = False
+
+    def replace_output_and_fail(descriptor):
+        nonlocal replaced
+        opened = os.fstat(descriptor)
+        try:
+            current = output.lstat()
+        except FileNotFoundError:
+            return real_fsync(descriptor)
+        if (
+            not replaced and current.st_mode & 0o170000 == 0o100000
+            and current.st_dev == opened.st_dev
+            and current.st_ino == opened.st_ino
+        ):
+            output.unlink()
+            output.symlink_to(target)
+            replaced = True
+            raise OSError("injected_fsync_failure")
+        return real_fsync(descriptor)
+
+    monkeypatch.setattr(rotation_module.os, "fsync", replace_output_and_fail)
+    with pytest.raises(TrustRotationError, match="statement_write_failed"):
+        create_rotation_statement(
+            role="witness", old_private_key=old_private,
+            new_public_key=new_public, output=output,
+            reason="Cleanup replacement test",
+        )
+    assert replaced
+    assert output.is_symlink()
+    assert target.read_text(encoding="utf-8") == "untouched"
