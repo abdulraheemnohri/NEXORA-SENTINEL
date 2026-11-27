@@ -5,13 +5,13 @@ import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-import nexora.trust_rotation as rotation_module
-
 from nexora.trust_rotation import (
     TrustRotationError,
     create_rotation_statement,
     verify_rotation_statement,
 )
+
+import nexora.trust_rotation as rotation_module
 
 
 def _write_private(path, key):
