@@ -49,7 +49,9 @@ def _evidence_digest(evidence: list[str] | tuple[str, ...] | set[str]) -> str:
     return hashlib.sha256(_canonical({"evidence": values})).hexdigest()
 
 
-def _ensure_key_output_absent(path: Path) -> None:
+def _ensure_key_output_absent(
+    path: Path, *, exists_error: str = "key_output_already_exists",
+) -> None:
     """Reject every existing leaf, including dangling symlinks, without following it."""
     try:
         path.lstat()
@@ -57,7 +59,7 @@ def _ensure_key_output_absent(path: Path) -> None:
         return
     except OSError as exc:
         raise ApprovalError("key_output_path_invalid") from exc
-    raise ApprovalError("key_output_already_exists")
+    raise ApprovalError(exists_error)
 
 
 def _assert_key_output_identity(path: Path, descriptor: int) -> None:
@@ -83,7 +85,10 @@ def _assert_key_output_identity(path: Path, descriptor: int) -> None:
         raise ApprovalError("key_output_path_changed")
 
 
-def _write_new_key_file(path: Path, data: bytes, *, mode: int) -> None:
+def _write_new_key_file(
+    path: Path, data: bytes, *, mode: int,
+    exists_error: str = "key_output_already_exists",
+) -> None:
     """Exclusively create and write a key file through one checked descriptor.
 
     Failed writes are deliberately not cleaned up by pathname: a path may have
@@ -95,7 +100,7 @@ def _write_new_key_file(path: Path, data: bytes, *, mode: int) -> None:
             path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode,
         )
     except FileExistsError as exc:
-        raise ApprovalError("key_output_already_exists") from exc
+        raise ApprovalError(exists_error) from exc
     except (OSError, ValueError) as exc:
         raise ApprovalError("key_output_path_invalid") from exc
 
@@ -129,14 +134,19 @@ def generate_signing_key(private_path: Path, *, overwrite: bool = False) -> str:
         raise ApprovalError("key_overwrite_disabled_use_new_path")
     path = Path(private_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    _ensure_key_output_absent(path)
+    _ensure_key_output_absent(
+        path, exists_error="private_key_already_exists",
+    )
     key = Ed25519PrivateKey.generate()
     data = key.private_bytes(
         serialization.Encoding.PEM,
         serialization.PrivateFormat.PKCS8,
         serialization.NoEncryption(),
     )
-    _write_new_key_file(path, data, mode=0o600)
+    _write_new_key_file(
+        path, data, mode=0o600,
+        exists_error="private_key_already_exists",
+    )
     return public_key_fingerprint(key.public_key())
 
 

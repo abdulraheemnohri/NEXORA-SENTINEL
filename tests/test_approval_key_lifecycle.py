@@ -196,7 +196,7 @@ def test_generate_signing_key_rejects_overwrite_without_changing_existing_key(tm
         approval_module.generate_signing_key(path, overwrite=True)
 
     assert path.read_bytes() == original
-    with pytest.raises(ApprovalError, match="key_output_already_exists"):
+    with pytest.raises(ApprovalError, match="private_key_already_exists"):
         approval_module.generate_signing_key(path)
 
 
