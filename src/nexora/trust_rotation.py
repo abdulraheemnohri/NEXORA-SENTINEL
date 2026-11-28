@@ -13,9 +13,12 @@ from typing import Any
 
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
 
-from nexora.approval import ApprovalError, load_private_key, load_public_key, public_key_fingerprint
+from nexora.approval import public_key_fingerprint
 
 REPOSITORY = "abdulraheemnohri/NEXORA-SENTINEL"
 ROLES = {"backup", "update", "witness"}
@@ -32,6 +35,8 @@ PAYLOAD_FIELDS = {
     "new_public_key_pem",
     "signer_fingerprint",
 }
+_MAX_KEY_FILE_BYTES = 64 * 1024
+_MAX_MANIFEST_BYTES = 32 * 1024
 
 
 class TrustRotationError(ValueError):
@@ -44,17 +49,134 @@ def _canonical(payload: dict[str, Any]) -> bytes:
     ).encode("utf-8")
 
 
-def _require_regular_file(path: Path, label: str) -> None:
+def _same_identity(left: os.stat_result, right: os.stat_result) -> bool:
+    return left.st_dev == right.st_dev and (
+        not left.st_ino or not right.st_ino or left.st_ino == right.st_ino
+    )
+
+
+def _read_checked_regular_file(
+    path: Path, label: str, limit: int, *, private: bool = False,
+) -> bytes:
+    """Read a bounded regular-file snapshot without reopening its pathname."""
+    path = Path(path)
     try:
-        metadata = Path(path).lstat()
+        before = path.lstat()
     except FileNotFoundError as exc:
         raise TrustRotationError(f"{label}_missing") from exc
     except OSError as exc:
         raise TrustRotationError(f"{label}_unreadable") from exc
-    if stat.S_ISLNK(metadata.st_mode):
+    if stat.S_ISLNK(before.st_mode):
         raise TrustRotationError(f"{label}_symlink_refused")
-    if not stat.S_ISREG(metadata.st_mode):
+    if not stat.S_ISREG(before.st_mode):
         raise TrustRotationError(f"{label}_not_a_regular_file")
+
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    descriptor: int | None = None
+    try:
+        descriptor = os.open(path, flags)
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode) or not _same_identity(before, opened):
+            raise TrustRotationError(f"{label}_path_changed")
+        if private and os.name == "posix" and opened.st_mode & 0o077:
+            raise TrustRotationError(f"{label}_permissions_too_open")
+        if opened.st_size > limit:
+            raise TrustRotationError(f"{label}_too_large")
+
+        data = bytearray()
+        while len(data) <= limit:
+            chunk = os.read(descriptor, min(8192, limit + 1 - len(data)))
+            if not chunk:
+                break
+            data.extend(chunk)
+        if len(data) > limit:
+            raise TrustRotationError(f"{label}_too_large")
+
+        after_read = os.fstat(descriptor)
+        if (
+            not _same_identity(opened, after_read)
+            or opened.st_size != after_read.st_size
+            or opened.st_mtime_ns != after_read.st_mtime_ns
+            or opened.st_ctime_ns != after_read.st_ctime_ns
+        ):
+            raise TrustRotationError(f"{label}_changed_during_read")
+        after_path = path.lstat()
+        if (
+            stat.S_ISLNK(after_path.st_mode)
+            or not stat.S_ISREG(after_path.st_mode)
+            or not _same_identity(after_path, after_read)
+        ):
+            raise TrustRotationError(f"{label}_path_changed")
+        return bytes(data)
+    except TrustRotationError:
+        raise
+    except OSError as exc:
+        raise TrustRotationError(f"{label}_unreadable_or_changed") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
+def _load_private_bytes(data: bytes, label: str) -> Ed25519PrivateKey:
+    try:
+        key = serialization.load_pem_private_key(data, password=None)
+    except (ValueError, TypeError, UnsupportedAlgorithm) as exc:
+        raise TrustRotationError(f"{label}_invalid") from exc
+    if not isinstance(key, Ed25519PrivateKey):
+        raise TrustRotationError(f"{label}_ed25519_required")
+    return key
+
+
+def _load_public_bytes(data: bytes, label: str) -> Ed25519PublicKey:
+    try:
+        key = serialization.load_pem_public_key(data)
+    except (ValueError, TypeError, UnsupportedAlgorithm) as exc:
+        raise TrustRotationError(f"{label}_invalid") from exc
+    if not isinstance(key, Ed25519PublicKey):
+        raise TrustRotationError(f"{label}_ed25519_required")
+    return key
+
+
+def _assert_path_matches_descriptor(path: Path, descriptor: int, label: str) -> None:
+    try:
+        current = path.lstat()
+        opened = os.fstat(descriptor)
+    except OSError as exc:
+        raise TrustRotationError(f"{label}_path_changed") from exc
+    if (
+        stat.S_ISLNK(current.st_mode)
+        or not stat.S_ISREG(current.st_mode)
+        or not _same_identity(current, opened)
+    ):
+        raise TrustRotationError(f"{label}_path_changed")
+
+
+def _unlink_if_same_file(path: Path, descriptor: int) -> None:
+    """Never unlink a replacement path during failed statement creation."""
+    try:
+        current = path.lstat()
+        opened = os.fstat(descriptor)
+    except OSError:
+        return
+    if (
+        stat.S_ISREG(current.st_mode)
+        and _same_identity(current, opened)
+    ):
+        path.unlink(missing_ok=True)
+
+
+def _check_output_parent(path: Path) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        metadata = path.parent.lstat()
+    except OSError as exc:
+        raise TrustRotationError("trust_rotation_output_parent_unsafe") from exc
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise TrustRotationError("trust_rotation_output_parent_unsafe")
 
 
 def create_rotation_statement(
@@ -73,15 +195,20 @@ def create_rotation_statement(
 
     old_path = Path(old_private_key)
     new_path = Path(new_public_key)
-    _require_regular_file(old_path, "old_private_key")
-    _require_regular_file(new_path, "new_public_key")
-
+    old_signer = _load_private_bytes(
+        _read_checked_regular_file(
+            old_path, "old_private_key", _MAX_KEY_FILE_BYTES, private=True,
+        ),
+        "old_private_key",
+    )
+    new_public_data = _read_checked_regular_file(
+        new_path, "new_public_key", _MAX_KEY_FILE_BYTES,
+    )
+    new_public = _load_public_bytes(new_public_data, "new_public_key")
     try:
-        old_signer = load_private_key(old_path)
-        new_public = load_public_key(new_path)
-        new_pem = new_path.read_text(encoding="ascii")
-    except (ApprovalError, OSError, UnicodeError, ValueError, TypeError) as exc:
-        raise TrustRotationError("trust_rotation_key_invalid") from exc
+        new_pem = new_public_data.decode("ascii")
+    except UnicodeError as exc:
+        raise TrustRotationError("new_public_key_invalid") from exc
 
     old_fingerprint = public_key_fingerprint(old_signer.public_key())
     new_fingerprint = public_key_fingerprint(new_public)
@@ -107,33 +234,69 @@ def create_rotation_statement(
     ) + "\n"
 
     destination = Path(output)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    descriptor = -1
+    _check_output_parent(destination)
     try:
-        descriptor = os.open(
-            destination,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-            0o644,
+        destination.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise TrustRotationError("trust_rotation_output_unreadable") from exc
+    else:
+        raise TrustRotationError("trust_rotation_output_exists")
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    descriptor: int | None = None
+    succeeded = False
+    try:
+        descriptor = os.open(destination, flags, 0o600)
+        _assert_path_matches_descriptor(
+            destination, descriptor, "trust_rotation_output",
         )
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as stream:
-            descriptor = -1
+        with os.fdopen(os.dup(descriptor), "w", encoding="utf-8", newline="\n") as stream:
             stream.write(serialized)
             stream.flush()
             os.fsync(stream.fileno())
+        _assert_path_matches_descriptor(
+            destination, descriptor, "trust_rotation_output",
+        )
         if os.name == "posix":
-            directory_fd = os.open(destination.parent, os.O_RDONLY)
+            directory_flags = os.O_RDONLY
+            if hasattr(os, "O_DIRECTORY"):
+                directory_flags |= os.O_DIRECTORY
+            if hasattr(os, "O_NOFOLLOW"):
+                directory_flags |= os.O_NOFOLLOW
+            directory_fd = os.open(destination.parent, directory_flags)
             try:
+                parent_metadata = destination.parent.lstat()
+                opened_parent = os.fstat(directory_fd)
+                if (
+                    stat.S_ISLNK(parent_metadata.st_mode)
+                    or not stat.S_ISDIR(opened_parent.st_mode)
+                    or not _same_identity(parent_metadata, opened_parent)
+                ):
+                    raise TrustRotationError("trust_rotation_output_parent_changed")
                 os.fsync(directory_fd)
             finally:
                 os.close(directory_fd)
+        succeeded = True
     except FileExistsError as exc:
         raise TrustRotationError("trust_rotation_output_exists") from exc
+    except TrustRotationError:
+        raise
     except OSError as exc:
-        destination.unlink(missing_ok=True)
         raise TrustRotationError("trust_rotation_statement_write_failed") from exc
     finally:
-        if descriptor >= 0:
-            os.close(descriptor)
+        if descriptor is not None:
+            if not succeeded:
+                _unlink_if_same_file(destination, descriptor)
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
 
     return {
         "created": True,
@@ -157,15 +320,20 @@ def verify_rotation_statement(
 ) -> dict[str, Any]:
     """Verify a transition against the old pin; never enroll the embedded new key."""
     path = Path(manifest_path)
-    _require_regular_file(path, "trust_rotation_manifest")
+    manifest_data = _read_checked_regular_file(
+        path, "trust_rotation_manifest", _MAX_MANIFEST_BYTES,
+    )
     old_path = Path(trusted_old_public_key)
-    _require_regular_file(old_path, "trusted_old_public_key")
-
+    old_public_data = _read_checked_regular_file(
+        old_path, "trusted_old_public_key", _MAX_KEY_FILE_BYTES,
+    )
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-        old_public = load_public_key(old_path)
-    except (ApprovalError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
+        document = json.loads(manifest_data.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
         raise TrustRotationError("trust_rotation_manifest_or_pin_invalid") from exc
+    old_public = _load_public_bytes(
+        old_public_data, "trusted_old_public_key",
+    )
 
     if not isinstance(document, dict) or set(document) != {"payload", "signature"}:
         raise TrustRotationError("trust_rotation_manifest_schema_invalid")

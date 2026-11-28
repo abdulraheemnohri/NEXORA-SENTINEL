@@ -5,7 +5,9 @@ import base64
 import hashlib
 import json
 import os
+import shutil
 import sqlite3
+import stat
 import tempfile
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -15,8 +17,11 @@ from typing import Any
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 
+from nexora.file_lock import open_regular_file
+
 FORMAT_VERSION = 2
 MANIFEST_SUFFIX = ".manifest.json"
+_MAX_KEY_FILE_BYTES = 64 * 1024
 
 
 class BackupError(RuntimeError):
@@ -68,12 +73,26 @@ def _manifest_path(backup: Path) -> Path:
 def _load_private(key: Ed25519PrivateKey | Path) -> Ed25519PrivateKey:
     if isinstance(key, Ed25519PrivateKey):
         return key
+    descriptor: int | None = None
     try:
-        if os.name == "posix" and Path(key).stat().st_mode & 0o077:
+        descriptor = open_regular_file(Path(key), os.O_RDONLY)
+        metadata = os.fstat(descriptor)
+        if os.name == "posix" and metadata.st_mode & 0o077:
             raise BackupError("backup_private_key_permissions_too_open")
-        loaded = serialization.load_pem_private_key(Path(key).read_bytes(), password=None)
+        if metadata.st_size > _MAX_KEY_FILE_BYTES:
+            raise BackupError("backup_private_key_too_large")
+        with os.fdopen(os.dup(descriptor), "rb") as stream:
+            data = stream.read(_MAX_KEY_FILE_BYTES + 1)
+        if len(data) > _MAX_KEY_FILE_BYTES:
+            raise BackupError("backup_private_key_too_large")
+        loaded = serialization.load_pem_private_key(data, password=None)
+    except BackupError:
+        raise
     except (OSError, ValueError, TypeError) as exc:
         raise BackupError("backup_private_key_invalid") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     if not isinstance(loaded, Ed25519PrivateKey):
         raise BackupError("backup_ed25519_key_required")
     return loaded
@@ -82,22 +101,48 @@ def _load_private(key: Ed25519PrivateKey | Path) -> Ed25519PrivateKey:
 def _load_public(key: Ed25519PublicKey | Path) -> Ed25519PublicKey:
     if isinstance(key, Ed25519PublicKey):
         return key
+    descriptor: int | None = None
     try:
-        loaded = serialization.load_pem_public_key(Path(key).read_bytes())
+        descriptor = open_regular_file(Path(key), os.O_RDONLY)
+        if os.fstat(descriptor).st_size > _MAX_KEY_FILE_BYTES:
+            raise BackupError("trusted_backup_public_key_too_large")
+        with os.fdopen(os.dup(descriptor), "rb") as stream:
+            data = stream.read(_MAX_KEY_FILE_BYTES + 1)
+        if len(data) > _MAX_KEY_FILE_BYTES:
+            raise BackupError("trusted_backup_public_key_too_large")
+        loaded = serialization.load_pem_public_key(data)
+    except BackupError:
+        raise
     except (OSError, ValueError, TypeError) as exc:
         raise BackupError("trusted_backup_public_key_invalid") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     if not isinstance(loaded, Ed25519PublicKey):
         raise BackupError("trusted_backup_ed25519_key_required")
     return loaded
 
 
 def generate_backup_signing_key(private_path: Path, public_path: Path) -> str:
-    """Create a non-overwriting Ed25519 key pair; public key is the trust anchor."""
+    """Create a non-overwriting Ed25519 key pair with identity-bound cleanup."""
     private_path, public_path = Path(private_path), Path(public_path)
-    if private_path.exists() or public_path.exists():
+    if os.path.normcase(os.path.abspath(private_path)) == os.path.normcase(
+        os.path.abspath(public_path)
+    ):
+        raise BackupError("backup_signing_key_paths_must_differ")
+
+    for parent in {private_path.parent, public_path.parent}:
+        try:
+            parent.mkdir(parents=True, exist_ok=True)
+            parent_stat = parent.lstat()
+        except OSError as exc:
+            raise BackupError("backup_signing_key_parent_unsafe") from exc
+        if stat.S_ISLNK(parent_stat.st_mode) or not stat.S_ISDIR(parent_stat.st_mode):
+            raise BackupError("backup_signing_key_parent_unsafe")
+
+    if _path_occupied(private_path) or _path_occupied(public_path):
         raise BackupError("backup_signing_key_exists")
-    private_path.parent.mkdir(parents=True, exist_ok=True)
-    public_path.parent.mkdir(parents=True, exist_ok=True)
+
     key = Ed25519PrivateKey.generate()
     private_data = key.private_bytes(
         serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
@@ -106,25 +151,58 @@ def generate_backup_signing_key(private_path: Path, public_path: Path) -> str:
     public_data = key.public_key().public_bytes(
         serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
     )
-    created_private = False
+
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    private_fd: int | None = None
+    public_fd: int | None = None
+    succeeded = False
+
+    def write_and_sync(descriptor: int, data: bytes) -> None:
+        with os.fdopen(os.dup(descriptor), "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+
     try:
-        fd = os.open(private_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        created_private = True
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(private_data)
-            stream.flush()
-            os.fsync(stream.fileno())
-        fd = os.open(public_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(public_data)
-            stream.flush()
-            os.fsync(stream.fileno())
-    except Exception:
-        if created_private:
-            private_path.unlink(missing_ok=True)
-        public_path.unlink(missing_ok=True)
+        private_fd = os.open(private_path, flags, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(private_fd, 0o600)
+        write_and_sync(private_fd, private_data)
+        _assert_path_matches_descriptor(
+            private_path, private_fd, "backup_private_key_path_changed",
+        )
+
+        public_fd = os.open(public_path, flags, 0o644)
+        if hasattr(os, "fchmod"):
+            os.fchmod(public_fd, 0o644)
+        write_and_sync(public_fd, public_data)
+        _assert_path_matches_descriptor(
+            public_path, public_fd, "backup_public_key_path_changed",
+        )
+        succeeded = True
+        return _fingerprint(key.public_key())
+    except BackupError:
         raise
-    return _fingerprint(key.public_key())
+    except FileExistsError as exc:
+        raise BackupError("backup_signing_key_exists") from exc
+    except OSError as exc:
+        raise BackupError("backup_signing_key_creation_failed") from exc
+    finally:
+        if not succeeded:
+            if public_fd is not None:
+                _unlink_if_same_file(public_path, public_fd)
+            if private_fd is not None:
+                _unlink_if_same_file(private_path, private_fd)
+        for descriptor in (public_fd, private_fd):
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
 
 
 def _publish_no_replace(source: Path, destination: Path) -> None:
@@ -147,6 +225,59 @@ def _set_delete_journal_mode(connection: sqlite3.Connection) -> None:
         raise BackupError("sqlite_journal_mode_normalization_failed")
 
 
+def _assert_path_matches_descriptor(
+    path: Path, descriptor: int, error_code: str,
+) -> None:
+    """Require a pathname to still identify the already-open regular file."""
+    try:
+        current = Path(path).lstat()
+        opened = os.fstat(descriptor)
+    except OSError as exc:
+        raise BackupError(error_code) from exc
+    if not stat.S_ISREG(current.st_mode) or (
+        current.st_dev != opened.st_dev
+        or (current.st_ino and opened.st_ino and current.st_ino != opened.st_ino)
+    ):
+        raise BackupError(error_code)
+
+
+def _path_occupied(path: Path) -> bool:
+    """Detect every existing leaf, including dangling symlinks."""
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return False
+    return True
+
+
+def _sha256_descriptor(descriptor: int) -> str:
+    """Hash an already-open descriptor without reopening its pathname."""
+    digest = hashlib.sha256()
+    position = os.lseek(descriptor, 0, os.SEEK_CUR)
+    try:
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        while chunk := os.read(descriptor, 1024 * 1024):
+            digest.update(chunk)
+    finally:
+        os.lseek(descriptor, position, os.SEEK_SET)
+    return digest.hexdigest()
+
+
+def _unlink_if_same_file(path: Path, descriptor: int) -> None:
+    """Remove a published leaf only while it still names our open inode."""
+    try:
+        current = path.lstat()
+        opened = os.fstat(descriptor)
+    except OSError:
+        return
+    if (
+        stat.S_ISREG(current.st_mode)
+        and current.st_dev == opened.st_dev
+        and (not current.st_ino or not opened.st_ino or current.st_ino == opened.st_ino)
+    ):
+        path.unlink(missing_ok=True)
+
+
 def _inspect(database: Path) -> dict[str, Any]:
     try:
         with _database_connection(f"file:{database}?mode=ro", uri=True) as db:
@@ -165,118 +296,306 @@ def _inspect(database: Path) -> dict[str, Any]:
 def create_backup(
     source: Path, destination: Path, *, signing_key: Ed25519PrivateKey | Path,
 ) -> dict[str, Any]:
-    """Create a signed online snapshot. The caller controls the trusted private key."""
+    """Create a signed online snapshot using checked source and private staging files."""
     source, destination = Path(source), Path(destination)
-    if not source.is_file():
-        raise BackupError("source_database_not_found")
-    _inspect(source)
-    signer = _load_private(signing_key)
     manifest_path = _manifest_path(destination)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists() or manifest_path.exists():
-        raise BackupError("backup_destination_exists")
-    fd, temporary_name = tempfile.mkstemp(prefix=".nexora-backup-", dir=destination.parent)
-    os.close(fd)
-    temporary = Path(temporary_name)
-    temporary_manifest = temporary.with_name(temporary.name + MANIFEST_SUFFIX)
+    source_fd: int | None = None
+    database_fd: int | None = None
+    manifest_fd: int | None = None
+    staging_dir: Path | None = None
     published_database = False
+    published_manifest = False
+    succeeded = False
+
     try:
-        with _database_connection(source, timeout=10) as src, _database_connection(temporary) as dst:
+        try:
+            source_fd = open_regular_file(source, os.O_RDONLY)
+        except FileNotFoundError as exc:
+            raise BackupError("source_database_not_found") from exc
+        except OSError as exc:
+            raise BackupError("source_database_unsafe") from exc
+
+        _assert_path_matches_descriptor(source, source_fd, "source_database_changed")
+        _inspect(source)
+        _assert_path_matches_descriptor(source, source_fd, "source_database_changed")
+        signer = _load_private(signing_key)
+
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            parent_stat = destination.parent.lstat()
+        except OSError as exc:
+            raise BackupError("backup_destination_parent_unsafe") from exc
+        if stat.S_ISLNK(parent_stat.st_mode) or not stat.S_ISDIR(parent_stat.st_mode):
+            raise BackupError("backup_destination_parent_unsafe")
+        if _path_occupied(destination) or _path_occupied(manifest_path):
+            raise BackupError("backup_destination_exists")
+
+        # mkdtemp creates a private staging directory (0700 on POSIX).
+        staging_dir = Path(tempfile.mkdtemp(
+            prefix=".nexora-backup-stage-", dir=destination.parent,
+        ))
+        temporary = staging_dir / "database.sqlite3"
+        temporary_manifest = staging_dir / "manifest.json"
+
+        database_flags = os.O_CREAT | os.O_EXCL | os.O_RDWR
+        if hasattr(os, "O_NOFOLLOW"):
+            database_flags |= os.O_NOFOLLOW
+        database_fd = os.open(temporary, database_flags, 0o600)
+        _assert_path_matches_descriptor(
+            temporary, database_fd, "backup_temporary_database_changed",
+        )
+
+        # The stdlib sqlite3 API accepts paths rather than existing file
+        # descriptors. Keep a checked source descriptor open and verify its
+        # identity immediately before/after each SQLite pathname operation.
+        source_uri = f"file:{source}?mode=ro"
+        with (
+            _database_connection(source_uri, timeout=10, uri=True) as src,
+            _database_connection(temporary, timeout=10) as dst,
+        ):
+            _assert_path_matches_descriptor(
+                source, source_fd, "source_database_changed",
+            )
             src.backup(dst, pages=256, sleep=0.01)
             _set_delete_journal_mode(dst)
+
+        _assert_path_matches_descriptor(source, source_fd, "source_database_changed")
+        _assert_path_matches_descriptor(
+            temporary, database_fd, "backup_temporary_database_changed",
+        )
+        os.fsync(database_fd)
+        if hasattr(os, "fchmod"):
+            os.fchmod(database_fd, 0o600)
+        else:
+            os.chmod(temporary, 0o600)
+
+        digest = _sha256_descriptor(database_fd)
+        byte_count = os.fstat(database_fd).st_size
+        snapshot_metadata = _inspect(temporary)
+        _assert_path_matches_descriptor(
+            temporary, database_fd, "backup_temporary_database_changed",
+        )
         manifest = {
             "format_version": FORMAT_VERSION,
             "created_at": datetime.now(UTC).isoformat(),
-            "sha256": _sha256(temporary),
-            "bytes": temporary.stat().st_size,
-            **_inspect(temporary),
+            "sha256": digest,
+            "bytes": byte_count,
+            **snapshot_metadata,
             "signer_fingerprint": _fingerprint(signer.public_key()),
         }
-        manifest["signature"] = base64.b64encode(signer.sign(_canonical(manifest))).decode("ascii")
-        temporary_manifest.write_text(
-            json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+        manifest["signature"] = base64.b64encode(
+            signer.sign(_canonical(manifest))
+        ).decode("ascii")
+
+        manifest_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_NOFOLLOW"):
+            manifest_flags |= os.O_NOFOLLOW
+        manifest_fd = os.open(temporary_manifest, manifest_flags, 0o600)
+        with os.fdopen(os.dup(manifest_fd), "w", encoding="utf-8") as stream:
+            stream.write(json.dumps(manifest, sort_keys=True, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+
+        _assert_path_matches_descriptor(
+            temporary_manifest, manifest_fd, "backup_temporary_manifest_changed",
         )
-        os.chmod(temporary, 0o600)
-        os.chmod(temporary_manifest, 0o600)
+        _assert_path_matches_descriptor(
+            temporary, database_fd, "backup_temporary_database_changed",
+        )
         _publish_no_replace(temporary, destination)
         published_database = True
+        _assert_path_matches_descriptor(
+            destination, database_fd, "backup_published_database_changed",
+        )
         _publish_no_replace(temporary_manifest, manifest_path)
+        published_manifest = True
+        _assert_path_matches_descriptor(
+            manifest_path, manifest_fd, "backup_published_manifest_changed",
+        )
+        succeeded = True
         return manifest
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        temporary_manifest.unlink(missing_ok=True)
-        if published_database and not manifest_path.exists():
-            destination.unlink(missing_ok=True)
+    except (OSError, sqlite3.Error) as exc:
+        raise BackupError("backup_creation_failed") from exc
+    finally:
+        if not succeeded:
+            if published_manifest and manifest_fd is not None:
+                _unlink_if_same_file(manifest_path, manifest_fd)
+            if published_database and database_fd is not None:
+                _unlink_if_same_file(destination, database_fd)
+        for descriptor in (manifest_fd, database_fd, source_fd):
+            if descriptor is not None:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+        if staging_dir is not None:
+            shutil.rmtree(staging_dir, ignore_errors=True)
+
+
+@contextmanager
+def _verified_backup_snapshot(
+    backup: Path, *, trusted_public_key: Ed25519PublicKey | Path,
+):
+    """Yield one private, verified snapshot for both validation and restore.
+
+    The backup and manifest are opened as checked regular files. The database
+    bytes are copied from that already-open descriptor into a private temporary
+    file, then the signed digest, byte count and SQLite metadata are verified
+    against that copy. Callers consume this exact snapshot; they never reopen
+    the original backup pathname after verification.
+    """
+    backup = Path(backup)
+    manifest_path = _manifest_path(backup)
+    manifest_fd: int | None = None
+    backup_fd: int | None = None
+    snapshot_fd: int | None = None
+    snapshot: Path | None = None
+
+    try:
+        try:
+            manifest_fd = open_regular_file(manifest_path, os.O_RDONLY)
+            backup_fd = open_regular_file(backup, os.O_RDONLY)
+        except FileNotFoundError as exc:
+            raise BackupError("backup_or_manifest_missing") from exc
+        except OSError as exc:
+            raise BackupError("backup_or_manifest_unsafe") from exc
+
+        manifest_stream = os.fdopen(manifest_fd, "r", encoding="utf-8")
+        manifest_fd = None
+        with manifest_stream as stream:
+            if os.fstat(stream.fileno()).st_size > 1024 * 1024:
+                raise BackupError("backup_manifest_too_large")
+            try:
+                manifest_text = stream.read(1024 * 1024 + 1)
+                if len(manifest_text.encode("utf-8")) > 1024 * 1024:
+                    raise BackupError("backup_manifest_too_large")
+                manifest = json.loads(manifest_text)
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise BackupError("backup_manifest_invalid") from exc
+
+        if not isinstance(manifest, dict) or manifest.get("format_version") != FORMAT_VERSION:
+            raise BackupError("backup_format_unsupported")
+        signature_text = manifest.pop("signature", None)
+        if not isinstance(signature_text, str):
+            raise BackupError("backup_signature_missing")
+        public = _load_public(trusted_public_key)
+        if manifest.get("signer_fingerprint") != _fingerprint(public):
+            raise BackupError("backup_signer_not_trusted")
+        try:
+            public.verify(base64.b64decode(signature_text, validate=True), _canonical(manifest))
+        except Exception as exc:
+            raise BackupError("backup_signature_invalid") from exc
+
+        snapshot_fd, snapshot_name = tempfile.mkstemp(
+            prefix=".nexora-verified-backup-", suffix=".sqlite3",
+        )
+        snapshot = Path(snapshot_name)
+        source_stream = os.fdopen(backup_fd, "rb")
+        backup_fd = None
+        with source_stream as source:
+            snapshot_stream = os.fdopen(snapshot_fd, "wb")
+            snapshot_fd = None
+            with snapshot_stream as destination:
+                digest = hashlib.sha256()
+                byte_count = 0
+                while chunk := source.read(1024 * 1024):
+                    digest.update(chunk)
+                    byte_count += len(chunk)
+                    destination.write(chunk)
+                destination.flush()
+                os.fsync(destination.fileno())
+
+        if not isinstance(manifest.get("sha256"), str) or manifest["sha256"] != digest.hexdigest():
+            raise BackupError("backup_hash_mismatch")
+        if type(manifest.get("bytes")) is not int or manifest["bytes"] != byte_count:
+            raise BackupError("backup_size_mismatch")
+
+        actual = _inspect(snapshot)
+        for key in ("integrity", "user_version", "tables"):
+            if manifest.get(key) != actual[key]:
+                raise BackupError("backup_manifest_metadata_mismatch")
+        verified = {
+            "valid": True,
+            "sha256": manifest["sha256"],
+            "signer_fingerprint": manifest["signer_fingerprint"],
+            "created_at": manifest.get("created_at"),
+            **actual,
+        }
+    except BackupError:
+        if snapshot is not None:
+            snapshot.unlink(missing_ok=True)
         raise
+    except (OSError, sqlite3.Error, UnicodeError) as exc:
+        if snapshot is not None:
+            snapshot.unlink(missing_ok=True)
+        raise BackupError("backup_snapshot_unreadable") from exc
+    except Exception:
+        if snapshot is not None:
+            snapshot.unlink(missing_ok=True)
+        raise
+    finally:
+        for descriptor in (manifest_fd, backup_fd, snapshot_fd):
+            if descriptor is not None:
+                os.close(descriptor)
+
+    try:
+        yield snapshot, verified
+    finally:
+        if snapshot is not None:
+            snapshot.unlink(missing_ok=True)
 
 
 def verify_backup(
     backup: Path, *, trusted_public_key: Ed25519PublicKey | Path,
 ) -> dict[str, Any]:
-    """Verify content, SQLite integrity and a signature against an external trust pin."""
-    backup = Path(backup)
-    manifest_path = _manifest_path(backup)
-    if not backup.is_file() or not manifest_path.is_file():
-        raise BackupError("backup_or_manifest_missing")
-    try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise BackupError("backup_manifest_invalid") from exc
-    if not isinstance(manifest, dict) or manifest.get("format_version") != FORMAT_VERSION:
-        raise BackupError("backup_format_unsupported")
-    signature_text = manifest.pop("signature", None)
-    if not isinstance(signature_text, str):
-        raise BackupError("backup_signature_missing")
-    public = _load_public(trusted_public_key)
-    if manifest.get("signer_fingerprint") != _fingerprint(public):
-        raise BackupError("backup_signer_not_trusted")
-    try:
-        public.verify(base64.b64decode(signature_text, validate=True), _canonical(manifest))
-    except Exception as exc:
-        raise BackupError("backup_signature_invalid") from exc
-    if manifest.get("sha256") != _sha256(backup):
-        raise BackupError("backup_hash_mismatch")
-    if manifest.get("bytes") != backup.stat().st_size:
-        raise BackupError("backup_size_mismatch")
-    actual = _inspect(backup)
-    for key in ("integrity", "user_version", "tables"):
-        if manifest.get(key) != actual[key]:
-            raise BackupError("backup_manifest_metadata_mismatch")
-    return {
-        "valid": True, "sha256": manifest["sha256"],
-        "signer_fingerprint": manifest["signer_fingerprint"],
-        "created_at": manifest.get("created_at"), **actual,
-    }
+    """Verify a signed backup using one checked, private database snapshot."""
+    with _verified_backup_snapshot(
+        backup, trusted_public_key=trusted_public_key,
+    ) as (_, verified):
+        return verified
 
 
 def restore_backup(
     backup: Path, destination: Path, *, trusted_public_key: Ed25519PublicKey | Path,
 ) -> dict[str, Any]:
-    """Restore a signature-verified backup to a new path without replacing data."""
-    backup, destination = Path(backup), Path(destination)
-    verified = verify_backup(backup, trusted_public_key=trusted_public_key)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        raise BackupError("restore_destination_exists")
-    fd, temporary_name = tempfile.mkstemp(prefix=".nexora-restore-", dir=destination.parent)
-    os.close(fd)
-    temporary = Path(temporary_name)
-    try:
-        with _database_connection(f"file:{backup}?mode=ro", uri=True) as src, _database_connection(temporary) as dst:
-            src.backup(dst, pages=256, sleep=0.01)
-            _set_delete_journal_mode(dst)
-        restored = _inspect(temporary)
-        expected = {key: verified[key] for key in ("integrity", "user_version", "tables")}
-        if restored != expected:
-            raise BackupError("restored_database_validation_failed")
-        os.chmod(temporary, 0o600)
+    """Restore from the exact verified snapshot without replacing existing data."""
+    destination = Path(destination)
+    with _verified_backup_snapshot(
+        backup, trusted_public_key=trusted_public_key,
+    ) as (verified_snapshot, verified):
+        destination.parent.mkdir(parents=True, exist_ok=True)
         try:
-            _publish_no_replace(temporary, destination)
-        except BackupError as exc:
-            if str(exc) == "destination_exists":
-                raise BackupError("restore_destination_exists") from exc
+            destination.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            raise BackupError("restore_destination_exists")
+
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=".nexora-restore-", dir=destination.parent,
+        )
+        os.close(fd)
+        temporary = Path(temporary_name)
+        try:
+            with _database_connection(
+                f"file:{verified_snapshot}?mode=ro", uri=True,
+            ) as src, _database_connection(temporary) as dst:
+                src.backup(dst, pages=256, sleep=0.01)
+                _set_delete_journal_mode(dst)
+            restored = _inspect(temporary)
+            expected = {
+                key: verified[key] for key in ("integrity", "user_version", "tables")
+            }
+            if restored != expected:
+                raise BackupError("restored_database_validation_failed")
+            os.chmod(temporary, 0o600)
+            try:
+                _publish_no_replace(temporary, destination)
+            except BackupError as exc:
+                if str(exc) == "destination_exists":
+                    raise BackupError("restore_destination_exists") from exc
+                raise
+            return {"restored": True, "destination": str(destination), **restored}
+        except Exception:
+            temporary.unlink(missing_ok=True)
             raise
-        return {"restored": True, "destination": str(destination), **restored}
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        raise

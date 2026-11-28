@@ -18,10 +18,13 @@ NEXORA-SENTINEL v0.2.0 is a local-first governance and runtime foundation, not a
 
 - Unknown actions and unknown governance relationships fail closed; runtime policy mutation is disabled.
 - Emergency stop blocks policy decisions.
-- Audit append refuses a broken local hash chain.
+- Audit append serializes chain verification, sequence allocation and durable writes across cooperating processes using a persistent sidecar lock. Audit state paths are opened as regular non-symlink files, and append verification plus write use one checked descriptor; read-only audit search uses the same path check. Kill-switch engage/resume plus their audit records use a separate transition lock.
+- A failed audit append during resume leaves the kill marker in place. The locks coordinate callers using these APIs; they do not prevent direct file edits or privileged/non-cooperating writers.
 - APPROVED and ENABLED lifecycle transitions require scoped Ed25519 receipts and one-time nonce consumption in the same SQLite transaction as the state change. ENABLED, revocation and rollback authorization use multiple distinct enrolled signing keys as documented in GOVERNANCE.md.
 - SQLite backups use the online backup API, signed canonical manifests, externally supplied trusted public keys, integrity checks and non-overwriting restore.
-- Witness receipts use a separate Ed25519 key, signed sequence numbers and a previous-receipt hash chain. The append API serializes cooperating processes with POSIX `flock` or Windows `msvcrt` sidecar locking.
+- Backup verification opens the database and manifest as checked regular-file descriptors, rejects symlink/non-regular leaf paths, copies the database into a private temporary snapshot, and verifies the signed digest, byte count and SQLite metadata against that copy. Restore consumes the exact same verified snapshot rather than reopening the original pathname, closing the verify-then-reopen substitution window; the destination is checked with `lstat` and published without replacement.
+- Witness receipts use a separate Ed25519 key, signed sequence numbers and a previous-receipt hash chain. The signed witness stream rejects symlink/non-regular leaf paths and verifies/appends through one checked descriptor while a POSIX `flock` or Windows `msvcrt` sidecar lock is held. The legacy local witness stream uses the same checked-file and cross-process append boundary; neither stream is a remote or hardware trust anchor.
+- Recovery-history JSONL writes and reads use checked regular-file descriptors under a persistent history lock. The reader verifies the signed receipt chain and extracts recovery-event hashes in one locked descriptor pass, avoiding a verify-then-reopen race; only history rows whose digest appears in that verified receipt snapshot are returned. Symlink/non-regular history paths fail closed.
 - Update manifests bind the repository, main ref, exact commit SHA, version, timestamp and signer fingerprint. Installation requires an independently pinned public key and successful CI for the exact commit.
 - The web dashboard binds to loopback, is GET-only and exposes no mutation or execution endpoints.
 - Memory records are explicitly written, provenance-fingerprinted and append-only. A delete request appends a tombstone; it does not physically erase stored content.
@@ -80,3 +83,55 @@ traversal and symlinked model roots/artifacts. Optional SHA-256 checks prove
 only that the local file matches the operator-declared digest; they do not
 establish publisher authenticity. No model entry is automatically loaded,
 downloaded or executed, and no provider receives tool-execution authority.
+
+
+### Backup snapshot boundary
+
+The checked-file controls protect the backup and manifest leaf paths and bind verification to the bytes restored. They do not secure attacker-controlled parent directories, defend against a privileged process with access to the temporary directory, or establish off-device witness custody. Backup creation from a live registry remains a separate source-path and filesystem trust boundary.
+
+
+### Backup creation source and staging boundary
+
+Backup creation now rejects symlink/non-regular source database leaf paths through
+the shared checked-file opener and checks the open descriptor's identity around
+SQLite pathname operations. The source SQLite connection is read-only and the
+online backup API is retained so committed WAL contents are included. Python's
+standard sqlite3 API accepts a pathname rather than an existing file
+descriptor; therefore the descriptor checks narrow the substitution window but
+do not prove immunity to a same-user attacker who can replace and restore a
+pathname between checks. Parent-directory and privileged-host attacks remain
+outside this helper's boundary.
+
+Temporary backup artifacts are created inside a private staging directory in
+the destination parent. The database and manifest leaf files use exclusive
+creation and O_NOFOLLOW where available, remain descriptor-checked through
+publication, and are flushed before the no-replace hard-link publication.
+Destination and manifest occupancy checks use lstat, so dangling symlinks
+are not mistaken for absent paths. Failed partial publication removes only
+published regular files whose inode still matches the retained descriptor.
+
+These controls reduce accidental and unprivileged leaf-path substitution; they
+are not an OS sandbox or protection against privileged parent-directory
+manipulation. Cross-platform behavior must be qualified by the platform CI
+matrix and target-device tests.
+
+
+### Backup signing-key file boundary
+
+Private and trusted public backup-key loading now uses checked regular-file
+descriptors, rejects symlink/non-regular leaf paths, and bounds PEM file
+reads. Private-key permissions are checked on the opened descriptor rather
+than a pathname stat. Key-pair creation uses exclusive leaf creation,
+descriptor-bound writes, and identity-checked cleanup so failure cleanup
+does not unlink a path that has been replaced. These controls do not protect
+against malicious parent-directory control, privileged host attacks, or
+compromise of the key itself; key storage and trust-anchor custody remain
+operator responsibilities.
+
+
+
+### Trust-rotation statement file boundary
+
+Trust-rotation statements now read old private keys, replacement public keys, trusted old pins and manifests through bounded checked regular-file descriptors. Symlink and non-regular leaf paths are rejected; private-key permissions are checked on the opened descriptor on POSIX. The reader checks file identity and metadata before and after the bounded read, and verification uses the captured bytes rather than reopening the path. Statement output is created exclusively with no-follow flags where supported, flushed through a retained descriptor, and failure cleanup checks that the path still identifies the file created by the operation.
+
+A signed transition remains a proposal: it does not change trust pins, enroll the replacement key, activate it or authorize execution. These file checks do not protect against a privileged attacker, hostile parent-directory manipulation, all same-user filesystem races, compromised key custody or cross-platform behavior not qualified by CI/device tests.

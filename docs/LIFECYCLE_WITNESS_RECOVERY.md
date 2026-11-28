@@ -32,6 +32,7 @@ Copying files into different directories on one host is not independent trust. A
 
 5. Transfer the backup, witness log, and public-key pins using independently controlled channels. Never transfer a private signing key with the backup.
 6. Restore the signed backup to a new, non-existing destination path.
+   The verifier opens the backup and manifest as checked regular-file descriptors, rejects symlink/non-regular leaf paths, and validates a private temporary snapshot. Restore reads from that same verified snapshot; it does not reopen the backup pathname after verification. Existing destinations, including dangling symlinks, are rejected and publication is no-replace.
 7. Verify the restored database against the copied witness log and independently pinned witness public key:
 
    ```bash
@@ -51,9 +52,15 @@ Copying files into different directories on one host is not independent trust. A
 - The restored chain retains the exact witnessed head.
 - The copied witness material verifies the restored database.
 - Appending a later lifecycle event invalidates the old checkpoint.
+- Symlinked backup and manifest paths fail closed without following their targets.
+- A dangling symlink restore destination is treated as already occupied.
+- Replacing the original backup pathname after snapshot verification does not change the bytes restored; the restore consumes the verified private snapshot.
 
 The test uses separate temporary directories on one test host. It does not claim cross-device or cross-administrator verification. Physical off-device qualification remains an operator/device test.
 
 ## Failure handling
 
 Treat missing keys, unreadable witness storage, invalid signatures, a damaged chain, or a stale checkpoint as blocked. Do not fall back to trusting the local database, regenerate a trust key automatically, or rewrite the witness log to make verification pass.
+
+
+The automated path-substitution regression is a local filesystem test. It does not establish resistance to privileged parent-directory manipulation or prove that witness files were physically stored on a different device or under a different administrator.

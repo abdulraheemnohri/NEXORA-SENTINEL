@@ -16,11 +16,11 @@ from pathlib import Path
 from typing import Any
 
 from nexora.backup import BackupError
+from nexora.file_lock import exclusive_file_lock, open_regular_file
 from nexora.oversight.witness import (
     IndependentWitness,
     WitnessVerificationError,
-    _exclusive_file_lock,
-    verify_witness_chain,
+    verify_witness_chain_event_hashes,
 )
 from nexora.recovery_planner import RecoveryPlanningError, simulate_recovery
 
@@ -70,30 +70,27 @@ def record_recovery_simulation(
         event_hash = _digest(event)
         history_path = Path(history_log)
         receipt_path = Path(witness_receipt_log)
-        lock_paths = (
-            history_path.with_name(history_path.name + ".lock"),
-            receipt_path.with_name(receipt_path.name + ".lock"),
-        )
-        if any(path.is_symlink() for path in (history_path, receipt_path, *lock_paths)):
-            raise RecoveryHistoryError("history_or_receipt_log_symlink_refused")
+        # Validate/create the witness destination before writing history. If the
+        # receipt path is unsafe, no apparently completed history row is emitted.
+        witness = IndependentWitness(receipt_path, Path(witness_private_key))
         # A single append write prevents interleaving. The witness chain is the
         # authority; unreceipted history rows are ignored by the reader.
-        with _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")):
-            history_path.parent.mkdir(parents=True, exist_ok=True)
-            fd = os.open(history_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        history_lock = history_path.with_name(history_path.name + ".lock")
+        with exclusive_file_lock(history_lock):
+            descriptor = open_regular_file(
+                history_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600,
+            )
             try:
                 payload = _canonical({"event": event, "event_hash": event_hash}) + bytes([10])
-                with os.fdopen(fd, "ab", closefd=True) as stream:
+                with os.fdopen(descriptor, "ab", closefd=True) as stream:
                     stream.write(payload)
                     stream.flush()
                     os.fsync(stream.fileno())
-                fd = -1
+                descriptor = -1
             finally:
-                if fd >= 0:
-                    os.close(fd)
-        receipt = IndependentWitness(receipt_path, Path(witness_private_key)).attest(
-            event_hash, "recovery_simulation",
-        )
+                if descriptor >= 0:
+                    os.close(descriptor)
+        receipt = witness.attest(event_hash, "recovery_simulation")
         audit_recorded = False
         if audit_log is not None:
             from nexora.oversight import AuditLog
@@ -129,32 +126,49 @@ def read_recovery_history(
         raise RecoveryHistoryError("history_limit_out_of_range")
     history_path, receipt_path = Path(history_log), Path(witness_receipt_log)
     history_lock = history_path.with_name(history_path.name + ".lock")
-    receipt_lock = receipt_path.with_name(receipt_path.name + ".lock")
-    if any(path.is_symlink() for path in (history_path, receipt_path, history_lock, receipt_lock)):
-        raise RecoveryHistoryError("history_or_receipt_log_symlink_refused")
     try:
-        chain = verify_witness_chain(receipt_path, Path(trusted_witness_public_key))
-        trusted_hashes: set[str] = set()
-        with receipt_path.open(encoding="utf-8") as stream:
-            for line in stream:
-                receipt = json.loads(line)
-                if receipt["payload"].get("event_type") == "recovery_simulation":
-                    trusted_hashes.add(receipt["payload"]["event_hash"])
+        # Verify and extract receipt hashes in one locked, checked-descriptor pass.
+        # Do not verify a pathname and then reopen it to decide which rows are trusted.
+        chain, trusted_hashes = verify_witness_chain_event_hashes(
+            receipt_path,
+            Path(trusted_witness_public_key),
+            event_type="recovery_simulation",
+        )
         events = []
-        if history_path.is_file():
-            with (
-                _exclusive_file_lock(history_path.with_name(history_path.name + ".lock")),
-                history_path.open(encoding="utf-8") as stream,
-            ):
-                for number, line in enumerate(stream, 1):
-                    row = json.loads(line)
-                    event = row.get("event")
-                    event_hash = row.get("event_hash")
-                    if not isinstance(event, dict) or _digest(event) != event_hash:
-                        raise RecoveryHistoryError(f"history_record_integrity_invalid:{number}")
-                    if event_hash in trusted_hashes:
+        # Readers share the history writer lock and read through the checked
+        # descriptor. A missing history log means there are no persisted rows.
+        with exclusive_file_lock(history_lock):
+            try:
+                descriptor = open_regular_file(history_path, os.O_RDONLY)
+            except FileNotFoundError:
+                descriptor = None
+            if descriptor is not None:
+                with os.fdopen(descriptor, "r", encoding="utf-8") as stream:
+                    for number, line in enumerate(stream, 1):
+                        row = json.loads(line)
+                        if not isinstance(row, dict):
+                            raise RecoveryHistoryError(
+                                f"history_record_integrity_invalid:{number}"
+                            )
+                        event = row.get("event")
+                        event_hash = row.get("event_hash")
+                        if (
+                            not isinstance(event, dict)
+                            or not isinstance(event_hash, str)
+                            or _digest(event) != event_hash
+                        ):
+                            raise RecoveryHistoryError(
+                                f"history_record_integrity_invalid:{number}"
+                            )
+                        if event_hash in trusted_hashes:
                             events.append(event)
-        events.sort(key=lambda item: (item.get("timestamp", ""), item.get("simulation_id", "")), reverse=True)
+        events.sort(
+            key=lambda item: (
+                item.get("timestamp", ""),
+                item.get("simulation_id", ""),
+            ),
+            reverse=True,
+        )
         return {
             "valid": True,
             "trusted_receipt_chain": chain,
@@ -163,10 +177,17 @@ def read_recovery_history(
             "unwitnessed_records_excluded": True,
             "read_only": True,
         }
-    except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError, WitnessVerificationError) as exc:
-        if isinstance(exc, RecoveryHistoryError):
-            raise
-        raise RecoveryHistoryError(f"recovery_history_verification_failed:{type(exc).__name__}") from exc
+    except (
+        OSError,
+        json.JSONDecodeError,
+        KeyError,
+        TypeError,
+        ValueError,
+        WitnessVerificationError,
+    ) as exc:
+        raise RecoveryHistoryError(
+            f"recovery_history_verification_failed:{type(exc).__name__}"
+        ) from exc
 
 
 __all__ = ["RecoveryHistoryError", "read_recovery_history", "record_recovery_simulation"]

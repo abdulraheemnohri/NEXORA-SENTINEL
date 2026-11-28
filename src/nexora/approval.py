@@ -10,6 +10,7 @@ import json
 import os
 import secrets
 import sqlite3
+import stat
 import time
 from contextlib import nullcontext
 from pathlib import Path
@@ -21,11 +22,14 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
+from nexora.file_lock import open_regular_file
+
 SCHEMA_VERSION = 1
 MAX_TTL_SECONDS = 900
 CLOCK_SKEW_SECONDS = 60
 DEFAULT_KEY_LIFETIME_DAYS = 365
 MAX_KEY_LIFETIME_DAYS = 730
+MAX_APPROVAL_KEY_FILE_BYTES = 64 * 1024
 
 
 class ApprovalError(RuntimeError):
@@ -45,78 +49,227 @@ def _evidence_digest(evidence: list[str] | tuple[str, ...] | set[str]) -> str:
     return hashlib.sha256(_canonical({"evidence": values})).hexdigest()
 
 
+def _ensure_key_output_absent(
+    path: Path, *, exists_error: str = "key_output_already_exists",
+) -> None:
+    """Reject every existing leaf, including dangling symlinks, without following it."""
+    try:
+        path.lstat()
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise ApprovalError("key_output_path_invalid") from exc
+    raise ApprovalError(exists_error)
+
+
+def _assert_key_output_identity(path: Path, descriptor: int) -> None:
+    """Reject an observed replacement of a key output while it was written."""
+    try:
+        current = path.lstat()
+        opened = os.fstat(descriptor)
+    except OSError as exc:
+        raise ApprovalError("key_output_path_changed") from exc
+    same_identity = (
+        current.st_dev == opened.st_dev
+        and (
+            not current.st_ino
+            or not opened.st_ino
+            or current.st_ino == opened.st_ino
+        )
+    )
+    if (
+        not stat.S_ISREG(current.st_mode)
+        or not stat.S_ISREG(opened.st_mode)
+        or not same_identity
+    ):
+        raise ApprovalError("key_output_path_changed")
+
+
+def _write_new_key_file(
+    path: Path, data: bytes, *, mode: int,
+    exists_error: str = "key_output_already_exists",
+) -> None:
+    """Exclusively create and write a key file through one checked descriptor.
+
+    Failed writes are deliberately not cleaned up by pathname: a path may have
+    been replaced after open, and unlink-by-name could delete that replacement.
+    An incomplete output is left in place for explicit operator inspection.
+    """
+    try:
+        descriptor = open_regular_file(
+            path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode,
+        )
+    except FileExistsError as exc:
+        raise ApprovalError(exists_error) from exc
+    except (OSError, ValueError) as exc:
+        raise ApprovalError("key_output_path_invalid") from exc
+
+    try:
+        remaining = memoryview(data)
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written <= 0:
+                raise OSError("key file write made no progress")
+            remaining = remaining[written:]
+        if os.name == "posix" and hasattr(os, "fchmod"):
+            os.fchmod(descriptor, mode)
+        os.fsync(descriptor)
+        _assert_key_output_identity(path, descriptor)
+    except ApprovalError:
+        raise
+    except OSError as exc:
+        raise ApprovalError("key_output_write_failed") from exc
+    finally:
+        os.close(descriptor)
+
+
 def generate_signing_key(private_path: Path, *, overwrite: bool = False) -> str:
-    """Create an unencrypted PKCS8 Ed25519 key; caller must protect the file."""
+    """Create a new unencrypted PKCS8 Ed25519 key without replacing any file.
+
+    The overwrite flag is retained for API compatibility but is rejected. Use
+    a new key path and the audited trust-rotation process instead of replacing
+    a key in place.
+    """
+    if overwrite:
+        raise ApprovalError("key_overwrite_disabled_use_new_path")
     path = Path(private_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists() and not overwrite:
-        raise ApprovalError("private_key_already_exists")
+    _ensure_key_output_absent(
+        path, exists_error="private_key_already_exists",
+    )
     key = Ed25519PrivateKey.generate()
     data = key.private_bytes(
         serialization.Encoding.PEM,
         serialization.PrivateFormat.PKCS8,
         serialization.NoEncryption(),
     )
-    flags = os.O_WRONLY | os.O_CREAT | (os.O_TRUNC if overwrite else os.O_EXCL)
-    fd = os.open(path, flags, 0o600)
-    try:
-        with os.fdopen(fd, "wb") as stream:
-            stream.write(data)
-            stream.flush()
-            os.fsync(stream.fileno())
-    except Exception:
-        try:
-            path.unlink()
-        except OSError:
-            pass
-        raise
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
+    _write_new_key_file(
+        path, data, mode=0o600,
+        exists_error="private_key_already_exists",
+    )
     return public_key_fingerprint(key.public_key())
 
 
 def generate_keypair(private_path: Path, public_path: Path) -> str:
-    """Generate a dedicated Ed25519 keypair without overwriting either output."""
-    private_destination, public_destination = Path(private_path), Path(public_path)
-    if private_destination.resolve() == public_destination.resolve():
+    """Generate a dedicated keypair using exclusive descriptor-bound outputs.
+
+    The public file is published first. If a later private-file write fails,
+    an orphaned public file may remain; it is harmless and is not removed by a
+    pathname cleanup that could race with an unrelated replacement.
+    """
+    private_destination = Path(private_path)
+    public_destination = Path(public_path)
+    private_name = os.path.normcase(
+        os.path.abspath(os.path.normpath(os.fspath(private_destination)))
+    )
+    public_name = os.path.normcase(
+        os.path.abspath(os.path.normpath(os.fspath(public_destination)))
+    )
+    if private_name == public_name:
         raise ApprovalError("key_paths_must_be_different")
-    if private_destination.exists() or public_destination.exists():
-        raise ApprovalError("key_output_already_exists")
+
     private_destination.parent.mkdir(parents=True, exist_ok=True)
     public_destination.parent.mkdir(parents=True, exist_ok=True)
+    _ensure_key_output_absent(private_destination)
+    _ensure_key_output_absent(public_destination)
+
     key = Ed25519PrivateKey.generate()
     private_data = key.private_bytes(
-        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
         serialization.NoEncryption(),
     )
     public_data = key.public_key().public_bytes(
-        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo,
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
     )
-    created: list[Path] = []
-    try:
-        for destination, data, mode in (
-            (private_destination, private_data, 0o600),
-            (public_destination, public_data, 0o644),
-        ):
-            fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, mode)
-            created.append(destination)
-            with os.fdopen(fd, "wb") as stream:
-                stream.write(data)
-                stream.flush()
-                os.fsync(stream.fileno())
-    except OSError as exc:
-        for destination in created:
-            destination.unlink(missing_ok=True)
-        raise ApprovalError("keypair_write_failed") from exc
+
+    # Publish the non-secret half first so a collision cannot leave an orphaned
+    # private key behind. Both files are independently created without replace.
+    _write_new_key_file(public_destination, public_data, mode=0o644)
+    _write_new_key_file(private_destination, private_data, mode=0o600)
     return public_key_fingerprint(key.public_key())
+
+
+def _read_key_file(path: Path, *, private: bool) -> bytes:
+    """Read bounded key material from one checked descriptor.
+
+    The descriptor remains authoritative for the read. A final identity and
+    metadata check rejects observed path replacement or in-place modification.
+    """
+    key_path = Path(path)
+    kind = "private" if private else "public"
+    try:
+        descriptor = open_regular_file(key_path, os.O_RDONLY)
+    except (OSError, ValueError) as exc:
+        raise ApprovalError(f"{kind}_key_unreadable_or_invalid") from exc
+
+    try:
+        before = os.fstat(descriptor)
+        if private and os.name == "posix" and before.st_mode & 0o077:
+            raise ApprovalError("private_key_permissions_too_open")
+        if before.st_size > MAX_APPROVAL_KEY_FILE_BYTES:
+            raise ApprovalError(f"{kind}_key_file_too_large")
+
+        content = bytearray()
+        while len(content) <= MAX_APPROVAL_KEY_FILE_BYTES:
+            chunk = os.read(
+                descriptor,
+                min(8192, MAX_APPROVAL_KEY_FILE_BYTES + 1 - len(content)),
+            )
+            if not chunk:
+                break
+            content.extend(chunk)
+        if len(content) > MAX_APPROVAL_KEY_FILE_BYTES:
+            raise ApprovalError(f"{kind}_key_file_too_large")
+
+        after = os.fstat(descriptor)
+        same_inode = (
+            before.st_dev == after.st_dev
+            and (
+                not before.st_ino
+                or not after.st_ino
+                or before.st_ino == after.st_ino
+            )
+        )
+        unchanged = (
+            same_inode
+            and before.st_size == after.st_size
+            and before.st_mode == after.st_mode
+            and before.st_mtime_ns == after.st_mtime_ns
+            and before.st_ctime_ns == after.st_ctime_ns
+        )
+        if not unchanged:
+            raise ApprovalError(f"{kind}_key_changed_during_read")
+
+        try:
+            current = key_path.lstat()
+        except OSError as exc:
+            raise ApprovalError(f"{kind}_key_path_changed") from exc
+        path_matches = (
+            stat.S_ISREG(current.st_mode)
+            and current.st_dev == after.st_dev
+            and (
+                not current.st_ino
+                or not after.st_ino
+                or current.st_ino == after.st_ino
+            )
+        )
+        if not path_matches:
+            raise ApprovalError(f"{kind}_key_path_changed")
+        return bytes(content)
+    except ApprovalError:
+        raise
+    except OSError as exc:
+        raise ApprovalError(f"{kind}_key_unreadable_or_invalid") from exc
+    finally:
+        os.close(descriptor)
 
 
 def load_public_key(path: Path) -> Ed25519PublicKey:
     try:
-        key = serialization.load_pem_public_key(Path(path).read_bytes())
-    except (OSError, ValueError, TypeError) as exc:
+        key = serialization.load_pem_public_key(_read_key_file(path, private=False))
+    except (ValueError, TypeError) as exc:
         raise ApprovalError("public_key_unreadable_or_invalid") from exc
     if not isinstance(key, Ed25519PublicKey):
         raise ApprovalError("ed25519_public_key_required")
@@ -124,20 +277,17 @@ def load_public_key(path: Path) -> Ed25519PublicKey:
 
 
 def load_private_key(path: Path) -> Ed25519PrivateKey:
-    """Load a private key, refusing group/other-readable POSIX files."""
-    key_path = Path(path)
-    if os.name == "posix":
-        mode = key_path.stat().st_mode & 0o777
-        if mode & 0o077:
-            raise ApprovalError("private_key_permissions_too_open")
+    """Load a private key from a checked descriptor with restrictive POSIX permissions."""
     try:
-        key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
-    except (OSError, ValueError, TypeError) as exc:
+        key = serialization.load_pem_private_key(
+            _read_key_file(path, private=True),
+            password=None,
+        )
+    except (ValueError, TypeError) as exc:
         raise ApprovalError("private_key_unreadable_or_invalid") from exc
     if not isinstance(key, Ed25519PrivateKey):
         raise ApprovalError("ed25519_private_key_required")
     return key
-
 
 def public_key_bytes(key: Ed25519PublicKey) -> bytes:
     return key.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)

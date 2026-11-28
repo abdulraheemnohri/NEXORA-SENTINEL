@@ -1,6 +1,6 @@
 # Project Status — NEXORA Sentinel
 
-Last updated: 2026-11-19
+Last updated: 2026-11-28
 
 ## Current milestone
 
@@ -12,6 +12,7 @@ Safety kernel, durable self-family proposal review, capability evidence/maturity
 - Evidence-gated lifecycle registry, signed Ed25519 approvals, append-only lifecycle/revocation/rollback records.
 - Persistent budget ledger, review-only scheduler and tool proposal queue.
 - WAL-safe signed SQLite backups, external trust-key verification, non-overwriting restore, independent witness receipts.
+- Backup verification and restore reject symlink/non-regular backup or manifest leaf paths, verify a private snapshot against the signed digest/size/SQLite metadata, and restore from that exact snapshot to avoid a verify-then-reopen pathname race. Restore destinations are checked with `lstat` and published without replacement.
 - Backup-first transactional migrations and recovery-copy workflow.
 - Six provisional self-* domains; typed L0/L1 settings, deterministic proposals and durable append-only review records.
 - Read-only terminal dashboard: overview, audit chain, proposals and capability registry. SQLite dashboard views open the database in read-only mode and do not initialize or mutate it.
@@ -38,11 +39,11 @@ Safety kernel, durable self-family proposal review, capability evidence/maturity
 
 ## Next priorities
 
-1. Qualify lifecycle chain and witness checkpoint backup/recovery procedures, and test cross-device external witness storage.
-2. Define source-backed evidence expiry/revocation semantics before implementing evidence freshness monitoring.
-3. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
-4. Test read-only dashboard and CLI behavior on supported Linux and Android Debian terminals.
-5. Obtain missing source-backed capability/meta-rule definitions and reviewed interaction relationships.
+1. Continue the safety gate: harden backup creation's source/temp/manifest path handling, then perform actual off-device/off-administrator witness transfer and restore qualification. Current automated witness-copy tests prove same-host portability only; physical custody and cross-device behavior remain unverified.
+2. Obtain the exact verbatim source for capability definitions 1–84 and meta-rules 1–15. Conversation-linked retrieval found a different 264-capability/45-rule specification and partial excerpts only; it is not a substitute. Canonical import remains blocked and no missing text may be inferred.
+3. Define source-backed evidence expiry/revocation semantics before implementing evidence freshness monitoring.
+4. Add a controlled, audited settings-change workflow only after defining per-setting authorization and rollback requirements.
+5. Test read-only dashboard and CLI behavior on supported Linux and Android Debian terminals.
 6. Design OS-enforced sandbox isolation before any execution feature.
 7. Verify the official LiteRT-LM CLI and a small `.litertlm` model on Pixel/Android Debian; only then test Qwen3-4B-Thinking-2507 with measured resource/throughput results.
 
@@ -353,3 +354,300 @@ The corrected SQLite handle fix removed the prior backup/restore temp-file error
 - Provider selection and model inventory remain metadata only. No automatic
   provider execution, model loading, download, inference or tool invocation
   is introduced.
+
+
+## Cross-process audit and emergency-stop serialization — 2026-11-20
+
+- Added a shared POSIX/Windows advisory sidecar-lock helper. It rejects observed
+  symlink and non-regular lock paths; runtime lock files remain persistent and
+  are excluded from Git.
+- Audit appends now hold one lock across chain verification, sequence allocation,
+  append, flush and fsync. This prevents cooperating writers from allocating the
+  same sequence or forking the hash chain.
+- Kill-switch direct operations and the CLI's combined state-plus-audit
+  transitions now share a per-marker lock. Resume records its decision before
+  marker removal; if the audit append fails, the marker remains engaged.
+- The signed witness stream and recovery-history writer now use the shared lock
+  helper instead of a duplicated private implementation.
+- Added regression coverage for 80 concurrent audit records across four spawned
+  processes, a forced kill/resume interleaving, and POSIX symlink lock refusal.
+- Threat-model notes now explicitly state that these are advisory locks for
+  cooperating processes, not protection against direct writes, lock-file
+  deletion, privileged tampering or non-cooperating writers.
+
+**Code commits:** `88d913f7e51b1e8069ce7732a957bc1f0b77116f`,
+`c0c262e1b7055aa4750b4aa7c6f9bd7274de2ff6`,
+`f02af6a9b50afdfc8387e6b72a63944dd2a4bd2b`,
+`449ba468212240597822cec765a27d84aa271357`.
+
+**Exact code-head verification** (`449ba468212240597822cec765a27d84aa271357`):
+- Tests workflow: Ruff passed; pytest **484 passed in 29.02s**; compileall passed.
+- Security workflow: pip check reported no broken requirements; Ruff passed;
+  compileall passed; pytest **484 passed in 31.15s**.
+- Build workflow: `python -m build` succeeded.
+- Formal Verification workflow: TLC lifecycle safety model check succeeded.
+- Initial CI attempts exposed a stale private-lock import and one Ruff import
+  ordering issue; both were fixed before the successful exact-head runs.
+
+**Repository state:** PR #1 was already merged into `main` on 2026-11-18
+(merge commit `5667510fd14797da68e369f3bbb4fd124e0ba3de`), so it cannot be kept
+open or used as an active review target. This increment is in draft PR #22,
+stacked on PR #21. No open GitHub issues were found during this run.
+
+**Not verified:** this stacked PR did not trigger the main-targeted
+Windows/macOS platform-qualification matrix. No Windows/macOS execution,
+Android device test, or on-device recovery test was performed. No execution
+capability or higher autonomy level was enabled.
+
+**Next priority:** recover the exact original capability definitions 1–84 and
+meta-rules 1–15 from the user's source messages before importing them. The
+source-recovery lookup identified the original message headings and ID ranges,
+but did not return the complete source text; see `docs/SOURCE_RECOVERY.md`.
+Do not fabricate or import summaries as canonical definitions.
+
+## Audit state-file path hardening — 2026-11-21
+
+- Added a shared regular-file opener that checks the leaf path before and after
+  opening, rejects symlinks and non-regular files, and compares the opened
+  descriptor identity with the path identity. POSIX uses `O_NOFOLLOW` where
+  available; other platforms use pre/post metadata checks.
+- Audit log initialization no longer follows a symlink or changes permissions
+  on its target. Audit reads and the read-only audit-search endpoint use the
+  checked descriptor.
+- Audit append now verifies the chain, allocates the next sequence and appends
+  through one checked descriptor. The audit file is not silently recreated if
+  it disappears after initialization. Sequence continuity is verified before
+  a new record is appended.
+- Preserved the established fail-closed `RuntimeError` contract for corrupt
+  audit data, so resume cannot clear the kill marker when the audit is invalid.
+- Added regression tests for symlinked audit destinations, path replacement
+  with a symlink, non-regular destinations and unchanged symlink targets.
+- The first exact-head attempt (`adf54072f040986fe061d01f6a463655877a2bf9`)
+  exposed two regressions: corrupt JSON surfaced as `ValueError` instead of
+  the established `RuntimeError`. Corrected in
+  `4e050a8987b5c778e5e541ae9af173dce2c3e3a2`.
+
+**Exact code-head verification** (`4e050a8987b5c778e5e541ae9af173dce2c3e3a2`):
+- Tests workflow: Ruff passed; pytest **487 passed in 29.00s**; compileall passed.
+- Security workflow: pip check, Ruff, compileall and pytest **487 passed in 31.19s**.
+- Build workflow: wheel build passed.
+- Formal Verification workflow: TLC lifecycle safety model check passed.
+- [Tests run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768580), [Security run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768708), [Build run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768575), and [Formal Verification run](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44859768573).
+
+**Not verified:** Windows/macOS execution of the new regular-file helper,
+Android Debian installation, physical-device recovery or cross-device witness
+custody. The stacked PR does not trigger the main-targeted platform matrix.
+
+**Specification blocker:** a fresh prior-conversation lookup again returned
+only the original section headings and ID ranges for capability definitions
+1–84 and meta-rules 1–15, not the exact source text. No canonical records were
+invented or imported. The source-recovery blocker remains documented in
+`docs/SOURCE_RECOVERY.md`.
+
+**Next safety task:** apply checked regular-file opening and descriptor-bound
+verification/appends to the signed independent witness log and legacy witness
+stream. These still use path-based `touch()`/`open()` operations. Keep
+execution disabled and autonomy at L0/L1.
+
+## Signed and legacy witness file hardening — 2026-11-22
+
+- The Ed25519 `IndependentWitness` now creates and opens its receipt log through
+  the shared checked regular-file helper. Symlink and non-regular leaf paths are
+  rejected; POSIX file permissions are applied to the opened descriptor.
+- Signed witness verification reads through a checked descriptor. Attestation
+  holds the witness sidecar lock across chain verification, sequence allocation,
+  signing and append, and uses the same checked descriptor for verification and
+  writing rather than reopening the pathname.
+- The legacy local `Witness` stream now uses the same checked-file boundary and
+  a cross-process sidecar lock for append. This legacy stream remains a local
+  hash receipt, not a cryptographically signed or remote witness.
+- Added seven regression tests covering signed-log symlink creation, symlink
+  replacement on append, symlink verification, non-regular destinations,
+  40 concurrent signed receipts, legacy symlink refusal and 40 concurrent
+  legacy appends.
+- The first CI attempt found Ruff TRY004 on the new invalid-event-type guard.
+  The guard now raises `TypeError` and the corrected code was rechecked.
+
+**Code commits:** `9f775eeaaa1850557595e45779051bff2f575843` and
+`5d8adc13dba3e4f78e5542402ec086245aa1de62`.
+
+**Exact code-head verification** (`5d8adc13dba3e4f78e5542402ec086245aa1de62`):
+- Tests workflow: Ruff passed; pytest **494 passed in 27.72s**; compileall passed.
+- Security workflow: pip check reported no broken requirements; Ruff and
+  compileall passed; pytest **494 passed in 33.16s**.
+- Build workflow: `python -m build` succeeded.
+- Formal Verification workflow: TLC lifecycle safety model check succeeded.
+- [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414744),
+  [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414796),
+  [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414831),
+  and [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/44982414810).
+
+**Not verified:** Windows/macOS platform execution, Android installation/device
+recovery, parent-directory tampering, remote witness custody or hardware-backed
+key custody. The new path helper protects the leaf file path and cooperating
+writers; it is not an OS isolation boundary or protection against a privileged
+attacker controlling the host.
+
+**Specification recovery status:** targeted conversation-linked retrieval now
+confirms the original user messages and returned the exact first capability
+(Self-Explaining through Self-Reflecting) and meta-rule 1 (Proposal, not mutation).
+The recovered capability excerpts cover IDs 1–6. The complete verbatim set for capabilities
+1–84 and meta-rules 1–15 has not yet been assembled and checked into a source
+artifact. No partial summary or inferred definition has been imported into the
+canonical catalogue.
+
+**Next safety task:** harden the recovery-history JSONL writer and reader, which
+still use direct path-based opens for the history and witness receipt streams.
+Then continue exact-source recovery in bounded, source-verifiable chunks.
+Keep autonomy at L0/L1 and execution disabled.
+
+
+## Recovery-history path and receipt-snapshot hardening — 2026-11-23
+
+- Recovery-simulation history writes now use the shared checked regular-file opener while holding the persistent history sidecar lock. The signed witness destination is validated/initialized before a history row is written; successful history appends are flushed and fsynced.
+- Recovery-history reads now hold the same history lock and read through one checked descriptor. A missing history file remains an empty history; symlink and non-regular leaf paths fail closed.
+- Added `verify_witness_chain_event_hashes`: it verifies the full Ed25519 receipt sequence, predecessor hashes, signer fingerprint and signatures while collecting `recovery_simulation` event hashes from the same locked, checked descriptor pass. The previous verify-then-reopen receipt-path race is removed.
+- History rows must be JSON objects with a dictionary event and matching string SHA-256 digest. Only hashes present in the verified signed receipt snapshot are returned as trusted events; unwitnessed rows remain excluded.
+- Added four regressions for symlinked history/receipt paths on read and write. Tests assert the symlink targets remain unchanged and a symlinked receipt destination does not create a history row.
+- Code commit: `c7d62f2562336b53970a32787ac73c5cf48f925c`.
+- Exact-code-head CI: Ruff passed; pytest **498 passed** in Tests and Security; compileall passed; Security `pip check` passed; wheel build passed; TLC formal verification passed. See [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209833), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209824), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209915), and [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45106209827).
+- Not verified: Windows/macOS execution of these paths, Android Debian/device recovery, parent-directory tampering, privileged/non-cooperating writers or independent remote witness custody. Advisory locks coordinate cooperating processes only; checked leaf-file descriptors are not an OS isolation boundary.
+
+**Next safety task:** qualify lifecycle-chain and independent-witness checkpoint backup/recovery, including interrupted and cross-device recovery procedures. Then resume exact-source recovery. Keep autonomy at L0/L1 and execution disabled.
+
+
+## Signed backup verification and restore snapshot hardening — 2026-11-24
+
+- `verify_backup` now opens the backup and manifest through the shared checked regular-file helper. Symlink and non-regular leaf paths fail closed.
+- The database is copied from the already-open descriptor into a private temporary snapshot. The signed manifest, digest, byte count and SQLite metadata are checked against that snapshot.
+- `restore_backup` consumes the exact verified snapshot rather than reopening the original backup path after verification. This closes the verify-then-reopen pathname substitution window.
+- Restore destination detection uses `lstat`, including dangling symlinks, and publication remains atomic/no-replace.
+- Added four regression tests for symlinked backup/manifest paths, dangling-symlink restore destinations and backup-path replacement between verification and restore.
+- Code commit: `cc4c8bf42bd443f05b1705b170a01e0a7ca345cb`; regression tests: `d8637860b644c52d46f9393a98e8e8e5f3ac7769`; Ruff import correction: `874212e05b9737564baf8a15d24852cf041ff37b`.
+- Exact-head CI on `874212e05b9737564baf8a15d24852cf041ff37b`: Ruff passed; pytest **502 passed** in Tests and Security; compileall passed; Security `pip check` passed; wheel build passed; TLC lifecycle model check passed.
+- [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317366960), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317367113), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317367061), and [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45317367644).
+- Not verified: Windows/macOS execution of the new backup-path code, actual off-device witness custody, Android restore, privileged parent-directory tampering or hardware-backed key custody. The automated witness-copy test remains same-host only.
+- The first test workflow on commit `d8637860b644c52d46f9393a98e8e8e5f3ac7769` failed at Ruff because the contextmanager import was duplicated. The duplicate was removed in `874212e05b9737564baf8a15d24852cf041ff37b`; the corrected exact-head workflow suite passed.
+
+**Next task:** obtain the exact original capability/meta-rule source text before canonical import; separately schedule physical off-device witness qualification when two independently controlled storage environments are available. Do not infer source definitions or claim same-host tests prove independent custody.
+
+
+## Backup creation source and staging hardening — 2026-11-25
+
+- create_backup opens the source database through the shared checked regular-file helper and rejects symlink/non-regular leaf paths.
+- The source descriptor identity is checked around read-only SQLite pathname operations. The online SQLite backup API remains in use so committed WAL data is retained.
+- Destination and manifest preflight uses lstat, including dangling symlinks.
+- Temporary database and manifest artifacts are created inside a private staging directory with exclusive creation and O_NOFOLLOW where supported.
+- Temporary artifacts remain descriptor-checked, are flushed before publication, and are published with the existing no-replace mechanism.
+- Failure cleanup removes published files only when the path still identifies the retained descriptor inode.
+- Added five regressions for symlinked/non-regular source paths, dangling destination/manifest symlinks, and source-path replacement before SQLite snapshotting.
+- Implementation commit: [d233eaafd0eac95acb75869ad8aaf543f39dddd9](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/commit/d233eaafd0eac95acb75869ad8aaf543f39dddd9).
+- Ruff correction commits: [a59724d861af55458d2fd54f8d52e94127f3a344](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/commit/a59724d861af55458d2fd54f8d52e94127f3a344) and [5da843ee708f984d3141efded9906a8972601d0d](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/commit/5da843ee708f984d3141efded9906a8972601d0d).
+- Exact branch-head verification on 5da843ee708f984d3141efded9906a8972601d0d:
+  - Ruff: passed.
+  - Tests workflow: **507 passed in 29.47s**.
+  - Security workflow: **507 passed in 30.72s**; pip check reported no broken requirements.
+  - Python compileall: passed in Tests and Security.
+  - Wheel build: passed.
+  - TLC lifecycle formal verification: passed.
+- Workflow evidence: [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629747), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629716), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629763), [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45540629726).
+- Initial CI attempts caught an invalid context-manager form and then Ruff SIM117; both were investigated and corrected in the two follow-up commits above. All four workflows passed on the final exact code head.
+- Not verified: Windows/macOS qualification of these changes, Android/device backup execution, physical off-device/off-administrator witness custody, parent-directory manipulation or privileged-host attacks. The new source identity checks narrow but do not eliminate a same-user swap-and-restore race because stdlib sqlite3 opens source databases by pathname.
+
+**Next blockers and work:**
+1. Perform off-device/off-administrator witness transfer and restore only when two independently controlled storage environments, keys and administrators are available. Same-host tests are not independent-custody evidence.
+2. Qualify backup creation and restore on Windows/macOS and Android Debian/device targets. This PR is stacked on PR #21; the main-targeted platform matrix is not triggered for this stacked base.
+3. Recover the exact original capability definitions 1–84 and meta-rules 1–15 before canonical import. Existing partial excerpts and the separate 264/45 source lead are not substitutes.
+4. Keep autonomy at L0/L1, execution disabled, and unknown interaction relationships blocked/escalated.
+
+
+## Capability-source provenance correction — 2026-11-25
+
+- A fresh targeted conversation-context retrieval confirms a separate user-supplied “Self-Terminal AI — Complete Project Specification,” described as 264 capabilities and 45 meta-rules, but did not return its exact message body. A targeted follow-up search for that verbatim body returned no matching conversation.
+- The retrieval does not authenticate the previously cited separate “Expanded Self-Capability Set” and “Extended Self-Capability Set (Addendum II)” messages as user-supplied source documents.
+- Earlier partial transcriptions of capabilities 1–6 and meta-rule 1 are not independently authenticated against the original user message and must not be treated as canonical source.
+- Exact, verifiable source text for capabilities 1–84 and meta-rules 1–15 remains blocked. No records were imported or inferred. See the provenance correction in docs/SOURCE_RECOVERY.md.
+- Required input: an export, attachment or verbatim text of the original source containing the exact records and rules. Canonical import remains disabled pending source verification and separate human approval.
+
+
+## Backup signing-key path hardening — 2026-11-26
+
+- Key loading uses the shared checked regular-file opener, descriptor-based POSIX private-key permission checks, and bounded reads for PEM files.
+- Key-pair creation rejects identical paths and pre-existing leaf paths (including dangling symlinks), uses exclusive/no-follow creation where supported, flushes through retained descriptors, and checks file identity before returning.
+- Failure cleanup removes only files that still match retained descriptors, avoiding deletion of a replaced path.
+- Added seven regression tests for symlinked private/public loaders, private-key permissions, oversized public-key files, identical output paths, dangling public symlinks and cleanup after a private-path replacement.
+- Local checkout/testing was unavailable in this run because the execution environment could not resolve GitHub. CI will be used as the full-suite verification source; do not treat local tests as executed.
+- Next: verify final branch-head CI and continue independent witness/platform qualification.
+
+
+## Backup signing-key path hardening — 2026-11-26 (verified)
+
+- Private and trusted public key files are opened through the shared checked regular-file helper; symlink/non-regular leaf paths fail closed.
+- Private-key mode bits are checked from the opened descriptor on POSIX, and both PEM reads are bounded to 64 KiB.
+- Key-pair creation rejects identical normalized output paths and pre-existing destinations, including dangling symlinks. Files are created exclusively, with no-follow/binary flags where supported, written and flushed through retained descriptors, and checked against their path before success.
+- Failure cleanup unlinks only paths still identifying the descriptors created by this operation. A replacement path is left untouched.
+- Added seven regressions: private/public key-loader symlink rejection, descriptor-based private permissions, oversized public-key rejection, same-path rejection, dangling public symlink preservation, and cleanup after private-path replacement.
+- Exact code commit: \`a0aa53616f44f15243f907fc686e1ba23ae668b7\`.
+- [x] Ruff passed.
+- [x] Tests workflow: **514 passed in 28.12s**.
+- [x] Security workflow: **514 passed in 28.02s**; pip check clean.
+- [x] Compileall passed.
+- [x] Wheel build passed.
+- [x] TLC lifecycle safety model check passed.
+- Workflow evidence: [Tests](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813817), [Security](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813950), [Build](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813800), [Formal Verification](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45747813791).
+- Local repository checkout was unavailable because the environment could not resolve \`github.com\`; full-suite verification was therefore performed by the repository's GitHub Actions workflows, not local execution.
+- Limitations: parent-directory/privileged-host attacks, OS-specific key custody and Windows/macOS/Android qualification remain unverified. Private keys remain unencrypted PEM files; restrictive local permissions are not equivalent to hardware-backed or independently administered key custody.
+- Next: review key rotation and recovery procedures, then qualify independent witness custody and target platforms.
+
+
+
+## Trust-rotation statement file hardening — 2026-11-27 (verified)
+
+- Trust-rotation old private keys, replacement public keys, trusted old public pins and manifests now use bounded checked regular-file descriptor reads; symlink/non-regular leaf paths fail closed.
+- POSIX private-key mode bits are checked from the opened descriptor. Reads compare opened-file identity and metadata before and after reading, and verification consumes the captured byte snapshot without reopening the pathname.
+- Rotation statement output uses exclusive/no-follow creation where supported, retains the descriptor through flush and identity checks, and attempts failure cleanup only if the current path still identifies the created file.
+- A signed rotation statement remains a proposal: it does not enroll a replacement, change trust pins, activate a key or authorize execution.
+- Added six regressions for symlinked key inputs, private-key permissions, non-regular/oversized manifest inputs, path replacement during manifest read and replacement-path preservation on write failure.
+- Final code/test head: `525cd19e094ad997e5ef7df37856f8a12ea1e584`.
+- [x] Ruff passed.
+- [x] Tests workflow — **520 passed**.
+- [x] Security workflow — **520 passed**, pip check clean.
+- [x] Compileall passed.
+- [x] Wheel build passed.
+- [x] TLC lifecycle model check passed.
+- CI evidence: [Tests — 45937133480](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133480), [Security — 45937133529](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133529), [Build — 45937133482](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133482), [Formal Verification — 45937133527](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/45937133527).
+- Initial CI attempts exposed Ruff import-ordering errors and a regression assertion that expected a different fail-closed error code. Both were investigated and corrected; the final four workflows passed on the code/test head.
+- Local checkout and test execution were unavailable in this run. The evidence above is from GitHub-hosted Actions, not local execution.
+- Limitations: parent-directory and privileged-host manipulation, independent key custody, OS/device qualification and actual trust-pin activation/recovery remain unverified.
+- Next: review the shared approval-key file boundary and key revocation/compromise recovery semantics.
+
+
+## Shared approval-key read-boundary hardening — 2026-11-28
+
+- `load_public_key` and `load_private_key` now read PEM material from the same checked regular-file descriptor. Symlink and non-regular leaf paths fail closed through the shared `open_regular_file` helper.
+- Both key types have a 64 KiB input bound. Private-key POSIX permission bits are checked with `fstat` on the opened descriptor.
+- The reader compares descriptor identity and metadata before/after reading, then checks that the path still identifies the opened file. Observed in-place mutation or pathname substitution fails closed.
+- Added six regression tests for public/private symlinks, non-regular public-key paths, private-key permissions, oversized PEM inputs and replacement of the public-key path during a read.
+- Implementation commit: `fec2e1302b26c031f9d22b28c6a5cdc7b5a37379`.
+- Regression-test commit: `eb20958ed03d547fe21a4b36f721555c95880ce5`.
+- CI runs on the exact test head `eb20958ed03d547fe21a4b36f721555c95880ce5` were created but remained queued at the time of this status update: [Security — 46104580680](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580680), [Formal Verification — 46104580687](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580687), [Build — 46104580699](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580699), [Tests — 46104580733](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580733). No passing result is claimed for this head yet.
+- No local checkout or local pytest/Ruff/compileall execution was performed in this connector-based run. Await the exact-head GitHub Actions results before treating the increment as verified.
+- Key-pair creation and the legacy `generate_signing_key(overwrite=True)` output path still require a separate descriptor-safe creation/overwrite review. This increment hardens key loading only.
+- The read checks protect the leaf path and observed file mutation; they do not protect against privileged host compromise or an attacker controlling parent directories. POSIX mode bits are not equivalent to hardware-backed or independently administered key custody.
+
+**Next task:** harden approval-key generation and overwrite behavior without deleting replacement paths; then review recovery-authority compromise/revocation semantics. Keep trust enrollment, privilege expansion and ENABLED lifecycle transitions human-gated.
+
+
+## Approval-key generation and overwrite hardening — 2026-11-28
+
+- Approval signing-key and keypair outputs now use the shared checked regular-file opener with exclusive creation, no-follow behavior where supported, descriptor-bound writes, descriptor-based POSIX mode enforcement, fsync, and post-write path identity checks.
+- Existing destinations, including dangling symlinks, are rejected before output creation. Keypair path equality uses normalized absolute lexical paths.
+- The legacy generate_signing_key overwrite argument remains accepted for API compatibility but overwrite=True now fails closed with key_overwrite_disabled_use_new_path. Key replacement must use a new path and the explicit trust-rotation process; in-place private-key truncation is disabled.
+- Keypairs publish the non-secret public file first, then the private file. A later failure may leave an orphaned public file. Failed outputs are not removed by pathname cleanup because a replacement could be unlinked; incomplete outputs require explicit operator inspection.
+- Added five regressions covering overwrite refusal and preservation, dangling symlink refusal, and replacement-path preservation during single-key and keypair writes.
+- Implementation commit: 0f1b3eb86532f699ebc1d2e991b8bba3d4b68f55. Status log commit: 9b7334d3650e00ccb9fe24934b9471a9cb453609. Compatibility correction preserving private_key_already_exists: 27217f6da2ed271597dbc32d1d342c5530447c90.
+- Exact code/test head: 27217f6da2ed271597dbc32d1d342c5530447c90. Its Tests, Security, Build and Formal Verification runs were created but were still queued at the time of this status update. No passing test, lint, compile or packaging claim is made for this head.
+- The prior 520-test evidence applies to the earlier trust-rotation code head 525cd19e094ad997e5ef7df37856f8a12ea1e584, not to the approval-key read/generation changes now in this branch.
+- No local checkout or local Ruff/pytest/compileall execution was available in this connector-based run. Await exact-head GitHub Actions results.
+- Limitations: parent-directory and privileged-host attacks, OS-specific ACL/key custody, and Windows/macOS/Android qualification remain unverified. Failed creation can leave a partial file; no automatic cleanup is attempted to avoid deleting a replacement.
+- Next: verify all queued exact-head workflows, then review ApprovalReceiptStore database path/locking and revocation/compromise recovery semantics. Keep trust enrollment, key activation, privilege expansion and ENABLED transitions human-gated.
