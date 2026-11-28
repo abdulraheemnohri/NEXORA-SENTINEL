@@ -620,3 +620,19 @@ Keep autonomy at L0/L1 and execution disabled.
 - Local checkout and test execution were unavailable in this run. The evidence above is from GitHub-hosted Actions, not local execution.
 - Limitations: parent-directory and privileged-host manipulation, independent key custody, OS/device qualification and actual trust-pin activation/recovery remain unverified.
 - Next: review the shared approval-key file boundary and key revocation/compromise recovery semantics.
+
+
+## Shared approval-key read-boundary hardening — 2026-11-28
+
+- `load_public_key` and `load_private_key` now read PEM material from the same checked regular-file descriptor. Symlink and non-regular leaf paths fail closed through the shared `open_regular_file` helper.
+- Both key types have a 64 KiB input bound. Private-key POSIX permission bits are checked with `fstat` on the opened descriptor.
+- The reader compares descriptor identity and metadata before/after reading, then checks that the path still identifies the opened file. Observed in-place mutation or pathname substitution fails closed.
+- Added six regression tests for public/private symlinks, non-regular public-key paths, private-key permissions, oversized PEM inputs and replacement of the public-key path during a read.
+- Implementation commit: `fec2e1302b26c031f9d22b28c6a5cdc7b5a37379`.
+- Regression-test commit: `eb20958ed03d547fe21a4b36f721555c95880ce5`.
+- CI runs on the exact test head `eb20958ed03d547fe21a4b36f721555c95880ce5` were created but remained queued at the time of this status update: [Security — 46104580680](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580680), [Formal Verification — 46104580687](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580687), [Build — 46104580699](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580699), [Tests — 46104580733](https://github.com/abdulraheemnohri/NEXORA-SENTINEL/actions/runs/46104580733). No passing result is claimed for this head yet.
+- No local checkout or local pytest/Ruff/compileall execution was performed in this connector-based run. Await the exact-head GitHub Actions results before treating the increment as verified.
+- Key-pair creation and the legacy `generate_signing_key(overwrite=True)` output path still require a separate descriptor-safe creation/overwrite review. This increment hardens key loading only.
+- The read checks protect the leaf path and observed file mutation; they do not protect against privileged host compromise or an attacker controlling parent directories. POSIX mode bits are not equivalent to hardware-backed or independently administered key custody.
+
+**Next task:** harden approval-key generation and overwrite behavior without deleting replacement paths; then review recovery-authority compromise/revocation semantics. Keep trust enrollment, privilege expansion and ENABLED lifecycle transitions human-gated.
