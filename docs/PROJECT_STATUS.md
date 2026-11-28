@@ -636,3 +636,18 @@ Keep autonomy at L0/L1 and execution disabled.
 - The read checks protect the leaf path and observed file mutation; they do not protect against privileged host compromise or an attacker controlling parent directories. POSIX mode bits are not equivalent to hardware-backed or independently administered key custody.
 
 **Next task:** harden approval-key generation and overwrite behavior without deleting replacement paths; then review recovery-authority compromise/revocation semantics. Keep trust enrollment, privilege expansion and ENABLED lifecycle transitions human-gated.
+
+
+## Approval-key generation and overwrite hardening — 2026-11-28
+
+- Approval signing-key and keypair outputs now use the shared checked regular-file opener with exclusive creation, no-follow behavior where supported, descriptor-bound writes, descriptor-based POSIX mode enforcement, fsync, and post-write path identity checks.
+- Existing destinations, including dangling symlinks, are rejected before output creation. Keypair path equality uses normalized absolute lexical paths.
+- The legacy generate_signing_key overwrite argument remains accepted for API compatibility but overwrite=True now fails closed with key_overwrite_disabled_use_new_path. Key replacement must use a new path and the explicit trust-rotation process; in-place private-key truncation is disabled.
+- Keypairs publish the non-secret public file first, then the private file. A later failure may leave an orphaned public file. Failed outputs are not removed by pathname cleanup because a replacement could be unlinked; incomplete outputs require explicit operator inspection.
+- Added five regressions covering overwrite refusal and preservation, dangling symlink refusal, and replacement-path preservation during single-key and keypair writes.
+- Implementation commit: 0f1b3eb86532f699ebc1d2e991b8bba3d4b68f55. Compatibility correction preserving private_key_already_exists: 27217f6da2ed271597dbc32d1d342c5530447c90.
+- Exact code/test head: 27217f6da2ed271597dbc32d1d342c5530447c90. Its Tests, Security, Build and Formal Verification runs were created but were still queued at the time of this status update. No passing test, lint, compile or packaging claim is made for this head.
+- The prior 520-test evidence applies to the earlier trust-rotation code head 525cd19e094ad997e5ef7df37856f8a12ea1e584, not to the approval-key read/generation changes now in this branch.
+- No local checkout or local Ruff/pytest/compileall execution was available in this connector-based run. Await exact-head GitHub Actions results.
+- Limitations: parent-directory and privileged-host attacks, OS-specific ACL/key custody, and Windows/macOS/Android qualification remain unverified. Failed creation can leave a partial file; no automatic cleanup is attempted to avoid deleting a replacement.
+- Next: verify all queued exact-head workflows, then review ApprovalReceiptStore database path/locking and revocation/compromise recovery semantics. Keep trust enrollment, key activation, privilege expansion and ENABLED transitions human-gated.
