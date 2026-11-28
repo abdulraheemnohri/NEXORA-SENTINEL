@@ -1,6 +1,6 @@
 # Project Status — NEXORA Sentinel
 
-Last updated: 2026-11-24
+Last updated: 2026-11-28
 
 ## Current milestone
 
@@ -645,7 +645,7 @@ Keep autonomy at L0/L1 and execution disabled.
 - The legacy generate_signing_key overwrite argument remains accepted for API compatibility but overwrite=True now fails closed with key_overwrite_disabled_use_new_path. Key replacement must use a new path and the explicit trust-rotation process; in-place private-key truncation is disabled.
 - Keypairs publish the non-secret public file first, then the private file. A later failure may leave an orphaned public file. Failed outputs are not removed by pathname cleanup because a replacement could be unlinked; incomplete outputs require explicit operator inspection.
 - Added five regressions covering overwrite refusal and preservation, dangling symlink refusal, and replacement-path preservation during single-key and keypair writes.
-- Implementation commit: 0f1b3eb86532f699ebc1d2e991b8bba3d4b68f55. Compatibility correction preserving private_key_already_exists: 27217f6da2ed271597dbc32d1d342c5530447c90.
+- Implementation commit: 0f1b3eb86532f699ebc1d2e991b8bba3d4b68f55. Status log commit: 9b7334d3650e00ccb9fe24934b9471a9cb453609. Compatibility correction preserving private_key_already_exists: 27217f6da2ed271597dbc32d1d342c5530447c90.
 - Exact code/test head: 27217f6da2ed271597dbc32d1d342c5530447c90. Its Tests, Security, Build and Formal Verification runs were created but were still queued at the time of this status update. No passing test, lint, compile or packaging claim is made for this head.
 - The prior 520-test evidence applies to the earlier trust-rotation code head 525cd19e094ad997e5ef7df37856f8a12ea1e584, not to the approval-key read/generation changes now in this branch.
 - No local checkout or local Ruff/pytest/compileall execution was available in this connector-based run. Await exact-head GitHub Actions results.
