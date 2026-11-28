@@ -10,6 +10,7 @@ import json
 import os
 import secrets
 import sqlite3
+import stat
 import time
 from contextlib import nullcontext
 from pathlib import Path
@@ -21,11 +22,14 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
+from nexora.file_lock import open_regular_file
+
 SCHEMA_VERSION = 1
 MAX_TTL_SECONDS = 900
 CLOCK_SKEW_SECONDS = 60
 DEFAULT_KEY_LIFETIME_DAYS = 365
 MAX_KEY_LIFETIME_DAYS = 730
+MAX_APPROVAL_KEY_FILE_BYTES = 64 * 1024
 
 
 class ApprovalError(RuntimeError):
@@ -113,10 +117,85 @@ def generate_keypair(private_path: Path, public_path: Path) -> str:
     return public_key_fingerprint(key.public_key())
 
 
+def _read_key_file(path: Path, *, private: bool) -> bytes:
+    """Read bounded key material from one checked descriptor.
+
+    The descriptor remains authoritative for the read. A final identity and
+    metadata check rejects observed path replacement or in-place modification.
+    """
+    key_path = Path(path)
+    kind = "private" if private else "public"
+    try:
+        descriptor = open_regular_file(key_path, os.O_RDONLY)
+    except (OSError, ValueError) as exc:
+        raise ApprovalError(f"{kind}_key_unreadable_or_invalid") from exc
+
+    try:
+        before = os.fstat(descriptor)
+        if private and os.name == "posix" and before.st_mode & 0o077:
+            raise ApprovalError("private_key_permissions_too_open")
+        if before.st_size > MAX_APPROVAL_KEY_FILE_BYTES:
+            raise ApprovalError(f"{kind}_key_file_too_large")
+
+        content = bytearray()
+        while len(content) <= MAX_APPROVAL_KEY_FILE_BYTES:
+            chunk = os.read(
+                descriptor,
+                min(8192, MAX_APPROVAL_KEY_FILE_BYTES + 1 - len(content)),
+            )
+            if not chunk:
+                break
+            content.extend(chunk)
+        if len(content) > MAX_APPROVAL_KEY_FILE_BYTES:
+            raise ApprovalError(f"{kind}_key_file_too_large")
+
+        after = os.fstat(descriptor)
+        same_inode = (
+            before.st_dev == after.st_dev
+            and (
+                not before.st_ino
+                or not after.st_ino
+                or before.st_ino == after.st_ino
+            )
+        )
+        unchanged = (
+            same_inode
+            and before.st_size == after.st_size
+            and before.st_mode == after.st_mode
+            and before.st_mtime_ns == after.st_mtime_ns
+            and before.st_ctime_ns == after.st_ctime_ns
+        )
+        if not unchanged:
+            raise ApprovalError(f"{kind}_key_changed_during_read")
+
+        try:
+            current = key_path.lstat()
+        except OSError as exc:
+            raise ApprovalError(f"{kind}_key_path_changed") from exc
+        path_matches = (
+            stat.S_ISREG(current.st_mode)
+            and current.st_dev == after.st_dev
+            and (
+                not current.st_ino
+                or not after.st_ino
+                or current.st_ino == after.st_ino
+            )
+        )
+        if not path_matches:
+            raise ApprovalError(f"{kind}_key_path_changed")
+        return bytes(content)
+    except ApprovalError:
+        raise
+    except OSError as exc:
+        raise ApprovalError(f"{kind}_key_unreadable_or_invalid") from exc
+    finally:
+        os.close(descriptor)
+
+
 def load_public_key(path: Path) -> Ed25519PublicKey:
     try:
-        key = serialization.load_pem_public_key(Path(path).read_bytes())
-    except (OSError, ValueError, TypeError) as exc:
+        key = serialization.load_pem_public_key(_read_key_file(path, private=False))
+    except (ValueError, TypeError) as exc:
         raise ApprovalError("public_key_unreadable_or_invalid") from exc
     if not isinstance(key, Ed25519PublicKey):
         raise ApprovalError("ed25519_public_key_required")
@@ -124,20 +203,17 @@ def load_public_key(path: Path) -> Ed25519PublicKey:
 
 
 def load_private_key(path: Path) -> Ed25519PrivateKey:
-    """Load a private key, refusing group/other-readable POSIX files."""
-    key_path = Path(path)
-    if os.name == "posix":
-        mode = key_path.stat().st_mode & 0o777
-        if mode & 0o077:
-            raise ApprovalError("private_key_permissions_too_open")
+    """Load a private key from a checked descriptor with restrictive POSIX permissions."""
     try:
-        key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
-    except (OSError, ValueError, TypeError) as exc:
+        key = serialization.load_pem_private_key(
+            _read_key_file(path, private=True),
+            password=None,
+        )
+    except (ValueError, TypeError) as exc:
         raise ApprovalError("private_key_unreadable_or_invalid") from exc
     if not isinstance(key, Ed25519PrivateKey):
         raise ApprovalError("ed25519_private_key_required")
     return key
-
 
 def public_key_bytes(key: Ed25519PublicKey) -> bytes:
     return key.public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
